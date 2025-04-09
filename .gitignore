@@ -13,6 +13,7 @@ yarn-error.log
 
 # Arquivos de segurança do Firebase
 serviceAccountKey.json
+firebase-credentials.json
 *firebase-adminsdk*.json
 
 # Logs

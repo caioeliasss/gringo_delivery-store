@@ -1,15 +1,15 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 
-// Substitua com suas configurações do Firebase
+// As configurações do Firebase devem vir de variáveis de ambiente
 const firebaseConfig = {
-    apiKey: "AIzaSyBh-mZCvYaGg_LrtNbb1Ho8e5AZWIauDn4",
-    authDomain: "gringo-delivery.firebaseapp.com",
-    projectId: "gringo-delivery",
-    storageBucket: "gringo-delivery.firebasestorage.app",
-    messagingSenderId: "960529837513",
-    appId: "1:960529837513:web:b0d49f17513b7c2dd04c18"
-  };
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID
+};
 
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig);
