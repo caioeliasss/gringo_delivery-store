@@ -5,8 +5,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "build:gcp": "gcloud builds submit --tag gcr.io/cardapio-digital/cardapio-digital",
-    "deploy:gcp": "gcloud run deploy meu-app-backend --image gcr.io/cardapio-digital/cardapio-digital --platform managed --region us-central1 --allow-unauthenticated"
+    "build:gcp": "gcloud builds submit --tag gcr.io/gringo-delivery-store/gringo-delivery-store",
+    "deploy:gcp": "gcloud run deploy gringo-delivery-store --image gcr.io/gringo-delivery-store/gringo-delivery-store --platform managed --region us-central1 --allow-unauthenticated"
   },
   "keywords": [],
   "author": "",

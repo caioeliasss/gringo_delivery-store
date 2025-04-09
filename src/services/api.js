@@ -10,6 +10,10 @@ const api = axios.create({
   }
 });
 
+export const createUserProfile = async (userData) => {
+  return api.post('/users/profile', userData);
+};
+
 // Interceptor para adicionar token de autenticação
 api.interceptors.request.use(
   async (config) => {

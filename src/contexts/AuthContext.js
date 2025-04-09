@@ -23,9 +23,8 @@ export function AuthProvider({ children }) {
   async function signup(email, password, displayName) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      // Atualizar o perfil no Firebase
-      await updateUserProfile({ displayName });
-      return userCredential.user;
+      // Vamos apenas retornar o objeto de usuário para podermos usar o UID
+      return userCredential;
     } catch (error) {
       throw error;
     }
@@ -39,6 +38,13 @@ export function AuthProvider({ children }) {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
+      // Se o login for bem-sucedido, atualizar o perfil no backend
+      if (result.user) {
+        await updateUserProfile({
+          displayName: result.user.displayName,
+          photoURL: result.user.photoURL
+        });
+      }
       return result.user;
     } catch (error) {
       throw error;

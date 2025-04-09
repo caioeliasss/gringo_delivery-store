@@ -11,6 +11,15 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
+  cnpj: {
+    type: String,
+    required: false, // Pode ser opcional ou obrigatório, conforme sua necessidade
+    default: null
+  },
+  cnpj_approved: {
+    type: Boolean,
+    required: false
+  },
   displayName: {
     type: String,
     required: false

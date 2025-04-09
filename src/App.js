@@ -1,37 +1,43 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { AuthProvider } from './contexts/AuthContext';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import PrivateRoute from './components/PrivateRoute';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import Login from './pages/Login/Login';
+import Register from './pages/Register/Register';
+import Dashboard from './pages/Dashboard/Dashboard';
+import './App.css';
 
-const Stack = createNativeStackNavigator();
+// Componente para rotas protegidas
+const PrivateRoute = ({ children }) => {
+  const { currentUser } = useAuth();
+  
+  if (!currentUser) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+};
 
 function App() {
   return (
-    <NavigationContainer>
+    <Router>
       <AuthProvider>
-        <Stack.Navigator 
-          initialRouteName="Login"
-          screenOptions={{
-            headerShown: false
-          }}
-        >
-          <Stack.Screen name="Login" component={Login} />
-          <Stack.Screen name="Register" component={Register} />
-          <Stack.Screen 
-            name="Dashboard" 
-            component={Dashboard}
-            options={{
-              // Impedir voltar para a tela de login após autenticação
-              gestureEnabled: false
-            }}
-          />
-        </Stack.Navigator>
+        <div className="App">
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route 
+              path="/dashboard" 
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              } 
+            />
+            <Route path="/" element={<Navigate to="/login" />} />
+          </Routes>
+        </div>
       </AuthProvider>
-    </NavigationContainer>
+    </Router>
   );
 }
 
