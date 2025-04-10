@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { getUserProfile } from '../../services/api';
 import './Dashboard.css';
@@ -44,6 +44,18 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard-container">
+      <div className="dashboard-sidebar">
+        <div className="dashboard-menu">
+          <Link to="/dashboard" className="dashboard-menu-item active">
+            Dashboard
+          </Link>
+          <Link to="/produtos" className="dashboard-menu-item">
+            Produtos
+          </Link>
+          {/* Adicionar mais links de navegação conforme necessário */}
+        </div>
+      </div>
+      
       <div className="dashboard-content">
         <h1 className="dashboard-title">Dashboard</h1>
         
@@ -56,6 +68,13 @@ const Dashboard = () => {
             <span className="dashboard-info-label">Email:</span>
             <span className="dashboard-info-value">{currentUser?.email}</span>
           </div>
+          
+          {userProfile && userProfile.cnpj && (
+            <div className="dashboard-info-container">
+              <span className="dashboard-info-label">CNPJ:</span>
+              <span className="dashboard-info-value">{userProfile.cnpj}</span>
+            </div>
+          )}
           
           {userProfile && userProfile.photoURL && (
             <img 

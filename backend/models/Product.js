@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 
-const userSchema = new mongoose.Schema({
+const productSchema = new mongoose.Schema({
   cnpj: {
     type: Number,
-    required: false, // Pode ser opcional ou obrigatório, conforme sua necessidade
+    required: false,
     default: null
   },
   productName: {
@@ -15,7 +15,7 @@ const userSchema = new mongoose.Schema({
     required: false,
     default: "https://www.svgrepo.com/show/380889/product-quality-internet-marketing-project.svg"
   },
-  description : { 
+  description: { 
     type: String,
     required: true,
   },
@@ -42,9 +42,9 @@ const userSchema = new mongoose.Schema({
 });
 
 // Middleware para atualizar o campo updatedAt antes de salvar
-userSchema.pre('save', function(next) {
+productSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();
 });
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.model('Product', productSchema);

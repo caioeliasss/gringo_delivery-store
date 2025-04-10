@@ -61,7 +61,10 @@ app.get('/', (req, res) => {
 
 // Importar rotas
 const userRoutes = require('./routes/userRoutes');
+const productRoutes = require('./routes/productRoutes');
+
 app.use('/api/users', userRoutes);
+app.use('/api/products', productRoutes);
 
 // Iniciar o servidor
 app.listen(PORT, () => {

@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './pages/Login/Login';
 import Register from './pages/Register/Register';
 import Dashboard from './pages/Dashboard/Dashboard';
+import Produtos from './pages/Produtos/Produtos';
 import './App.css';
 
 // Componente para rotas protegidas
@@ -30,6 +31,14 @@ function App() {
               element={
                 <PrivateRoute>
                   <Dashboard />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/produtos" 
+              element={
+                <PrivateRoute>
+                  <Produtos />
                 </PrivateRoute>
               } 
             />
