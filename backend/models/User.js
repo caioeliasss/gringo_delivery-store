@@ -1,5 +1,19 @@
 const mongoose = require('mongoose');
 
+// Definindo o schema GeoJSON Point para localização (mesmo que no modelo Motoboy)
+const pointSchema = new mongoose.Schema({
+  type: {
+    type: String,
+    enum: ['Point'],
+    default: 'Point',
+    required: true
+  },
+  coordinates: {
+    type: [Number], // [longitude, latitude]
+    required: true
+  }
+});
+
 const userSchema = new mongoose.Schema({
   firebaseUid: {
     type: String,
@@ -13,12 +27,13 @@ const userSchema = new mongoose.Schema({
   },
   cnpj: {
     type: String,
-    required: false, // Pode ser opcional ou obrigatório, conforme sua necessidade
+    required: false, 
     default: null
   },
   cnpj_approved: {
     type: Boolean,
-    required: false
+    required: false,
+    default: false
   },
   displayName: {
     type: String,
@@ -27,6 +42,32 @@ const userSchema = new mongoose.Schema({
   photoURL: {
     type: String,
     required: false
+  },
+  // Novos campos adicionados
+  businessName: {
+    type: String,
+    required: false
+  },
+  address: {
+    type: String,
+    required: false
+  },
+  phone: {
+    type: String,
+    required: false
+  },
+  // Campo de geolocalização
+  geolocation: {
+    type: pointSchema,
+    index: '2dsphere' // Índice espacial para consultas de proximidade
+  },
+  businessHours: {
+    type: String,
+    required: false
+  },
+  isAvailable: {
+    type: Boolean,
+    default: true
   },
   createdAt: {
     type: Date,

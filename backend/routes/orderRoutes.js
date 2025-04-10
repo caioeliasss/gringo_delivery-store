@@ -3,6 +3,8 @@ const router = express.Router();
 const admin = require('firebase-admin');
 const User = require('../models/User');
 const Order = require('../models/Order');
+const Motoboy = require('../models/Motoboy');
+const axios = require('axios');
 
 // Middleware de autenticação
 const authenticateToken = async (req, res, next) => {
@@ -105,6 +107,44 @@ router.put('/:id/status', authenticateToken, async (req, res) => {
   }
 });
 
+// Função auxiliar para geocodificar um endereço usando Google Maps API
+const geocodeAddress = async (address) => {
+  try {
+    // Em ambiente de produção, você deve usar um serviço como Google Maps API
+    // Esta é uma implementação simplificada para simulação
+    
+    // Simular uma resposta de geocodificação
+    return {
+      type: 'Point',
+      coordinates: [
+        -46.6333 + (Math.random() - 0.5) * 0.1, // Longitude (São Paulo + aleatoriedade)
+        -23.5505 + (Math.random() - 0.5) * 0.1  // Latitude (São Paulo + aleatoriedade)
+      ]
+    };
+    
+    // Em um ambiente real, você usaria algo como:
+    /*
+    const googleMapsApiKey = process.env.GOOGLE_MAPS_API_KEY;
+    const response = await axios.get(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${googleMapsApiKey}`
+    );
+    
+    if (response.data.status === 'OK' && response.data.results.length > 0) {
+      const location = response.data.results[0].geometry.location;
+      return {
+        type: 'Point',
+        coordinates: [location.lng, location.lat]
+      };
+    }
+    
+    throw new Error('Não foi possível geocodificar o endereço');
+    */
+  } catch (error) {
+    console.error('Erro ao geocodificar endereço:', error);
+    throw error;
+  }
+};
+
 // Criar novo pedido (para uso do app do cliente)
 router.post('/', async (req, res) => {
   try {
@@ -124,11 +164,23 @@ router.post('/', async (req, res) => {
     // Gerar número do pedido (formato: PD + timestamp)
     const orderNumber = 'PD' + Date.now().toString().substr(-6);
     
+    // Tentar geocodificar o endereço do cliente
+    let geolocation;
+    try {
+      geolocation = await geocodeAddress(customer.address);
+    } catch (error) {
+      console.error('Erro ao geocodificar endereço:', error);
+      // Continuar sem geolocalização, não é crítico
+    }
+    
     // Criar novo pedido
     const newOrder = new Order({
       cnpj,
       orderNumber,
-      customer,
+      customer: {
+        ...customer,
+        geolocation // Adicionar coordenadas do endereço
+      },
       items,
       total,
       payment,
@@ -144,6 +196,132 @@ router.post('/', async (req, res) => {
   } catch (error) {
     console.error('Erro ao criar pedido:', error);
     res.status(500).json({ message: 'Erro ao criar pedido', error: error.message });
+  }
+});
+
+// Buscar motoboys próximos para atribuir a um pedido
+router.get('/:id/nearby-motoboys', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findOne({ firebaseUid: req.user.uid });
+    if (!user) {
+      return res.status(404).json({ message: 'Usuário não encontrado' });
+    }
+    
+    const order = await Order.findOne({ _id: req.params.id, cnpj: user.cnpj });
+    if (!order) {
+      return res.status(404).json({ message: 'Pedido não encontrado' });
+    }
+    
+    if (!order.customer.geolocation) {
+      return res.status(400).json({ message: 'Este pedido não possui geolocalização definida' });
+    }
+    
+    // Buscar motoboys disponíveis próximos ao endereço de entrega
+    const { coordinates } = order.customer.geolocation;
+    const maxDistance = req.query.maxDistance || 5000; // 5km padrão
+    
+    const nearbyMotoboys = await Motoboy.find({
+      isAvailable: true,
+      register_approved: true,
+      geolocation: {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: coordinates
+          },
+          $maxDistance: parseInt(maxDistance)
+        }
+      }
+    }).select('name phone geolocation score profileImage');
+    
+    res.status(200).json(nearbyMotoboys);
+  } catch (error) {
+    console.error('Erro ao buscar motoboys próximos:', error);
+    res.status(500).json({ message: 'Erro ao buscar motoboys próximos', error: error.message });
+  }
+});
+
+// Atribuir motoboy a um pedido
+router.post('/:id/assign-motoboy', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findOne({ firebaseUid: req.user.uid });
+    if (!user) {
+      return res.status(404).json({ message: 'Usuário não encontrado' });
+    }
+    
+    const order = await Order.findOne({ _id: req.params.id, cnpj: user.cnpj });
+    if (!order) {
+      return res.status(404).json({ message: 'Pedido não encontrado' });
+    }
+    
+    const { motoboyId } = req.body;
+    if (!motoboyId) {
+      return res.status(400).json({ message: 'ID do motoboy não fornecido' });
+    }
+    
+    const motoboy = await Motoboy.findById(motoboyId);
+    if (!motoboy) {
+      return res.status(404).json({ message: 'Motoboy não encontrado' });
+    }
+    
+    // Verificar se motoboy está disponível
+    if (!motoboy.isAvailable) {
+      return res.status(400).json({ message: 'Motoboy não está disponível no momento' });
+    }
+    
+    // Atribuir motoboy ao pedido
+    order.motoboy = {
+      motoboyId: motoboy._id,
+      name: motoboy.name,
+      phone: motoboy.phone
+    };
+    
+    // Atualizar status do pedido para "em entrega"
+    if (order.status === 'em_preparo') {
+      order.status = 'em_entrega';
+    }
+    
+    // Calcular estimativa de entrega
+    if (order.customer.geolocation && motoboy.geolocation) {
+      // Cálculo simplificado de distância euclidiana
+      const startLat = motoboy.geolocation.coordinates[1];
+      const startLng = motoboy.geolocation.coordinates[0];
+      const endLat = order.customer.geolocation.coordinates[1];
+      const endLng = order.customer.geolocation.coordinates[0];
+      
+      // Cálculo de distância usando a fórmula de Haversine
+      const R = 6371e3; // Raio da Terra em metros
+      const φ1 = startLat * Math.PI/180; // φ, λ em radianos
+      const φ2 = endLat * Math.PI/180;
+      const Δφ = (endLat-startLat) * Math.PI/180;
+      const Δλ = (endLng-startLng) * Math.PI/180;
+
+      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+      const distance = R * c; // em metros
+      
+      // Estimar tempo baseado em uma velocidade média de 20 km/h
+      const estimatedTimeMinutes = Math.ceil(distance / (20000 / 60));
+      
+      order.delivery = {
+        estimatedTime: estimatedTimeMinutes,
+        distance: Math.round(distance),
+        startTime: new Date()
+      };
+    }
+    
+    await order.save();
+    
+    res.status(200).json({ 
+      message: 'Motoboy atribuído ao pedido com sucesso', 
+      order 
+    });
+  } catch (error) {
+    console.error('Erro ao atribuir motoboy ao pedido:', error);
+    res.status(500).json({ message: 'Erro ao atribuir motoboy ao pedido', error: error.message });
   }
 });
 
@@ -230,13 +408,38 @@ router.get('/stats/summary', authenticateToken, async (req, res) => {
       }
     ]);
     
+    // Estatísticas de entrega (distância média, tempo médio)
+    const deliveryStats = await Order.aggregate([
+      {
+        $match: { 
+          cnpj: user.cnpj,
+          status: 'entregue',
+          'delivery.distance': { $exists: true },
+          'delivery.estimatedTime': { $exists: true }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          avgDistance: { $avg: '$delivery.distance' },
+          avgTime: { $avg: '$delivery.estimatedTime' },
+          totalDeliveries: { $sum: 1 }
+        }
+      }
+    ]);
+    
     res.status(200).json({
       totalOrders,
       todayOrders,
       last30DaysOrders,
       statusCount,
       totalRevenue: totalRevenue.length > 0 ? totalRevenue[0].total : 0,
-      last30DaysRevenue: last30DaysRevenue.length > 0 ? last30DaysRevenue[0].total : 0
+      last30DaysRevenue: last30DaysRevenue.length > 0 ? last30DaysRevenue[0].total : 0,
+      deliveryStats: deliveryStats.length > 0 ? {
+        avgDistance: Math.round(deliveryStats[0].avgDistance),
+        avgTime: Math.round(deliveryStats[0].avgTime),
+        totalDeliveries: deliveryStats[0].totalDeliveries
+      } : null
     });
   } catch (error) {
     console.error('Erro ao obter estatísticas:', error);

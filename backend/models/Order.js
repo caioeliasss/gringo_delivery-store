@@ -1,5 +1,19 @@
 const mongoose = require('mongoose');
 
+// Definindo o schema GeoJSON Point para localização
+const pointSchema = new mongoose.Schema({
+  type: {
+    type: String,
+    enum: ['Point'],
+    default: 'Point',
+    required: true
+  },
+  coordinates: {
+    type: [Number], // [longitude, latitude]
+    required: true
+  }
+});
+
 const orderItemSchema = new mongoose.Schema({
   productId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -42,6 +56,27 @@ const orderSchema = new mongoose.Schema({
     address: {
       type: String,
       required: true
+    },
+    // Adição de geolocalização para o endereço de entrega
+    geolocation: {
+      type: pointSchema,
+      index: '2dsphere' // Índice espacial para consultas de proximidade
+    }
+  },
+  // Campo para registrar qual motoboy está atendendo o pedido
+  motoboy: {
+    motoboyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Motoboy',
+      required: false
+    },
+    name: {
+      type: String,
+      required: false
+    },
+    phone: {
+      type: String,
+      required: false
     }
   },
   items: [orderItemSchema],
@@ -67,6 +102,25 @@ const orderSchema = new mongoose.Schema({
     change: {
       type: Number,
       default: 0
+    }
+  },
+  // Campo para rastrear informações sobre a entrega
+  delivery: {
+    estimatedTime: {
+      type: Number, // em minutos
+      required: false
+    },
+    distance: {
+      type: Number, // em metros
+      required: false
+    },
+    startTime: {
+      type: Date,
+      required: false
+    },
+    endTime: {
+      type: Date,
+      required: false
     }
   },
   notes: {
