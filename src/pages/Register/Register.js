@@ -12,7 +12,6 @@ import {
   Link as MuiLink,
   Alert,
   CircularProgress,
-  Grid,
   InputAdornment
 } from '@mui/material';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
@@ -123,6 +122,15 @@ const Register = () => {
           minHeight: '100vh'
         }}
       >
+        {/* Logo */}
+        <Box sx={{ mb: 4 }}>
+          <img
+            src="https://i.imgur.com/8jOdfcO.png"
+            alt="Gringo Delivery"
+            style={{ height: 80 }}
+          />
+        </Box>
+        
         <Paper 
           elevation={3} 
           sx={{ 
@@ -138,13 +146,13 @@ const Register = () => {
           <Box 
             sx={{ 
               bgcolor: 'primary.main', 
-              borderRadius: '50%', 
+              borderRadius: '100%', 
               p: 1, 
               mb: 2,
               color: 'white'
             }}
           >
-            <PersonAddIcon fontSize="large" />
+            <PersonAddIcon fontSize="large" style={{marginTop: "4px"}}/>
           </Box>
           
           <Typography component="h1" variant="h5" fontWeight="bold" mb={3}>
@@ -174,7 +182,7 @@ const Register = () => {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <BadgeIcon />
+                    <BadgeIcon color="primary" />
                   </InputAdornment>
                 )
               }}
@@ -193,7 +201,7 @@ const Register = () => {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <EmailIcon />
+                    <EmailIcon color="primary" />
                   </InputAdornment>
                 )
               }}
@@ -213,7 +221,7 @@ const Register = () => {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <LockIcon />
+                    <LockIcon color="primary" />
                   </InputAdornment>
                 )
               }}
@@ -233,7 +241,7 @@ const Register = () => {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <LockIcon />
+                    <LockIcon color="primary" />
                   </InputAdornment>
                 )
               }}
@@ -245,13 +253,13 @@ const Register = () => {
               sx={{ mt: 3, mb: 2, py: 1.5 }}
               disabled={loading}
             >
-              {loading ? <CircularProgress size={24} /> : "Criar Conta"}
+              {loading ? <CircularProgress size={24} color="inherit" /> : "Criar Conta"}
             </Button>
             
             <Box sx={{ mt: 2, textAlign: 'center' }}>
               <Typography variant="body2">
                 Já possui uma conta?{' '}
-                <MuiLink component={Link} to="/login" variant="body2" fontWeight="bold">
+                <MuiLink component={Link} to="/login" variant="body2" fontWeight="bold" color="primary">
                   Faça login
                 </MuiLink>
               </Typography>

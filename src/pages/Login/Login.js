@@ -74,6 +74,15 @@ const Login = () => {
           minHeight: '100vh'
         }}
       >
+        {/* Logo */}
+        <Box sx={{ mb: 4 }}>
+          <img
+            src="https://i.imgur.com/8jOdfcO.png"
+            alt="Gringo Delivery"
+            style={{ height: 80 }}
+          />
+        </Box>
+        
         <Paper 
           elevation={3} 
           sx={{ 
@@ -89,13 +98,13 @@ const Login = () => {
           <Box 
             sx={{ 
               bgcolor: 'primary.main', 
-              borderRadius: '50%', 
+              borderRadius: '100%', 
               p: 1, 
               mb: 2,
               color: 'white'
             }}
           >
-            <LockOutlinedIcon fontSize="large" />
+            <LockOutlinedIcon fontSize="large" style={{marginTop: "4px"}}/>
           </Box>
           
           <Typography component="h1" variant="h5" fontWeight="bold" mb={3}>
@@ -142,7 +151,7 @@ const Login = () => {
               sx={{ mt: 3, mb: 2, py: 1.5 }}
               disabled={loading}
             >
-              {loading ? <CircularProgress size={24} /> : "Entrar"}
+              {loading ? <CircularProgress size={24} color="inherit" /> : "Entrar"}
             </Button>
             
             <Divider sx={{ my: 2 }}>ou</Divider>
@@ -164,7 +173,7 @@ const Login = () => {
             <Box sx={{ mt: 2, textAlign: 'center' }}>
               <Typography variant="body2">
                 Não tem uma conta?{' '}
-                <MuiLink component={Link} to="/register" variant="body2" fontWeight="bold">
+                <MuiLink component={Link} to="/register" variant="body2" fontWeight="bold" color="primary">
                   Registre-se
                 </MuiLink>
               </Typography>

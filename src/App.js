@@ -9,20 +9,30 @@ import Dashboard from './pages/Dashboard/Dashboard';
 import Produtos from './pages/Produtos/Produtos';
 import './App.css';
 
-// Definir tema personalizado
+// Definir tema personalizado com a paleta de cores da Gringo Delivery
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#4285F4', // Azul Google
+      main: '#EB2E3E', // Vermelho Gringo
+      contrastText: '#FFFFFF',
     },
     secondary: {
-      main: '#34A853', // Verde Google
+      main: '#FBBF24', // Amarelo Gringo
+      contrastText: '#FFFFFF',
+    },
+    background: {
+      default: '#f5f5f5',
+      paper: '#FFFFFF',
     },
     error: {
-      main: '#EA4335', // Vermelho Google
+      main: '#f44336',
     },
     warning: {
-      main: '#FBBC05', // Amarelo Google
+      main: '#FBBF24', // Amarelo Gringo
+    },
+    text: {
+      primary: '#333333',
+      secondary: '#666666',
     },
   },
   typography: {
@@ -49,6 +59,16 @@ const theme = createTheme({
           textTransform: 'none',
           fontWeight: 600,
         },
+        containedPrimary: {
+          '&:hover': {
+            backgroundColor: '#d12535', // Vermelho mais escuro
+          },
+        },
+        containedSecondary: {
+          '&:hover': {
+            backgroundColor: '#e6ad20', // Amarelo mais escuro
+          },
+        },
       },
     },
     MuiCard: {
@@ -63,6 +83,23 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 12,
+        },
+      },
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#EB2E3E',
+        },
+      },
+    },
+    MuiChip: {
+      styleOverrides: {
+        colorPrimary: {
+          backgroundColor: '#EB2E3E',
+        },
+        colorSecondary: {
+          backgroundColor: '#FBBF24',
         },
       },
     },

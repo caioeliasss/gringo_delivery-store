@@ -15,11 +15,18 @@ import {
   ListItemIcon,
   ListItemText,
   Divider,
-  Grid
+  Grid,
+  AppBar,
+  Toolbar,
+  IconButton,
+  Drawer,
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
   ShoppingBag as ProductsIcon,
+  Menu as MenuIcon,
   Person as ProfileIcon,
   Logout as LogoutIcon
 } from '@mui/icons-material';
@@ -29,6 +36,9 @@ const Dashboard = () => {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -54,89 +64,135 @@ const Dashboard = () => {
     }
   };
 
+  const toggleDrawer = (open) => (event) => {
+    if (event.type === 'keydown' && (event.key === 'Tab' || event.key === 'Shift')) {
+      return;
+    }
+    setDrawerOpen(open);
+  };
+
+  const drawerItems = (
+    <Box sx={{ width: 250 }}>
+      <Box sx={{ p: 2, textAlign: 'center' }}>
+        <img 
+          src="https://i.imgur.com/8jOdfcO.png"
+          alt="Gringo Delivery" 
+          style={{ height: 50, marginBottom: 16 }}
+        />
+      </Box>
+      <Divider />
+      <List>
+        <ListItem 
+          button 
+          component={Link} 
+          to="/dashboard" 
+          selected={true}
+          sx={{ 
+            color: 'text.primary',
+            '&.Mui-selected': { 
+              bgcolor: 'primary.main',
+              color: 'white',
+              '&:hover': { bgcolor: 'primary.dark' } 
+            },
+            '&:hover': { bgcolor: 'primary.light', color: 'white' }
+          }}
+        >
+          <ListItemIcon sx={{ color: 'inherit' }}>
+            <DashboardIcon />
+          </ListItemIcon>
+          <ListItemText primary="Dashboard" />
+        </ListItem>
+        <ListItem 
+          button 
+          component={Link} 
+          to="/produtos"
+          sx={{ 
+            color: 'text.primary',
+            '&:hover': { bgcolor: 'primary.light', color: 'white' } 
+          }}
+        >
+          <ListItemIcon sx={{ color: 'inherit' }}>
+            <ProductsIcon />
+          </ListItemIcon>
+          <ListItemText primary="Produtos" />
+        </ListItem>
+      </List>
+      <Divider />
+      <List>
+        <ListItem 
+          button 
+          onClick={handleLogout}
+          sx={{ '&:hover': { bgcolor: 'error.light', color: 'white' } }}
+        >
+          <ListItemIcon sx={{ color: 'inherit' }}>
+            <LogoutIcon />
+          </ListItemIcon>
+          <ListItemText primary="Sair" />
+        </ListItem>
+      </List>
+    </Box>
+  );
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
+        <CircularProgress color="primary" />
       </Box>
     );
   }
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#f5f5f5' }}>
-      {/* Sidebar */}
-      <Box
-        component="nav"
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+      {/* AppBar para dispositivos móveis */}
+      {isMobile && (
+        <AppBar position="fixed">
+          <Toolbar>
+            <IconButton
+              color="inherit"
+              edge="start"
+              onClick={toggleDrawer(true)}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
+              Gringo Delivery
+            </Typography>
+          </Toolbar>
+        </AppBar>
+      )}
+
+      {/* Drawer para dispositivos móveis */}
+      <Drawer
+        anchor="left"
+        open={isMobile ? drawerOpen : true}
+        onClose={toggleDrawer(false)}
+        variant={isMobile ? "temporary" : "permanent"}
         sx={{
           width: 250,
           flexShrink: 0,
-          bgcolor: 'primary.main',
-          color: 'white',
-          boxShadow: 3
+          '& .MuiDrawer-paper': {
+            width: 250,
+            boxSizing: 'border-box',
+          },
         }}
       >
-        <Box sx={{ p: 3, textAlign: 'center' }}>
-          <Typography variant="h6" component="div" sx={{ fontWeight: 'bold' }}>
-            Minha Loja
-          </Typography>
-        </Box>
-        <Divider sx={{ bgcolor: 'primary.light' }} />
-        <List component="nav">
-          <ListItem 
-            style={{color:"white"}}
-            button 
-            component={Link} 
-            to="/dashboard" 
-            selected={true}
-            sx={{ 
-              '&.Mui-selected': { 
-                bgcolor: 'primary.dark',
-                '&:hover': { bgcolor: 'primary.dark' } 
-              },
-              '&:hover': { bgcolor: 'primary.light' }
-            }}
-          >
-            <ListItemIcon sx={{ color: 'white' }}>
-              <DashboardIcon />
-            </ListItemIcon>
-            <ListItemText primary="Dashboard" />
-          </ListItem>
-          <ListItem 
-            style={{color:"white"}}
-            button 
-            component={Link} 
-            to="/produtos"
-            sx={{ '&:hover': { bgcolor: 'primary.light' } }}
-          >
-            <ListItemIcon sx={{ color: 'white' }}>
-              <ProductsIcon />
-            </ListItemIcon>
-            <ListItemText primary="Produtos" />
-          </ListItem>
-        </List>
-        <Box sx={{ position: 'absolute', bottom: 0, width: '100%' }}>
-          <Divider sx={{ bgcolor: 'primary.light' }} />
-          <ListItem 
-            button 
-            onClick={handleLogout}
-            sx={{ '&:hover': { bgcolor: 'primary.light' } }}
-          >
-            <ListItemIcon sx={{ color: 'white' }}>
-              <LogoutIcon />
-            </ListItemIcon>
-            <ListItemText primary="Sair" />
-          </ListItem>
-        </Box>
-      </Box>
+        {drawerItems}
+      </Drawer>
       
       {/* Main content */}
-      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+      <Box component="main" sx={{ 
+        flexGrow: 1, 
+        p: 3,
+        ml: isMobile ? 0 : '2px',
+        mt: isMobile ? '64px' : 0
+      }}>
         <Container maxWidth="md">
-          <Typography variant="h4" component="h1" sx={{ mb: 4, fontWeight: 'bold' }}>
+          <Typography variant="h4" component="h1" sx={{ mb: 4, fontWeight: 'bold', color: 'primary.main' }}>
             Dashboard
           </Typography>
           
-          <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
+          <Paper elevation={3} sx={{ p: 4, mb: 4, borderRadius: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
               {userProfile?.photoURL ? (
                 <Avatar 
@@ -153,14 +209,14 @@ const Dashboard = () => {
               )}
               <Box>
                 <Typography variant="h5" component="h2" sx={{ fontWeight: 'bold' }}>
-                  Bem-vindo, {userProfile?.displayName || currentUser?.email}!
+                  Bem-vindo, {userProfile?.displayName || currentUser?.email.split('@')[0]}!
                 </Typography>
               </Box>
             </Box>
             
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
-                <Box sx={{ mr: 2 }}>
+                <Box sx={{ mb: 2,mr: 2 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
                     Email:
                   </Typography>
@@ -172,17 +228,17 @@ const Dashboard = () => {
               
               {userProfile?.cnpj && (
                 <Grid item xs={12} sm={6}>
-                  <Box sx={{ mr: 2 }}>
+                  <Box sx={{ mb: 2,mr: 2 }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
                       CNPJ:
                     </Typography>
                     <Typography variant="body1">
-                      {userProfile.cnpj}
+                      {userProfile.cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')}
                     </Typography>
                   </Box>
                 </Grid>
               )}
-              <Grid item xs={12} sm={6}>
+                <Grid item xs={12} sm={6}>
                   <Box sx={{ mr: 2 }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
                       Cadastro Aprovado:
@@ -193,11 +249,12 @@ const Dashboard = () => {
                     </Typography>
                   </Box>
                 </Grid>
+
             </Grid>
           </Paper>
           
-          <Paper elevation={3} sx={{ p: 4 }}>
-            <Typography variant="h6" component="h3" sx={{ mb: 2, fontWeight: 'bold' }}>
+          <Paper elevation={3} sx={{ p: 4, borderRadius: 3 }}>
+            <Typography variant="h6" component="h3" sx={{ mb: 2, fontWeight: 'bold', color: 'primary.main' }}>
               Acesso Rápido
             </Typography>
             <Grid container spacing={2}>
@@ -208,7 +265,7 @@ const Dashboard = () => {
                   to="/produtos"
                   startIcon={<ProductsIcon />}
                   fullWidth
-                  sx={{ p: 2, height: '100%' }}
+                  sx={{ p: 2, height: '100%', color: 'primary.main', borderColor: 'primary.main' }}
                 >
                   Gerenciar Produtos
                 </Button>
