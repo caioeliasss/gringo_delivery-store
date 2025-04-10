@@ -24,6 +24,7 @@ import {
   useTheme
 } from '@mui/material';
 import {
+  Receipt as OrdersIcon,
   Dashboard as DashboardIcon,
   ShoppingBag as ProductsIcon,
   Menu as MenuIcon,
@@ -115,6 +116,26 @@ const Dashboard = () => {
             <ProductsIcon />
           </ListItemIcon>
           <ListItemText primary="Produtos" />
+        </ListItem>
+        <ListItem 
+          button 
+          component={Link} 
+          to="/pedidos"
+          selected={true}
+          sx={{ 
+            color: 'text.primary',
+            '&.Mui-selected': { 
+              bgcolor: 'primary.main',
+              color: 'white',
+              '&:hover': { bgcolor: 'primary.dark' } 
+            },
+            '&:hover': { bgcolor: 'primary.light', color: 'white' } 
+          }}
+        >
+          <ListItemIcon sx={{ color: 'inherit' }}>
+            <OrdersIcon />
+          </ListItemIcon>
+          <ListItemText primary="Pedidos" />
         </ListItem>
       </List>
       <Divider />

@@ -1,0 +1,456 @@
+.pedidos-container {
+    min-height: 100vh;
+    background-color: #f5f5f5;
+    padding: 20px;
+  }
+  
+  .pedidos-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  .pedidos-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  
+  .pedidos-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: #333;
+  }
+  
+  .pedidos-table-container {
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  
+  .pedidos-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .pedidos-table-header {
+    background-color: #EB2E3E;
+    color: white;
+  }
+  
+  .pedidos-table-header th {
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 700;
+  }
+  
+  .pedidos-table-row {
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .pedidos-table-row:hover {
+    background-color: #f9f9f9;
+  }
+  
+  .pedidos-table-row td {
+    padding: 12px 15px;
+  }
+  
+  .pedidos-table-row-pendente {
+    background-color: rgba(255, 191, 36, 0.1);
+  }
+  
+  .pedidos-table-row-preparo {
+    background-color: rgba(235, 46, 62, 0.1);
+  }
+  
+  .pedidos-table-row-entrega {
+    background-color: rgba(66, 133, 244, 0.1);
+  }
+  
+  .pedidos-table-row-entregue {
+    background-color: rgba(76, 175, 80, 0.1);
+  }
+  
+  .pedidos-table-row-cancelado {
+    background-color: rgba(244, 67, 54, 0.1);
+  }
+  
+  .pedidos-status-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 16px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  
+  .pedidos-status-chip-icon {
+    margin-right: 4px;
+    font-size: 16px;
+  }
+  
+  .pedidos-status-pendente {
+    background-color: #FBBF24;
+    color: #7C2D12;
+  }
+  
+  .pedidos-status-preparo {
+    background-color: #EB2E3E;
+    color: white;
+  }
+  
+  .pedidos-status-entrega {
+    background-color: #4285F4;
+    color: white;
+  }
+  
+  .pedidos-status-entregue {
+    background-color: #4CAF50;
+    color: white;
+  }
+  
+  .pedidos-status-cancelado {
+    background-color: #F44336;
+    color: white;
+  }
+  
+  .pedidos-action-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #4285F4;
+    font-size: 18px;
+    transition: color 0.2s;
+  }
+  
+  .pedidos-action-button:hover {
+    color: #3367d6;
+  }
+  
+  .pedidos-filter-container {
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  
+  .pedidos-filter-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 15px;
+    color: #333;
+    display: flex;
+    align-items: center;
+  }
+  
+  .pedidos-filter-icon {
+    margin-right: 8px;
+    color: #4285F4;
+  }
+  
+  .pedidos-filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 15px;
+  }
+  
+  .pedidos-search-input {
+    flex: 1;
+    min-width: 250px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+  }
+  
+  .pedidos-filter-select {
+    flex: 1;
+    min-width: 200px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+  }
+  
+  .pedidos-active-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  
+  .pedidos-filter-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 16px;
+    font-size: 12px;
+    background-color: #f0f0f0;
+    color: #333;
+  }
+  
+  .pedidos-filter-chip-delete {
+    margin-left: 4px;
+    cursor: pointer;
+    color: #666;
+  }
+  
+  .pedidos-clear-filters {
+    margin-left: auto;
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: white;
+    color: #333;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .pedidos-clear-filters:hover {
+    background-color: #f5f5f5;
+  }
+  
+  .pedidos-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  
+  .pedidos-modal-content {
+    background-color: white;
+    border-radius: 10px;
+    width: 100%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+  }
+  
+  .pedidos-modal-header {
+    background-color: #EB2E3E;
+    color: white;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 10px 10px 0 0;
+  }
+  
+  .pedidos-modal-title {
+    font-size: 18px;
+    font-weight: 700;
+  }
+  
+  .pedidos-modal-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+  }
+  
+  .pedidos-modal-body {
+    padding: 20px;
+  }
+  
+  .pedidos-detail-section {
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+  }
+  
+  .pedidos-detail-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: #EB2E3E;
+  }
+  
+  .pedidos-detail-row {
+    margin-bottom: 8px;
+  }
+  
+  .pedidos-detail-label {
+    font-weight: 600;
+    color: #555;
+  }
+  
+  .pedidos-detail-value {
+    color: #333;
+  }
+  
+  .pedidos-items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+  }
+  
+  .pedidos-items-table th {
+    background-color: #f0f0f0;
+    padding: 8px;
+    text-align: left;
+    font-weight: 600;
+  }
+  
+  .pedidos-items-table td {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .pedidos-update-status {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+  }
+  
+  .pedidos-status-button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: background-color 0.2s;
+  }
+  
+  .pedidos-status-button-icon {
+    margin-right: 8px;
+  }
+  
+  .pedidos-iniciar-button {
+    background-color: #EB2E3E;
+    color: white;
+  }
+  
+  .pedidos-iniciar-button:hover {
+    background-color: #d12535;
+  }
+  
+  .pedidos-entregar-button {
+    background-color: #4285F4;
+    color: white;
+  }
+  
+  .pedidos-entregar-button:hover {
+    background-color: #3367d6;
+  }
+  
+  .pedidos-concluir-button {
+    background-color: #4CAF50;
+    color: white;
+  }
+  
+  .pedidos-concluir-button:hover {
+    background-color: #3e8e41;
+  }
+  
+  .pedidos-cancelar-button {
+    background-color: white;
+    color: #F44336;
+    border: 1px solid #F44336;
+  }
+  
+  .pedidos-cancelar-button:hover {
+    background-color: #ffebee;
+  }
+  
+  .pedidos-modal-actions {
+    padding: 15px 20px;
+    display: flex;
+    justify-content: flex-end;
+    border-top: 1px solid #eee;
+  }
+  
+  .pedidos-modal-button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .pedidos-modal-close-button {
+    background-color: #f0f0f0;
+    color: #333;
+  }
+  
+  .pedidos-modal-close-button:hover {
+    background-color: #e0e0e0;
+  }
+  
+  .pedidos-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 0;
+    text-align: center;
+  }
+  
+  .pedidos-empty-icon {
+    font-size: 60px;
+    color: #ccc;
+    margin-bottom: 20px;
+  }
+  
+  .pedidos-empty-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #555;
+    margin-bottom: 10px;
+  }
+  
+  .pedidos-empty-text {
+    font-size: 16px;
+    color: #777;
+    margin-bottom: 20px;
+    max-width: 500px;
+  }
+  
+  @media (max-width: 768px) {
+    .pedidos-filter-row {
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    .pedidos-search-input,
+    .pedidos-filter-select {
+      width: 100%;
+    }
+    
+    .pedidos-table-container {
+      overflow-x: auto;
+    }
+    
+    .pedidos-table {
+      min-width: 600px;
+    }
+    
+    .pedidos-modal-content {
+      width: 90%;
+      max-height: 80vh;
+    }
+  }

@@ -37,4 +37,17 @@ export const updateUserProfile = async (profileData) => {
   return api.post('/users/profile', profileData);
 };
 
+// API de Pedidos
+export const getPedidos = async () => {
+  return api.get('/orders');
+};
+
+export const getPedidoById = async (id) => {
+  return api.get(`/orders/${id}`);
+};
+
+export const updatePedidoStatus = async (id, status) => {
+  return api.put(`/orders/${id}/status`, { status });
+};
+
 export default api;

@@ -7,6 +7,7 @@ import Login from './pages/Login/Login';
 import Register from './pages/Register/Register';
 import Dashboard from './pages/Dashboard/Dashboard';
 import Produtos from './pages/Produtos/Produtos';
+import Pedidos from './pages/Pedidos/pedidos';
 import './App.css';
 
 // Definir tema personalizado com a paleta de cores da Gringo Delivery
@@ -15,10 +16,16 @@ const theme = createTheme({
     primary: {
       main: '#EB2E3E', // Vermelho Gringo
       contrastText: '#FFFFFF',
+      light: '#f15a68',
+      dark: '#d12535',
+      lightest: '#fde8ea', // Para backgrounds suaves
     },
     secondary: {
       main: '#FBBF24', // Amarelo Gringo
       contrastText: '#FFFFFF',
+      light: '#fcd04b',
+      dark: '#e6ad20',
+      lightest: '#fef7e6', // Para backgrounds suaves
     },
     background: {
       default: '#f5f5f5',
@@ -26,9 +33,27 @@ const theme = createTheme({
     },
     error: {
       main: '#f44336',
+      light: '#f6685e',
+      dark: '#d32f2f',
+      lightest: '#feeaea', // Para backgrounds suaves
     },
     warning: {
       main: '#FBBF24', // Amarelo Gringo
+      light: '#fcd04b',
+      dark: '#e6ad20',
+      lightest: '#fef7e6', // Para backgrounds suaves
+    },
+    info: {
+      main: '#2196f3',
+      light: '#4dabf5',
+      dark: '#1976d2',
+      lightest: '#e6f4fe', // Para backgrounds suaves
+    },
+    success: {
+      main: '#4caf50',
+      light: '#6fbf73',
+      dark: '#3b873e',
+      lightest: '#ebf7ec', // Para backgrounds suaves
     },
     text: {
       primary: '#333333',
@@ -139,6 +164,14 @@ function App() {
               element={
                 <PrivateRoute>
                   <Produtos />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/pedidos" 
+              element={
+                <PrivateRoute>
+                  <Pedidos />
                 </PrivateRoute>
               } 
             />
