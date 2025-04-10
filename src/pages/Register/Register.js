@@ -2,10 +2,26 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { createUserProfile } from '../../services/api';
-import './Register.css';
+import { 
+  Container, 
+  Typography, 
+  Box, 
+  TextField, 
+  Button, 
+  Paper,
+  Link as MuiLink,
+  Alert,
+  CircularProgress,
+  Grid,
+  InputAdornment
+} from '@mui/material';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import BadgeIcon from '@mui/icons-material/Badge';
+import EmailIcon from '@mui/icons-material/Email';
+import LockIcon from '@mui/icons-material/Lock';
 
 const Register = () => {
-  const [cnpj, setCnpj] = useState(null);
+  const [cnpj, setCnpj] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -14,16 +30,41 @@ const Register = () => {
   const { signup } = useAuth();
   const navigate = useNavigate();
 
+  const handleCnpjChange = (e) => {
+    // Aceita apenas números
+    const value = e.target.value.replace(/\D/g, '');
+    if (value.length <= 14) {
+      setCnpj(value);
+    }
+  };
+
+  const formatCnpj = (value) => {
+    if (!value) return '';
+    
+    // Formata o CNPJ enquanto o usuário digita (XX.XXX.XXX/XXXX-XX)
+    const cnpjMask = value
+      .replace(/\D/g, '')
+      .replace(/(\d{2})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1/$2')
+      .replace(/(\d{4})(\d)/, '$1-$2')
+      .replace(/(-\d{2})\d+?$/, '$1');
+    
+    return cnpjMask;
+  };
+
   const handleRegister = async (e) => {
     e.preventDefault();
     
-    if (!cnpj || !email || !password || !confirmPassword) {
+    const cnpjNumbers = cnpj.replace(/\D/g, '');
+    
+    if (!cnpjNumbers || !email || !password || !confirmPassword) {
       setError('Por favor, preencha todos os campos');
       return;
     }
 
-    if (cnpj.length !== 14) {
-      setError('CNPJ invalido, o CNPJ deve ser somente numeros');
+    if (cnpjNumbers.length !== 14) {
+      setError('CNPJ inválido, o CNPJ deve ter 14 dígitos');
       return;
     }
 
@@ -46,9 +87,9 @@ const Register = () => {
       // Após registro no Firebase, criar perfil no backend com CNPJ
       try {
         await createUserProfile({
-          firebaseUid: userCredential.user.uid,
+          displayName: email.split('@')[0], // Nome baseado no email
           email: email,
-          cnpj: cnpj
+          cnpj: cnpjNumbers
         });
         navigate('/dashboard');
       } catch (profileError) {
@@ -72,76 +113,153 @@ const Register = () => {
   };
 
   return (
-    <div className="register-container">
-      <div className="register-form-container">
-        <h1 className="register-title">Criar Conta</h1>
-        
-        {error && <div className="register-error">{error}</div>}
-        
-        <form onSubmit={handleRegister}>
-          <div className="register-input-container">
-            <label className="register-label">CNPJ</label>
-            <input
-              type="number"
-              className="register-input"
-              placeholder="34444280000160"
-              value={cnpj}
-              onChange={(e) => setCnpj(e.target.value)}
-              required
-            />
-          </div>
+    <Container component="main" maxWidth="xs">
+      <Box
+        sx={{
+          marginTop: 8,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          minHeight: '100vh'
+        }}
+      >
+        <Paper 
+          elevation={3} 
+          sx={{ 
+            p: 4, 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center',
+            width: '100%',
+            maxWidth: 450,
+            borderRadius: 3
+          }}
+        >
+          <Box 
+            sx={{ 
+              bgcolor: 'primary.main', 
+              borderRadius: '50%', 
+              p: 1, 
+              mb: 2,
+              color: 'white'
+            }}
+          >
+            <PersonAddIcon fontSize="large" />
+          </Box>
           
-          <div className="register-input-container">
-            <label className="register-label">Email</label>
-            <input
-              type="email"
-              className="register-input"
-              placeholder="joaosilva@gmail.com"
+          <Typography component="h1" variant="h5" fontWeight="bold" mb={3}>
+            Criar Conta
+          </Typography>
+          
+          {error && (
+            <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+          
+          <Box component="form" onSubmit={handleRegister} sx={{ width: '100%' }}>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="cnpj"
+              label="CNPJ"
+              name="cnpj"
+              autoComplete="cnpj"
+              autoFocus
+              value={formatCnpj(cnpj)}
+              onChange={handleCnpjChange}
+              variant="outlined"
+              placeholder="XX.XXX.XXX/XXXX-XX"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <BadgeIcon />
+                  </InputAdornment>
+                )
+              }}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="email"
+              label="Email"
+              name="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
+              variant="outlined"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <EmailIcon />
+                  </InputAdornment>
+                )
+              }}
             />
-          </div>
-          
-          <div className="register-input-container">
-            <label className="register-label">Senha</label>
-            <input
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="password"
+              label="Senha"
               type="password"
-              className="register-input"
-              placeholder="Sua senha"
+              id="password"
+              autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
+              variant="outlined"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LockIcon />
+                  </InputAdornment>
+                )
+              }}
             />
-          </div>
-          
-          <div className="register-input-container">
-            <label className="register-label">Confirmar Senha</label>
-            <input
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="confirmPassword"
+              label="Confirmar Senha"
               type="password"
-              className="register-input"
-              placeholder="Confirme sua senha"
+              id="confirmPassword"
+              autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              required
+              variant="outlined"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LockIcon />
+                  </InputAdornment>
+                )
+              }}
             />
-          </div>
-          
-          <button 
-            type="submit"
-            className="register-button"
-            disabled={loading}
-          >
-            {loading ? "Carregando..." : "Registrar"}
-          </button>
-        </form>
-        
-        <div className="register-login-container">
-          <span className="register-login-text">Já possui uma conta? </span>
-          <Link to="/login" className="register-login-link">Entre</Link>
-        </div>
-      </div>
-    </div>
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              sx={{ mt: 3, mb: 2, py: 1.5 }}
+              disabled={loading}
+            >
+              {loading ? <CircularProgress size={24} /> : "Criar Conta"}
+            </Button>
+            
+            <Box sx={{ mt: 2, textAlign: 'center' }}>
+              <Typography variant="body2">
+                Já possui uma conta?{' '}
+                <MuiLink component={Link} to="/login" variant="body2" fontWeight="bold">
+                  Faça login
+                </MuiLink>
+              </Typography>
+            </Box>
+          </Box>
+        </Paper>
+      </Box>
+    </Container>
   );
 };
 

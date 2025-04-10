@@ -1,7 +1,20 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import './Login.css';
+import { 
+  Container, 
+  Typography, 
+  Box, 
+  TextField, 
+  Button, 
+  Paper,
+  Link as MuiLink,
+  Alert,
+  CircularProgress,
+  Divider
+} from '@mui/material';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import GoogleIcon from '@mui/icons-material/Google';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -51,61 +64,115 @@ const Login = () => {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-form-container">
-        <h1 className="login-title">Login</h1>
-        
-        {error && <div className="login-error">{error}</div>}
-        
-        <form onSubmit={handleLogin}>
-          <div className="login-input-container">
-            <label className="login-label">Email</label>
-            <input
-              type="email"
-              className="login-input"
-              placeholder="Seu email"
+    <Container component="main" maxWidth="xs">
+      <Box
+        sx={{
+          marginTop: 8,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          minHeight: '100vh'
+        }}
+      >
+        <Paper 
+          elevation={3} 
+          sx={{ 
+            p: 4, 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center',
+            width: '100%',
+            maxWidth: 400,
+            borderRadius: 3
+          }}
+        >
+          <Box 
+            sx={{ 
+              bgcolor: 'primary.main', 
+              borderRadius: '50%', 
+              p: 1, 
+              mb: 2,
+              color: 'white'
+            }}
+          >
+            <LockOutlinedIcon fontSize="large" />
+          </Box>
+          
+          <Typography component="h1" variant="h5" fontWeight="bold" mb={3}>
+            Login
+          </Typography>
+          
+          {error && (
+            <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+          
+          <Box component="form" onSubmit={handleLogin} sx={{ width: '100%' }}>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="email"
+              label="Email"
+              name="email"
+              autoComplete="email"
+              autoFocus
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
+              variant="outlined"
             />
-          </div>
-          
-          <div className="login-input-container">
-            <label className="login-label">Senha</label>
-            <input
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="password"
+              label="Senha"
               type="password"
-              className="login-input"
-              placeholder="Sua senha"
+              id="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
+              variant="outlined"
             />
-          </div>
-          
-          <button 
-            type="submit"
-            className="login-button"
-            disabled={loading}
-          >
-            {loading ? "Carregando..." : "Entrar"}
-          </button>
-        </form>
-        
-        {1 === 2 && 
-        <button 
-          className="login-google-button"
-          onClick={handleGoogleLogin}
-          disabled={loading}
-        >
-          Entrar com Google
-        </button>}
-        
-        <div className="login-register-container">
-          <span className="login-register-text">Não tem uma conta? </span>
-          <Link to="/register" className="login-register-link">Registre-se</Link>
-        </div>
-      </div>
-    </div>
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              sx={{ mt: 3, mb: 2, py: 1.5 }}
+              disabled={loading}
+            >
+              {loading ? <CircularProgress size={24} /> : "Entrar"}
+            </Button>
+            
+            <Divider sx={{ my: 2 }}>ou</Divider>
+            
+            {/* Botão de login com Google (comentado) */}
+            {false && (
+              <Button
+                fullWidth
+                variant="outlined"
+                sx={{ mb: 2, py: 1.5 }}
+                startIcon={<GoogleIcon />}
+                onClick={handleGoogleLogin}
+                disabled={loading}
+              >
+                Entrar com Google
+              </Button>
+            )}
+            
+            <Box sx={{ mt: 2, textAlign: 'center' }}>
+              <Typography variant="body2">
+                Não tem uma conta?{' '}
+                <MuiLink component={Link} to="/register" variant="body2" fontWeight="bold">
+                  Registre-se
+                </MuiLink>
+              </Typography>
+            </Box>
+          </Box>
+        </Paper>
+      </Box>
+    </Container>
   );
 };
 
