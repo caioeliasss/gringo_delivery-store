@@ -22,17 +22,32 @@ import {
   CircularProgress,
   Box,
   Snackbar,
-  Alert
+  Alert,
+  Paper,
+  InputAdornment,
+  Divider,
+  FormGroup,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material';
 import { 
   Edit as EditIcon, 
   Delete as DeleteIcon,
-  ShoppingBag as ShoppingBagIcon
+  ShoppingBag as ShoppingBagIcon,
+  Search as SearchIcon,
+  FilterList as FilterListIcon,
+  LocalOffer as LocalOfferIcon,
+  Image as ImageIcon,
+  ImageNotSupported as ImageNotSupportedIcon,
+  Clear as ClearIcon
 } from '@mui/icons-material';
 
 const Produtos = () => {
   const { currentUser } = useAuth();
   const [produtos, setProdutos] = useState([]);
+  const [filteredProdutos, setFilteredProdutos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
@@ -53,6 +68,11 @@ const Produtos = () => {
     superPromo: false
   });
 
+  // Estados para filtros
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterSuperPromo, setFilterSuperPromo] = useState(false);
+  const [filterImage, setFilterImage] = useState('all'); // 'all', 'with', 'without'
+
   // Carregar produtos do usuário
   useEffect(() => {
     const fetchProdutos = async () => {
@@ -60,6 +80,7 @@ const Produtos = () => {
         setLoading(true);
         const response = await api.get('/products');
         setProdutos(response.data);
+        setFilteredProdutos(response.data);
         setError(null);
       } catch (err) {
         console.error('Erro ao carregar produtos:', err);
@@ -76,6 +97,40 @@ const Produtos = () => {
 
     fetchProdutos();
   }, []);
+
+  // Efeito para aplicar filtros
+  useEffect(() => {
+    let result = [...produtos];
+    
+    // Filtrar por termo de busca
+    if (searchTerm) {
+      result = result.filter(produto => 
+        produto.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        produto.description.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    // Filtrar por super promoção
+    if (filterSuperPromo) {
+      result = result.filter(produto => produto.superPromo);
+    }
+    
+    // Filtrar por imagem
+    if (filterImage === 'with') {
+      result = result.filter(produto => produto.image && produto.image !== 'https://www.svgrepo.com/show/491915/food-color-pizza-slice.svg');
+    } else if (filterImage === 'without') {
+      result = result.filter(produto => !produto.image || produto.image === 'https://www.svgrepo.com/show/491915/food-color-pizza-slice.svg');
+    }
+    
+    setFilteredProdutos(result);
+  }, [produtos, searchTerm, filterSuperPromo, filterImage]);
+
+  // Limpar todos os filtros
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setFilterSuperPromo(false);
+    setFilterImage('all');
+  };
 
   // Abrir modal para adicionar novo produto
   const handleAddProduto = () => {
@@ -240,6 +295,35 @@ const Produtos = () => {
     </Box>
   );
 
+  // Renderizar estado vazio após filtros
+  const renderEmptyFilterState = () => (
+    <Box 
+      sx={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        py: 8 
+      }}
+    >
+      <FilterListIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
+      <Typography variant="h5" sx={{ mb: 1, fontWeight: 'bold' }}>
+        Nenhum produto encontrado com esses filtros
+      </Typography>
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+        Tente ajustar seus critérios de busca ou limpar os filtros.
+      </Typography>
+      <Button 
+        variant="contained" 
+        color="primary" 
+        onClick={handleClearFilters}
+        startIcon={<ClearIcon />}
+      >
+        Limpar Filtros
+      </Button>
+    </Box>
+  );
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* Cabeçalho */}
@@ -256,6 +340,123 @@ const Produtos = () => {
         </Button>
       </Box>
       
+      {/* Filtros */}
+      <Paper elevation={2} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2, display: 'flex', alignItems: 'center' }}>
+            <FilterListIcon sx={{ mr: 1 }} /> Filtros
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                placeholder="Buscar produtos"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                  endAdornment: searchTerm ? (
+                    <InputAdornment position="end">
+                      <IconButton onClick={() => setSearchTerm('')} size="small">
+                        <ClearIcon />
+                      </IconButton>
+                    </InputAdornment>
+                  ) : null
+                }}
+                variant="outlined"
+                size="small"
+              />
+            </Grid>
+            <Grid item xs={6} md={3}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={filterSuperPromo}
+                    onChange={(e) => setFilterSuperPromo(e.target.checked)}
+                    color="primary"
+                    icon={<LocalOfferIcon color="disabled" />}
+                    checkedIcon={<LocalOfferIcon />}
+                  />
+                }
+                label="Super Promoções"
+              />
+            </Grid>
+            <Grid item xs={6} md={3}>
+              <FormControl fullWidth size="small">
+                <InputLabel id="image-filter-label">Filtrar por imagem</InputLabel>
+                <Select
+                  labelId="image-filter-label"
+                  value={filterImage}
+                  onChange={(e) => setFilterImage(e.target.value)}
+                  label="Filtrar por imagem"
+                >
+                  <MenuItem value="all">Todos os produtos</MenuItem>
+                  <MenuItem value="with">Com imagem personalizada</MenuItem>
+                  <MenuItem value="without">Sem imagem personalizada</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
+        </Box>
+        
+        {/* Exibir resumo dos filtros ativos e botão para limpar */}
+        {(searchTerm || filterSuperPromo || filterImage !== 'all') && (
+          <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Filtros ativos:
+            </Typography>
+            
+            {searchTerm && (
+              <Chip 
+                label={`Busca: "${searchTerm}"`} 
+                size="small" 
+                onDelete={() => setSearchTerm('')}
+              />
+            )}
+            
+            {filterSuperPromo && (
+              <Chip 
+                label="Super Promoções" 
+                size="small" 
+                color="warning"
+                icon={<LocalOfferIcon />}
+                onDelete={() => setFilterSuperPromo(false)}
+              />
+            )}
+            
+            {filterImage !== 'all' && (
+              <Chip 
+                label={filterImage === 'with' ? 'Com imagem personalizada' : 'Sem imagem personalizada'} 
+                size="small"
+                icon={filterImage === 'with' ? <ImageIcon /> : <ImageNotSupportedIcon />}
+                onDelete={() => setFilterImage('all')}
+              />
+            )}
+            
+            <Button 
+              size="small" 
+              variant="outlined" 
+              startIcon={<ClearIcon />}
+              onClick={handleClearFilters}
+              sx={{ ml: 'auto' }}
+            >
+              Limpar filtros
+            </Button>
+          </Box>
+        )}
+      </Paper>
+      
+      {/* Contagem de produtos */}
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="body2" color="text.secondary">
+          Exibindo {filteredProdutos.length} produto{filteredProdutos.length !== 1 ? 's' : ''} {filteredProdutos.length !== produtos.length && `de ${produtos.length} total`}
+        </Typography>
+      </Box>
+      
       {/* Produtos */}
       {loading && produtos.length === 0 ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -263,9 +464,11 @@ const Produtos = () => {
         </Box>
       ) : produtos.length === 0 ? (
         renderEmptyState()
+      ) : filteredProdutos.length === 0 ? (
+        renderEmptyFilterState()
       ) : (
         <Grid container spacing={3}>
-          {produtos.map((produto) => (
+          {filteredProdutos.map((produto) => (
             <Grid item xs={12} sm={6} md={4} key={produto._id}>
               <Card sx={{ 
                 height: '100%', 
@@ -313,13 +516,13 @@ const Produtos = () => {
                       display: '-webkit-box',
                       WebkitLineClamp: 2,
                       WebkitBoxOrient: 'vertical',
-                      mb: 2,
+                      mb: 1,
                       height: 40
                     }}
                   >
                     {produto.description}
                   </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box sx={{ alignItems: 'center' }}>
                     <Typography 
                       variant="body2" 
                       sx={{ 
@@ -337,7 +540,7 @@ const Produtos = () => {
                     )}
                   </Box>
                 </CardContent>
-                <CardActions sx={{ justifyContent: 'space-between', p: 2 }}>
+                <CardActions sx={{ justifyContent: 'space-between', p: 2 , background: "#DEFEFF"}}>
                   <IconButton 
                     color="primary" 
                     size="small" 
@@ -428,6 +631,7 @@ const Produtos = () => {
               value={produtoForm.image}
               onChange={handleFormChange}
               sx={{ mb: 2 }}
+              helperText="Deixe em branco para usar a imagem padrão"
             />
             <FormControlLabel
               control={

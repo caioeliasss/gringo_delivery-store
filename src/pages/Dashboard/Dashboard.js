@@ -160,7 +160,7 @@ const Dashboard = () => {
             
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
-                <Box sx={{ mb: 2 }}>
+                <Box sx={{ mr: 2 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
                     Email:
                   </Typography>
@@ -172,7 +172,7 @@ const Dashboard = () => {
               
               {userProfile?.cnpj && (
                 <Grid item xs={12} sm={6}>
-                  <Box sx={{ mb: 2 }}>
+                  <Box sx={{ mr: 2 }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
                       CNPJ:
                     </Typography>
@@ -182,6 +182,17 @@ const Dashboard = () => {
                   </Box>
                 </Grid>
               )}
+              <Grid item xs={12} sm={6}>
+                  <Box sx={{ mr: 2 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                      Cadastro Aprovado:
+                    </Typography>
+                    <Typography variant="body1" 
+                      color={userProfile.cnpj_approved ? "success" : "error"} >
+                      {userProfile.cnpj_approved ? "Aprovado" : "Pendente"}
+                    </Typography>
+                  </Box>
+                </Grid>
             </Grid>
           </Paper>
           
