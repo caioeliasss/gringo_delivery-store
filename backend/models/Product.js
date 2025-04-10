@@ -13,7 +13,7 @@ const productSchema = new mongoose.Schema({
   image: {
     type: String,
     required: false,
-    default: "https://www.svgrepo.com/show/380889/product-quality-internet-marketing-project.svg"
+    default: "https://www.svgrepo.com/show/491915/food-color-pizza-slice.svg"
   },
   description: { 
     type: String,
