@@ -39,11 +39,14 @@ import {
   AppBar,
   Toolbar,
   useMediaQuery,
-  useTheme
+  useTheme,
+  Fab,
+  Autocomplete
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
   ShoppingBag as ProductsIcon,
+  ShoppingBag as ShoppingBagIcon,
   Receipt as OrdersIcon,
   Search as SearchIcon,
   FilterList as FilterListIcon,
@@ -55,93 +58,13 @@ import {
   Logout as LogoutIcon,
   Schedule as ScheduleIcon,
   LocalShipping as DeliveryIcon,
-  DoneAll as DoneAllIcon
+  DoneAll as DoneAllIcon,
+  Add as AddIcon,
+  Person as PersonIcon,
+  Phone as PhoneIcon,
+  LocationOn as LocationIcon,
+  AttachMoney as MoneyIcon
 } from '@mui/icons-material';
-
-// Mock de dados para simular pedidos
-// Isto seria substituído pela integração real com a API de pedidos
-const mockPedidos = [
-  {
-    id: "pd001",
-    cliente: "João Silva",
-    telefone: "(11) 98765-4321",
-    endereco: "Rua das Flores, 123 - São Paulo",
-    itens: [
-      { nome: "Pizza Grande", quantidade: 1, preco: 45.90 },
-      { nome: "Refrigerante 2L", quantidade: 1, preco: 12.00 }
-    ],
-    status: "pendente",
-    total: 57.90,
-    data: "2025-04-10T14:30:00",
-    pagamento: "dinheiro",
-    troco: 2.10,
-    observacoes: "Sem cebola na pizza, por favor"
-  },
-  {
-    id: "pd002",
-    cliente: "Maria Oliveira",
-    telefone: "(11) 91234-5678",
-    endereco: "Av. Paulista, 1500 - São Paulo",
-    itens: [
-      { nome: "Hambúrguer Artesanal", quantidade: 2, preco: 32.90 },
-      { nome: "Batata Frita G", quantidade: 1, preco: 18.90 }
-    ],
-    status: "em_preparo",
-    total: 84.70,
-    data: "2025-04-10T15:15:00",
-    pagamento: "cartao",
-    troco: 0,
-    observacoes: ""
-  },
-  {
-    id: "pd003",
-    cliente: "Pedro Santos",
-    telefone: "(11) 99876-5432",
-    endereco: "Rua Augusta, 789 - São Paulo",
-    itens: [
-      { nome: "Macarrão à Carbonara", quantidade: 1, preco: 38.50 },
-      { nome: "Água Mineral", quantidade: 1, preco: 5.00 }
-    ],
-    status: "em_entrega",
-    total: 43.50,
-    data: "2025-04-10T13:00:00",
-    pagamento: "pix",
-    troco: 0,
-    observacoes: "Entregar na portaria"
-  },
-  {
-    id: "pd004",
-    cliente: "Ana Souza",
-    telefone: "(11) 97654-3210",
-    endereco: "Rua Oscar Freire, 500 - São Paulo",
-    itens: [
-      { nome: "Salada Caesar", quantidade: 1, preco: 29.90 },
-      { nome: "Suco Natural", quantidade: 1, preco: 10.00 }
-    ],
-    status: "entregue",
-    total: 39.90,
-    data: "2025-04-10T12:30:00",
-    pagamento: "cartao",
-    troco: 0,
-    observacoes: ""
-  },
-  {
-    id: "pd005",
-    cliente: "Carlos Pereira",
-    telefone: "(11) 96543-2109",
-    endereco: "Alameda Santos, 45 - São Paulo",
-    itens: [
-      { nome: "Pizza Média", quantidade: 1, preco: 39.90 },
-      { nome: "Refrigerante Lata", quantidade: 2, preco: 6.00 }
-    ],
-    status: "cancelado",
-    total: 51.90,
-    data: "2025-04-10T11:45:00",
-    pagamento: "dinheiro",
-    troco: 8.10,
-    observacoes: "Cliente desistiu do pedido"
-  }
-];
 
 const Pedidos = () => {
   const { currentUser, logout } = useAuth();
@@ -153,10 +76,37 @@ const Pedidos = () => {
   const [filterStatus, setFilterStatus] = useState('todos');
   const [openDialog, setOpenDialog] = useState(false);
   const [currentPedido, setCurrentPedido] = useState(null);
+  const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
     severity: 'success'
+  });
+  const [produtos, setProdutos] = useState([]);
+  const [loadingProdutos, setLoadingProdutos] = useState(false);
+
+  // Estado para o formulário de novo pedido
+  const [novoPedido, setNovoPedido] = useState({
+    customer: {
+      name: '',
+      phone: '',
+      address: ''
+    },
+    items: [],
+    payment: {
+      method: 'dinheiro',
+      change: 0
+    },
+    notes: '',
+    total: 0
+  });
+
+  // Estado para o item atual sendo adicionado
+  const [currentItem, setCurrentItem] = useState({
+    productId: '',
+    productName: '',
+    quantity: 1,
+    price: 0
   });
 
   const theme = useTheme();
@@ -169,15 +119,10 @@ const Pedidos = () => {
     const fetchPedidos = async () => {
       try {
         setLoading(true);
-        // Aqui normalmente faríamos uma chamada à API
-        // const response = await api.get('/orders');
-        // setPedidos(response.data);
-        // Usando dados mock por enquanto
-        setTimeout(() => {
-          setPedidos(mockPedidos);
-          setFilteredPedidos(mockPedidos);
-          setLoading(false);
-        }, 800);
+        const response = await api.get('/orders');
+        setPedidos(response.data);
+        setFilteredPedidos(response.data);
+        setLoading(false);
       } catch (err) {
         console.error('Erro ao carregar pedidos:', err);
         setError('Não foi possível carregar os pedidos. Tente novamente mais tarde.');
@@ -193,6 +138,25 @@ const Pedidos = () => {
     fetchPedidos();
   }, []);
 
+  // Carregar produtos (para uso na criação de pedidos)
+  useEffect(() => {
+    const fetchProdutos = async () => {
+      try {
+        setLoadingProdutos(true);
+        const response = await api.get('/products');
+        setProdutos(response.data);
+        setLoadingProdutos(false);
+      } catch (err) {
+        console.error('Erro ao carregar produtos:', err);
+        setLoadingProdutos(false);
+      }
+    };
+
+    if (openCreateDialog) {
+      fetchProdutos();
+    }
+  }, [openCreateDialog]);
+
   // Efeito para aplicar filtros
   useEffect(() => {
     let result = [...pedidos];
@@ -200,9 +164,9 @@ const Pedidos = () => {
     // Filtrar por termo de busca
     if (searchTerm) {
       result = result.filter(pedido => 
-        pedido.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pedido.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pedido.endereco.toLowerCase().includes(searchTerm.toLowerCase())
+        pedido.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pedido.orderNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pedido.customer?.address?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
     
@@ -239,12 +203,12 @@ const Pedidos = () => {
     try {
       setLoading(true);
       
-      // Simulação de chamada à API
-      // await api.put(`/orders/${pedidoId}/status`, { status: newStatus });
+      // Chamar API para atualizar status
+      await api.put(`/orders/${pedidoId}/status`, { status: newStatus });
       
       // Atualizar estado local
       const updatedPedidos = pedidos.map(pedido => 
-        pedido.id === pedidoId 
+        pedido._id === pedidoId 
           ? { ...pedido, status: newStatus } 
           : pedido
       );
@@ -252,7 +216,7 @@ const Pedidos = () => {
       setPedidos(updatedPedidos);
       
       // Se o pedido atual está aberto, atualizar também
-      if (currentPedido && currentPedido.id === pedidoId) {
+      if (currentPedido && currentPedido._id === pedidoId) {
         setCurrentPedido({ ...currentPedido, status: newStatus });
       }
       
@@ -268,6 +232,201 @@ const Pedidos = () => {
       setSnackbar({
         open: true,
         message: 'Erro ao atualizar status do pedido',
+        severity: 'error'
+      });
+      setLoading(false);
+    }
+  };
+
+  // Abrir formulário de criação de pedido
+  const handleOpenCreateDialog = () => {
+    setNovoPedido({
+      customer: {
+        name: '',
+        phone: '',
+        address: ''
+      },
+      items: [],
+      payment: {
+        method: 'dinheiro',
+        change: 0
+      },
+      notes: '',
+      total: 0
+    });
+    setCurrentItem({
+      productId: '',
+      productName: '',
+      quantity: 1,
+      price: 0
+    });
+    setOpenCreateDialog(true);
+  };
+
+  // Fechar formulário de criação de pedido
+  const handleCloseCreateDialog = () => {
+    setOpenCreateDialog(false);
+  };
+
+  // Atualizar dados do cliente
+  const handleCustomerChange = (e) => {
+    const { name, value } = e.target;
+    setNovoPedido(prev => ({
+      ...prev,
+      customer: {
+        ...prev.customer,
+        [name]: value
+      }
+    }));
+  };
+
+  // Atualizar forma de pagamento
+  const handlePaymentMethodChange = (e) => {
+    setNovoPedido(prev => ({
+      ...prev,
+      payment: {
+        ...prev.payment,
+        method: e.target.value
+      }
+    }));
+  };
+
+  // Atualizar troco
+  const handleChangeValueChange = (e) => {
+    const change = parseFloat(e.target.value) || 0;
+    setNovoPedido(prev => ({
+      ...prev,
+      payment: {
+        ...prev.payment,
+        change: change
+      }
+    }));
+  };
+
+  // Atualizar observações
+  const handleNotesChange = (e) => {
+    setNovoPedido(prev => ({
+      ...prev,
+      notes: e.target.value
+    }));
+  };
+
+  // Selecionar produto para adicionar ao pedido
+  const handleProductSelect = (event, produto) => {
+    if (produto) {
+      setCurrentItem({
+        productId: produto._id,
+        productName: produto.productName,
+        quantity: 1,
+        price: produto.priceOnSale || produto.priceFull
+      });
+    } else {
+      setCurrentItem({
+        productId: '',
+        productName: '',
+        quantity: 1,
+        price: 0
+      });
+    }
+  };
+
+  // Atualizar quantidade do item atual
+  const handleQuantityChange = (e) => {
+    const quantity = parseInt(e.target.value) || 1;
+    setCurrentItem(prev => ({
+      ...prev,
+      quantity: quantity > 0 ? quantity : 1
+    }));
+  };
+
+  // Adicionar item ao pedido
+  const handleAddItem = () => {
+    if (!currentItem.productName) {
+      setSnackbar({
+        open: true,
+        message: 'Selecione um produto para adicionar',
+        severity: 'warning'
+      });
+      return;
+    }
+
+    const newItem = { ...currentItem };
+    const updatedItems = [...novoPedido.items, newItem];
+    
+    // Calcular novo total
+    const newTotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    
+    setNovoPedido(prev => ({
+      ...prev,
+      items: updatedItems,
+      total: newTotal
+    }));
+    
+    // Limpar item atual para adicionar outro
+    setCurrentItem({
+      productId: '',
+      productName: '',
+      quantity: 1,
+      price: 0
+    });
+  };
+
+  // Remover item do pedido
+  const handleRemoveItem = (index) => {
+    const updatedItems = novoPedido.items.filter((_, i) => i !== index);
+    // Recalcular total
+    const newTotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    
+    setNovoPedido(prev => ({
+      ...prev,
+      items: updatedItems,
+      total: newTotal
+    }));
+  };
+
+  // Criar novo pedido
+  const handleCreatePedido = async () => {
+    // Validação básica
+    if (!novoPedido.customer.name || !novoPedido.customer.phone || !novoPedido.customer.address) {
+      setSnackbar({
+        open: true,
+        message: 'Preencha todos os dados do cliente',
+        severity: 'warning'
+      });
+      return;
+    }
+
+    if (novoPedido.items.length === 0) {
+      setSnackbar({
+        open: true,
+        message: 'Adicione pelo menos um item ao pedido',
+        severity: 'warning'
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // Chamar API para criar pedido
+      const response = await api.post('/orders', novoPedido);
+      
+      // Adicionar novo pedido à lista
+      setPedidos(prev => [response.data.order, ...prev]);
+      
+      setSnackbar({
+        open: true,
+        message: 'Pedido criado com sucesso',
+        severity: 'success'
+      });
+      
+      setOpenCreateDialog(false);
+      setLoading(false);
+    } catch (err) {
+      console.error('Erro ao criar pedido:', err);
+      setSnackbar({
+        open: true,
+        message: 'Erro ao criar pedido',
         severity: 'error'
       });
       setLoading(false);
@@ -429,8 +588,16 @@ const Pedidos = () => {
       <Typography variant="body1" color="text.secondary" sx={{ mb: 3, textAlign: 'center' }}>
         Não há pedidos registrados no momento.
         <br />
-        Os pedidos aparecerão aqui assim que forem recebidos.
+        Crie um novo pedido ou aguarde pedidos dos clientes.
       </Typography>
+      <Button 
+        variant="contained" 
+        color="primary" 
+        onClick={handleOpenCreateDialog}
+        startIcon={<AddIcon />}
+      >
+        Criar Pedido
+      </Button>
     </Box>
   );
 
@@ -507,7 +674,8 @@ const Pedidos = () => {
         flexGrow: 1, 
         p: 3,
         ml: isMobile ? 0 : '2px',
-        mt: isMobile ? '64px' : 0
+        mt: isMobile ? '64px' : 0,
+        position: 'relative'
       }}>
         <Container maxWidth="lg">
           {/* Cabeçalho */}
@@ -515,6 +683,14 @@ const Pedidos = () => {
             <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
               Pedidos
             </Typography>
+            <Button 
+              variant="contained" 
+              color="primary" 
+              startIcon={<AddIcon />}
+              onClick={handleOpenCreateDialog}
+            >
+              Novo Pedido
+            </Button>
           </Box>
           
           {/* Filtros */}
@@ -644,7 +820,7 @@ const Pedidos = () => {
                 <TableBody>
                   {filteredPedidos.map((pedido) => (
                     <TableRow 
-                      key={pedido.id}
+                      key={pedido._id}
                       hover
                       sx={{
                         '&:last-child td, &:last-child th': { border: 0 },
@@ -658,10 +834,10 @@ const Pedidos = () => {
                       onClick={() => handleViewPedido(pedido)}
                     >
                       <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>
-                        {pedido.id}
+                        {pedido.orderNumber}
                       </TableCell>
-                      <TableCell>{formatDateTime(pedido.data)}</TableCell>
-                      <TableCell>{pedido.cliente}</TableCell>
+                      <TableCell>{formatDateTime(pedido.orderDate)}</TableCell>
+                      <TableCell>{pedido.customer.name}</TableCell>
                       <TableCell>{formatCurrency(pedido.total)}</TableCell>
                       <TableCell>{getStatusChip(pedido.status)}</TableCell>
                       <TableCell>
@@ -695,7 +871,7 @@ const Pedidos = () => {
                 <DialogTitle sx={{ bgcolor: 'primary.main', color: 'white' }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                      Detalhes do Pedido #{currentPedido.id}
+                      Detalhes do Pedido #{currentPedido.orderNumber}
                     </Typography>
                     {getStatusChip(currentPedido.status)}
                   </Box>
@@ -710,15 +886,15 @@ const Pedidos = () => {
                         </Typography>
                         <Box sx={{ mb: 1 }}>
                           <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Nome:</Typography>
-                          <Typography variant="body2">{currentPedido.cliente}</Typography>
+                          <Typography variant="body2">{currentPedido.customer.name}</Typography>
                         </Box>
                         <Box sx={{ mb: 1 }}>
                           <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Telefone:</Typography>
-                          <Typography variant="body2">{currentPedido.telefone}</Typography>
+                          <Typography variant="body2">{currentPedido.customer.phone}</Typography>
                         </Box>
                         <Box>
                           <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Endereço:</Typography>
-                          <Typography variant="body2">{currentPedido.endereco}</Typography>
+                          <Typography variant="body2">{currentPedido.customer.address}</Typography>
                         </Box>
                       </Paper>
                     </Grid>
@@ -732,18 +908,18 @@ const Pedidos = () => {
                         <Box sx={{ mb: 1 }}>
                           <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Forma de Pagamento:</Typography>
                           <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
-                            {currentPedido.pagamento}
+                            {currentPedido.payment.method}
                           </Typography>
                         </Box>
                         <Box sx={{ mb: 1 }}>
                           <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Total:</Typography>
                           <Typography variant="body2">{formatCurrency(currentPedido.total)}</Typography>
                         </Box>
-                        {currentPedido.troco > 0 && (
+                        {currentPedido.payment.change > 0 && (
                           <Box>
                             <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Troco para:</Typography>
                             <Typography variant="body2">
-                              {formatCurrency(currentPedido.total + currentPedido.troco)}
+                              {formatCurrency(currentPedido.total + currentPedido.payment.change)}
                             </Typography>
                           </Box>
                         )}
@@ -767,12 +943,12 @@ const Pedidos = () => {
                               </TableRow>
                             </TableHead>
                             <TableBody>
-                              {currentPedido.itens.map((item, index) => (
+                              {currentPedido.items.map((item, index) => (
                                 <TableRow key={index}>
-                                  <TableCell>{item.nome}</TableCell>
-                                  <TableCell align="center">{item.quantidade}</TableCell>
-                                  <TableCell align="right">{formatCurrency(item.preco)}</TableCell>
-                                  <TableCell align="right">{formatCurrency(item.preco * item.quantidade)}</TableCell>
+                                  <TableCell>{item.productName}</TableCell>
+                                  <TableCell align="center">{item.quantity}</TableCell>
+                                  <TableCell align="right">{formatCurrency(item.price)}</TableCell>
+                                  <TableCell align="right">{formatCurrency(item.price * item.quantity)}</TableCell>
                                 </TableRow>
                               ))}
                               <TableRow>
@@ -786,14 +962,14 @@ const Pedidos = () => {
                     </Grid>
                     
                     {/* Observações */}
-                    {currentPedido.observacoes && (
+                    {currentPedido.notes && (
                       <Grid item xs={12}>
                         <Paper elevation={1} sx={{ p: 2 }}>
                           <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 'bold' }}>
                             Observações
                           </Typography>
                           <Typography variant="body2">
-                            {currentPedido.observacoes || "Nenhuma observação"}
+                            {currentPedido.notes || "Nenhuma observação"}
                           </Typography>
                         </Paper>
                       </Grid>
@@ -813,7 +989,7 @@ const Pedidos = () => {
                                 variant="contained"
                                 color="primary"
                                 startIcon={<CheckIcon />}
-                                onClick={() => handleUpdateStatus(currentPedido.id, 'em_preparo')}
+                                onClick={() => handleUpdateStatus(currentPedido._id, 'em_preparo')}
                               >
                                 Iniciar Preparo
                               </Button>
@@ -824,7 +1000,7 @@ const Pedidos = () => {
                                 variant="contained"
                                 color="info"
                                 startIcon={<DeliveryIcon />}
-                                onClick={() => handleUpdateStatus(currentPedido.id, 'em_entrega')}
+                                onClick={() => handleUpdateStatus(currentPedido._id, 'em_entrega')}
                               >
                                 Enviar para Entrega
                               </Button>
@@ -835,7 +1011,7 @@ const Pedidos = () => {
                                 variant="contained"
                                 color="success"
                                 startIcon={<DoneAllIcon />}
-                                onClick={() => handleUpdateStatus(currentPedido.id, 'entregue')}
+                                onClick={() => handleUpdateStatus(currentPedido._id, 'entregue')}
                               >
                                 Confirmar Entrega
                               </Button>
@@ -847,7 +1023,7 @@ const Pedidos = () => {
                               startIcon={<CloseIcon />}
                               onClick={() => {
                                 if (window.confirm('Tem certeza que deseja cancelar este pedido?')) {
-                                  handleUpdateStatus(currentPedido.id, 'cancelado')
+                                  handleUpdateStatus(currentPedido._id, 'cancelado')
                                 }
                               }}
                               sx={{ ml: 'auto' }}
@@ -863,12 +1039,257 @@ const Pedidos = () => {
                       </Paper>
                     </Grid>
                   </Grid>
-                </DialogContent>
+                  </DialogContent>
                 <DialogActions>
                   <Button onClick={() => setOpenDialog(false)}>Fechar</Button>
                 </DialogActions>
               </>
             )}
+          </Dialog>
+          
+          {/* Dialog para criação de novo pedido */}
+          <Dialog
+            open={openCreateDialog}
+            onClose={handleCloseCreateDialog}
+            maxWidth="md"
+            fullWidth
+          >
+            <DialogTitle sx={{ bgcolor: 'primary.main', color: 'white', fontWeight: 'bold' }}>
+              Criar Novo Pedido
+            </DialogTitle>
+            <DialogContent sx={{ p: 3, mt: 2 }}>
+              {/* Formulário de Pedido */}
+              <Grid container spacing={3} >
+                {/* Dados do Cliente */}
+                <Grid item xs={12} width="100%">
+                  <Paper elevation={1} sx={{ p: 2 }}>
+                    <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+                      <PersonIcon sx={{ mr: 1 }} /> Dados do Cliente
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Nome do Cliente"
+                          name="name"
+                          value={novoPedido.customer.name}
+                          onChange={handleCustomerChange}
+                          required
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Telefone"
+                          name="phone"
+                          value={novoPedido.customer.phone}
+                          onChange={handleCustomerChange}
+                          required
+                          placeholder="(XX) XXXXX-XXXX"
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <PhoneIcon color="primary" />
+                              </InputAdornment>
+                            )
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12}>
+                        <TextField
+                          fullWidth
+                          label="Endereço de Entrega"
+                          name="address"
+                          value={novoPedido.customer.address}
+                          onChange={handleCustomerChange}
+                          required
+                          multiline
+                          rows={1}
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <LocationIcon color="primary" />
+                              </InputAdornment>
+                            )
+                          }}
+                        />
+                      </Grid>
+                    </Grid>
+                  </Paper>
+                </Grid>
+
+                {/* Itens do Pedido */}
+                <Grid item xs={12} width="100%">
+                  <Paper elevation={1} sx={{ p: 2}}>
+                    <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+                      <ShoppingBagIcon sx={{ mr: 1 }} /> Itens do Pedido
+                    </Typography>
+                    
+                    {/* Adicionar Novo Item */}
+                    <Grid container spacing={2} sx={{ mb: 2 }}>
+                      <Grid item xs={12} sm={6} width="300px">
+                        <Autocomplete
+                          options={produtos}
+                          getOptionLabel={(option) => option.productName || ''}
+                          onChange={handleProductSelect}
+                          renderInput={(params) => (
+                            <TextField 
+                              {...params} 
+                              label="Selecionar Produto" 
+                              variant="outlined"
+                              fullWidth
+                            />
+                          )}
+                          loading={loadingProdutos}
+                          isOptionEqualToValue={(option, value) => option._id === value._id}
+                        />
+                      </Grid>
+                      <Grid item xs={6} sm={3}>
+                        <TextField
+                          fullWidth
+                          label="Quantidade"
+                          type="number"
+                          value={currentItem.quantity}
+                          onChange={handleQuantityChange}
+                          InputProps={{
+                            inputProps: { min: 1 }
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={6} sm={3}>
+                        <Button
+                          fullWidth
+                          variant="contained"
+                          color="primary"
+                          onClick={handleAddItem}
+                          sx={{ height: '100%' }}
+                        >
+                          Adicionar Item
+                        </Button>
+                      </Grid>
+                    </Grid>
+                    
+                    {/* Lista de Itens */}
+                    {novoPedido.items.length > 0 ? (
+                      <TableContainer>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>Produto</TableCell>
+                              <TableCell align="center">Quantidade</TableCell>
+                              <TableCell align="right">Preço Unit.</TableCell>
+                              <TableCell align="right">Subtotal</TableCell>
+                              <TableCell align="center">Ações</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {novoPedido.items.map((item, index) => (
+                              <TableRow key={index}>
+                                <TableCell>{item.productName}</TableCell>
+                                <TableCell align="center">{item.quantity}</TableCell>
+                                <TableCell align="right">{formatCurrency(item.price)}</TableCell>
+                                <TableCell align="right">{formatCurrency(item.price * item.quantity)}</TableCell>
+                                <TableCell align="center">
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    onClick={() => handleRemoveItem(index)}
+                                  >
+                                    <CloseIcon />
+                                  </IconButton>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                            <TableRow>
+                              <TableCell colSpan={3} align="right" sx={{ fontWeight: 'bold' }}>
+                                Total:
+                              </TableCell>
+                              <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                                {formatCurrency(novoPedido.total)}
+                              </TableCell>
+                              <TableCell />
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    ) : (
+                      <Box sx={{ p: 2, textAlign: 'center' }}>
+                        <Typography color="text.secondary">
+                          Nenhum item adicionado ao pedido
+                        </Typography>
+                      </Box>
+                    )}
+                  </Paper>
+                </Grid>
+
+                {/* Forma de Pagamento */}
+                <Grid item xs={12} md={6}>
+                  <Paper elevation={1} sx={{ p: 2, height: '100%' }}>
+                    <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+                      <MoneyIcon sx={{ mr: 1 }} /> Forma de Pagamento
+                    </Typography>
+                    <FormControl fullWidth sx={{ mb: 2 }}>
+                      <InputLabel>Método de Pagamento</InputLabel>
+                      <Select
+                        value={novoPedido.payment.method}
+                        onChange={handlePaymentMethodChange}
+                        label="Método de Pagamento"
+                      >
+                        <MenuItem value="dinheiro">Dinheiro</MenuItem>
+                        <MenuItem value="cartao">Cartão</MenuItem>
+                        <MenuItem value="pix">PIX</MenuItem>
+                      </Select>
+                    </FormControl>
+                    
+                    {novoPedido.payment.method === 'dinheiro' && (
+                      <TextField
+                        fullWidth
+                        label="Troco para"
+                        type="number"
+                        value={novoPedido.payment.change}
+                        onChange={handleChangeValueChange}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              R$
+                            </InputAdornment>
+                          ),
+                          inputProps: { step: "0.01", min: "0" }
+                        }}
+                      />
+                    )}
+                  </Paper>
+                </Grid>
+
+                {/* Observações */}
+                <Grid item xs={12} md={6}>
+                  <Paper elevation={1} sx={{ p: 2, height: '100%' }}>
+                    <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 'bold' }}>
+                      Observações
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={4}
+                      placeholder="Observações sobre o pedido..."
+                      value={novoPedido.notes}
+                      onChange={handleNotesChange}
+                    />
+                  </Paper>
+                </Grid>
+              </Grid>
+            </DialogContent>
+            <DialogActions sx={{ p: 3 }}>
+              <Button onClick={handleCloseCreateDialog}>Cancelar</Button>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleCreatePedido}
+                disabled={loading || novoPedido.items.length === 0}
+              >
+                {loading ? <CircularProgress size={24} color="inherit" /> : "Criar Pedido"}
+              </Button>
+            </DialogActions>
           </Dialog>
           
           {/* Snackbar para mensagens */}
@@ -886,6 +1307,18 @@ const Pedidos = () => {
               {snackbar.message}
             </Alert>
           </Snackbar>
+          
+          {/* Botão flutuante para criar pedido (visível em dispositivos móveis) */}
+          {isMobile && (
+            <Fab
+              color="primary"
+              aria-label="Adicionar"
+              sx={{ position: 'fixed', bottom: 16, right: 16 }}
+              onClick={handleOpenCreateDialog}
+            >
+              <AddIcon />
+            </Fab>
+          )}
         </Container>
       </Box>
     </Box>
