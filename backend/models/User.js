@@ -1,88 +1,88 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 // Definindo o schema GeoJSON Point para localização (mesmo que no modelo Motoboy)
 const pointSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ['Point'],
-    default: 'Point',
-    required: true
+    enum: ["Point"],
+    default: "Point",
+    required: true,
   },
   coordinates: {
     type: [Number], // [longitude, latitude]
-    required: true
-  }
+    required: true,
+  },
 });
 
 const userSchema = new mongoose.Schema({
   firebaseUid: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
   },
   email: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
   },
   cnpj: {
-    type: String,
-    required: false, 
-    default: null
+    type: Number,
+    required: false,
+    default: null,
   },
   cnpj_approved: {
     type: Boolean,
     required: false,
-    default: false
+    default: false,
   },
   displayName: {
     type: String,
-    required: false
+    required: false,
   },
   photoURL: {
     type: String,
-    required: false
+    required: false,
   },
   // Novos campos adicionados
   businessName: {
     type: String,
-    required: false
+    required: false,
   },
   address: {
     type: String,
-    required: false
+    required: false,
   },
   phone: {
     type: String,
-    required: false
+    required: false,
   },
   // Campo de geolocalização
   geolocation: {
     type: pointSchema,
-    index: '2dsphere' // Índice espacial para consultas de proximidade
+    index: "2dsphere", // Índice espacial para consultas de proximidade
   },
   businessHours: {
     type: String,
-    required: false
+    required: false,
   },
   isAvailable: {
     type: Boolean,
-    default: true
+    default: true,
   },
   createdAt: {
     type: Date,
-    default: Date.now
+    default: Date.now,
   },
   updatedAt: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
 });
 
 // Middleware para atualizar o campo updatedAt antes de salvar
-userSchema.pre('save', function(next) {
+userSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
   next();
 });
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.model("User", userSchema);

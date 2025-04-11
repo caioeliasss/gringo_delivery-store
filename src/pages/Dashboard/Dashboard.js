@@ -33,6 +33,7 @@ import {
   Logout as LogoutIcon,
   ShoppingBag,
 } from "@mui/icons-material";
+import { buscarCnpj } from "../../services/cnpj";
 
 const Dashboard = () => {
   const { currentUser, logout } = useAuth();
@@ -42,20 +43,26 @@ const Dashboard = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [cnpjInfo, setCnpjInfo] = useState({});
 
   useEffect(() => {
-    const fetchUserProfile = async () => {
+    const fetchData = async () => {
       try {
-        const response = await getUserProfile();
-        setUserProfile(response.data);
+        const userResponse = await getUserProfile();
+        const cnpj = userResponse.data.cnpj;
+        setUserProfile(userResponse.data);
+
+        const cnpjResponse = await buscarCnpj(cnpj);
+
+        setCnpjInfo(cnpjResponse.data);
       } catch (error) {
-        console.error("Erro ao buscar perfil:", error);
+        setCnpjInfo({ nome_fantasia: "Caro Cliente" });
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUserProfile();
+    fetchData();
   }, []);
 
   const handleLogout = async () => {
@@ -266,7 +273,10 @@ const Dashboard = () => {
                   sx={{ fontWeight: "bold" }}
                 >
                   Bem-vindo,{" "}
-                  {userProfile?.displayName || currentUser?.email.split("@")[0]}
+                  {/* {userProfile?.displayName || currentUser?.email.split("@")[0]} */}
+                  {cnpjInfo.nome_fantasia
+                    ? cnpjInfo.nome_fantasia
+                    : cnpjInfo.razao_social}
                   !
                 </Typography>
               </Box>
