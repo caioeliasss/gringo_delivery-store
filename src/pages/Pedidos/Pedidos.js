@@ -1301,6 +1301,7 @@ const Pedidos = () => {
                               : "cancelado"}
                             .
                           </Typography>
+                          // TODO qrcode para iniciar corrida + logica
                         )}
                       </Paper>
                     </Grid>
