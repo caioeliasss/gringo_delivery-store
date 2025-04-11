@@ -1,146 +1,147 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 // Definindo o schema GeoJSON Point para localização
 const pointSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ['Point'],
-    default: 'Point',
-    required: true
+    enum: ["Point"],
+    default: "Point",
+    required: false, // mudar para false para tornar opcional
   },
   coordinates: {
     type: [Number], // [longitude, latitude]
-    required: true
-  }
+    required: false, // mudar para false para tornar opcional
+  },
 });
 
 const orderItemSchema = new mongoose.Schema({
   productId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Product',
-    required: false
+    ref: "Product",
+    required: false,
   },
   productName: {
     type: String,
-    required: true
+    required: true,
   },
   quantity: {
     type: Number,
     required: true,
-    min: 1
+    min: 1,
   },
   price: {
     type: Number,
-    required: true
-  }
+    required: true,
+  },
 });
 
 const orderSchema = new mongoose.Schema({
   cnpj: {
     type: String,
-    required: true
+    required: true,
   },
   orderNumber: {
     type: String,
-    required: true
+    required: true,
   },
   customer: {
     name: {
       type: String,
-      required: true
+      required: true,
     },
     phone: {
       type: String,
-      required: true
+      required: true,
     },
     address: {
       type: String,
-      required: true
+      required: true,
     },
-    // Adição de geolocalização para o endereço de entrega
+    // Adição de geolocalização como opcional para o endereço de entrega
     geolocation: {
       type: pointSchema,
-      index: '2dsphere' // Índice espacial para consultas de proximidade
-    }
+      index: "2dsphere", // Índice espacial para consultas de proximidade
+      required: false, // Tornar explicitamente opcional
+    },
   },
   // Campo para registrar qual motoboy está atendendo o pedido
   motoboy: {
     motoboyId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Motoboy',
-      required: false
+      ref: "Motoboy",
+      required: false,
     },
     name: {
       type: String,
-      required: false
+      required: false,
     },
     phone: {
       type: String,
-      required: false
-    }
+      required: false,
+    },
   },
   items: [orderItemSchema],
   status: {
     type: String,
-    enum: ['pendente', 'em_preparo', 'em_entrega', 'entregue', 'cancelado'],
-    default: 'pendente'
+    enum: ["pendente", "em_preparo", "em_entrega", "entregue", "cancelado"],
+    default: "pendente",
   },
   total: {
     type: Number,
-    required: true
+    required: true,
   },
   orderDate: {
     type: Date,
-    default: Date.now
+    default: Date.now,
   },
   payment: {
     method: {
       type: String,
-      enum: ['dinheiro', 'cartao', 'pix'],
-      required: true
+      enum: ["dinheiro", "cartao", "pix"],
+      required: true,
     },
     change: {
       type: Number,
-      default: 0
-    }
+      default: 0,
+    },
   },
   // Campo para rastrear informações sobre a entrega
   delivery: {
     estimatedTime: {
       type: Number, // em minutos
-      required: false
+      required: false,
     },
     distance: {
       type: Number, // em metros
-      required: false
+      required: false,
     },
     startTime: {
       type: Date,
-      required: false
+      required: false,
     },
     endTime: {
       type: Date,
-      required: false
-    }
+      required: false,
+    },
   },
   notes: {
     type: String,
-    default: ''
+    default: "",
   },
   createdAt: {
     type: Date,
-    default: Date.now
+    default: Date.now,
   },
   updatedAt: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
 });
 
 // Middleware para atualizar o campo updatedAt antes de salvar
-orderSchema.pre('save', function(next) {
+orderSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
   next();
 });
 
-module.exports = mongoose.model('Order', orderSchema);
+module.exports = mongoose.model("Order", orderSchema);

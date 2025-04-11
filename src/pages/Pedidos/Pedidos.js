@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { Link, useNavigate } from 'react-router-dom';
-import api from '../../services/api';
-import { 
-  Container, 
-  Typography, 
-  Button, 
-  Box, 
-  Paper, 
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../../contexts/AuthContext";
+import { Link, useNavigate } from "react-router-dom";
+import api from "../../services/api";
+import {
+  Container,
+  Typography,
+  Button,
+  Box,
+  Paper,
   Grid,
   Table,
   TableBody,
@@ -41,8 +41,8 @@ import {
   useMediaQuery,
   useTheme,
   Fab,
-  Autocomplete
-} from '@mui/material';
+  Autocomplete,
+} from "@mui/material";
 import {
   Dashboard as DashboardIcon,
   ShoppingBag as ProductsIcon,
@@ -63,8 +63,8 @@ import {
   Person as PersonIcon,
   Phone as PhoneIcon,
   LocationOn as LocationIcon,
-  AttachMoney as MoneyIcon
-} from '@mui/icons-material';
+  AttachMoney as MoneyIcon,
+} from "@mui/icons-material";
 
 const Pedidos = () => {
   const { currentUser, logout } = useAuth();
@@ -72,15 +72,15 @@ const Pedidos = () => {
   const [filteredPedidos, setFilteredPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('todos');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState("todos");
   const [openDialog, setOpenDialog] = useState(false);
   const [currentPedido, setCurrentPedido] = useState(null);
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [snackbar, setSnackbar] = useState({
     open: false,
-    message: '',
-    severity: 'success'
+    message: "",
+    severity: "success",
   });
   const [produtos, setProdutos] = useState([]);
   const [loadingProdutos, setLoadingProdutos] = useState(false);
@@ -88,29 +88,29 @@ const Pedidos = () => {
   // Estado para o formulário de novo pedido
   const [novoPedido, setNovoPedido] = useState({
     customer: {
-      name: '',
-      phone: '',
-      address: ''
+      name: "",
+      phone: "",
+      address: "",
     },
     items: [],
     payment: {
-      method: 'dinheiro',
-      change: 0
+      method: "dinheiro",
+      change: 0,
     },
-    notes: '',
-    total: 0
+    notes: "",
+    total: 0,
   });
 
   // Estado para o item atual sendo adicionado
   const [currentItem, setCurrentItem] = useState({
-    productId: '',
-    productName: '',
+    productId: "",
+    productName: "",
     quantity: 1,
-    price: 0
+    price: 0,
   });
 
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [drawerOpen, setDrawerOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -119,17 +119,19 @@ const Pedidos = () => {
     const fetchPedidos = async () => {
       try {
         setLoading(true);
-        const response = await api.get('/orders');
+        const response = await api.get("/orders");
         setPedidos(response.data);
         setFilteredPedidos(response.data);
         setLoading(false);
       } catch (err) {
-        console.error('Erro ao carregar pedidos:', err);
-        setError('Não foi possível carregar os pedidos. Tente novamente mais tarde.');
+        console.error("Erro ao carregar pedidos:", err);
+        setError(
+          "Não foi possível carregar os pedidos. Tente novamente mais tarde."
+        );
         setSnackbar({
           open: true,
-          message: 'Erro ao carregar pedidos',
-          severity: 'error'
+          message: "Erro ao carregar pedidos",
+          severity: "error",
         });
         setLoading(false);
       }
@@ -143,11 +145,11 @@ const Pedidos = () => {
     const fetchProdutos = async () => {
       try {
         setLoadingProdutos(true);
-        const response = await api.get('/products');
+        const response = await api.get("/products");
         setProdutos(response.data);
         setLoadingProdutos(false);
       } catch (err) {
-        console.error('Erro ao carregar produtos:', err);
+        console.error("Erro ao carregar produtos:", err);
         setLoadingProdutos(false);
       }
     };
@@ -160,27 +162,37 @@ const Pedidos = () => {
   // Efeito para aplicar filtros
   useEffect(() => {
     let result = [...pedidos];
-    
+
     // Filtrar por termo de busca
     if (searchTerm) {
-      result = result.filter(pedido => 
-        pedido.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pedido.orderNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pedido.customer?.address?.toLowerCase().includes(searchTerm.toLowerCase())
+      result = result.filter(
+        (pedido) =>
+          pedido.customer?.name
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          pedido.orderNumber
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          pedido.customer?.address
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase())
       );
     }
-    
+
     // Filtrar por status
-    if (filterStatus !== 'todos') {
-      result = result.filter(pedido => pedido.status === filterStatus);
+    if (filterStatus !== "todos") {
+      result = result.filter((pedido) => pedido.status === filterStatus);
     }
-    
+
     setFilteredPedidos(result);
   }, [pedidos, searchTerm, filterStatus]);
 
   // Controle do drawer
   const toggleDrawer = (open) => (event) => {
-    if (event.type === 'keydown' && (event.key === 'Tab' || event.key === 'Shift')) {
+    if (
+      event.type === "keydown" &&
+      (event.key === "Tab" || event.key === "Shift")
+    ) {
       return;
     }
     setDrawerOpen(open);
@@ -188,8 +200,8 @@ const Pedidos = () => {
 
   // Limpar todos os filtros
   const handleClearFilters = () => {
-    setSearchTerm('');
-    setFilterStatus('todos');
+    setSearchTerm("");
+    setFilterStatus("todos");
   };
 
   // Ver detalhes do pedido
@@ -202,37 +214,35 @@ const Pedidos = () => {
   const handleUpdateStatus = async (pedidoId, newStatus) => {
     try {
       setLoading(true);
-      
+
       // Chamar API para atualizar status
       await api.put(`/orders/${pedidoId}/status`, { status: newStatus });
-      
+
       // Atualizar estado local
-      const updatedPedidos = pedidos.map(pedido => 
-        pedido._id === pedidoId 
-          ? { ...pedido, status: newStatus } 
-          : pedido
+      const updatedPedidos = pedidos.map((pedido) =>
+        pedido._id === pedidoId ? { ...pedido, status: newStatus } : pedido
       );
-      
+
       setPedidos(updatedPedidos);
-      
+
       // Se o pedido atual está aberto, atualizar também
       if (currentPedido && currentPedido._id === pedidoId) {
         setCurrentPedido({ ...currentPedido, status: newStatus });
       }
-      
+
       setSnackbar({
         open: true,
-        message: 'Status do pedido atualizado com sucesso',
-        severity: 'success'
+        message: "Status do pedido atualizado com sucesso",
+        severity: "success",
       });
-      
+
       setLoading(false);
     } catch (err) {
-      console.error('Erro ao atualizar status do pedido:', err);
+      console.error("Erro ao atualizar status do pedido:", err);
       setSnackbar({
         open: true,
-        message: 'Erro ao atualizar status do pedido',
-        severity: 'error'
+        message: "Erro ao atualizar status do pedido",
+        severity: "error",
       });
       setLoading(false);
     }
@@ -242,23 +252,23 @@ const Pedidos = () => {
   const handleOpenCreateDialog = () => {
     setNovoPedido({
       customer: {
-        name: '',
-        phone: '',
-        address: ''
+        name: "",
+        phone: "",
+        address: "",
       },
       items: [],
       payment: {
-        method: 'dinheiro',
-        change: 0
+        method: "dinheiro",
+        change: 0,
       },
-      notes: '',
-      total: 0
+      notes: "",
+      total: 0,
     });
     setCurrentItem({
-      productId: '',
-      productName: '',
+      productId: "",
+      productName: "",
       quantity: 1,
-      price: 0
+      price: 0,
     });
     setOpenCreateDialog(true);
   };
@@ -271,43 +281,43 @@ const Pedidos = () => {
   // Atualizar dados do cliente
   const handleCustomerChange = (e) => {
     const { name, value } = e.target;
-    setNovoPedido(prev => ({
+    setNovoPedido((prev) => ({
       ...prev,
       customer: {
         ...prev.customer,
-        [name]: value
-      }
+        [name]: value,
+      },
     }));
   };
 
   // Atualizar forma de pagamento
   const handlePaymentMethodChange = (e) => {
-    setNovoPedido(prev => ({
+    setNovoPedido((prev) => ({
       ...prev,
       payment: {
         ...prev.payment,
-        method: e.target.value
-      }
+        method: e.target.value,
+      },
     }));
   };
 
   // Atualizar troco
   const handleChangeValueChange = (e) => {
     const change = parseFloat(e.target.value) || 0;
-    setNovoPedido(prev => ({
+    setNovoPedido((prev) => ({
       ...prev,
       payment: {
         ...prev.payment,
-        change: change
-      }
+        change: change,
+      },
     }));
   };
 
   // Atualizar observações
   const handleNotesChange = (e) => {
-    setNovoPedido(prev => ({
+    setNovoPedido((prev) => ({
       ...prev,
-      notes: e.target.value
+      notes: e.target.value,
     }));
   };
 
@@ -318,14 +328,14 @@ const Pedidos = () => {
         productId: produto._id,
         productName: produto.productName,
         quantity: 1,
-        price: produto.priceOnSale || produto.priceFull
+        price: produto.priceOnSale || produto.priceFull,
       });
     } else {
       setCurrentItem({
-        productId: '',
-        productName: '',
+        productId: "",
+        productName: "",
         quantity: 1,
-        price: 0
+        price: 0,
       });
     }
   };
@@ -333,9 +343,9 @@ const Pedidos = () => {
   // Atualizar quantidade do item atual
   const handleQuantityChange = (e) => {
     const quantity = parseInt(e.target.value) || 1;
-    setCurrentItem(prev => ({
+    setCurrentItem((prev) => ({
       ...prev,
-      quantity: quantity > 0 ? quantity : 1
+      quantity: quantity > 0 ? quantity : 1,
     }));
   };
 
@@ -344,30 +354,33 @@ const Pedidos = () => {
     if (!currentItem.productName) {
       setSnackbar({
         open: true,
-        message: 'Selecione um produto para adicionar',
-        severity: 'warning'
+        message: "Selecione um produto para adicionar",
+        severity: "warning",
       });
       return;
     }
 
     const newItem = { ...currentItem };
     const updatedItems = [...novoPedido.items, newItem];
-    
+
     // Calcular novo total
-    const newTotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    
-    setNovoPedido(prev => ({
+    const newTotal = updatedItems.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
+
+    setNovoPedido((prev) => ({
       ...prev,
       items: updatedItems,
-      total: newTotal
+      total: newTotal,
     }));
-    
+
     // Limpar item atual para adicionar outro
     setCurrentItem({
-      productId: '',
-      productName: '',
+      productId: "",
+      productName: "",
       quantity: 1,
-      price: 0
+      price: 0,
     });
   };
 
@@ -375,23 +388,30 @@ const Pedidos = () => {
   const handleRemoveItem = (index) => {
     const updatedItems = novoPedido.items.filter((_, i) => i !== index);
     // Recalcular total
-    const newTotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    
-    setNovoPedido(prev => ({
+    const newTotal = updatedItems.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
+
+    setNovoPedido((prev) => ({
       ...prev,
       items: updatedItems,
-      total: newTotal
+      total: newTotal,
     }));
   };
 
   // Criar novo pedido
   const handleCreatePedido = async () => {
     // Validação básica
-    if (!novoPedido.customer.name || !novoPedido.customer.phone || !novoPedido.customer.address) {
+    if (
+      !novoPedido.customer.name ||
+      !novoPedido.customer.phone ||
+      !novoPedido.customer.address
+    ) {
       setSnackbar({
         open: true,
-        message: 'Preencha todos os dados do cliente',
-        severity: 'warning'
+        message: "Preencha todos os dados do cliente",
+        severity: "warning",
       });
       return;
     }
@@ -399,35 +419,42 @@ const Pedidos = () => {
     if (novoPedido.items.length === 0) {
       setSnackbar({
         open: true,
-        message: 'Adicione pelo menos um item ao pedido',
-        severity: 'warning'
+        message: "Adicione pelo menos um item ao pedido",
+        severity: "warning",
       });
       return;
     }
 
     try {
       setLoading(true);
-      
+      const userProfileResponse = await api.get("/users/me");
+      const userCnpj = userProfileResponse.data.cnpj;
+
+      const orderData = {
+        ...novoPedido,
+        cnpj: userCnpj,
+      };
+
       // Chamar API para criar pedido
-      const response = await api.post('/orders', novoPedido);
-      
+      const response = await api.post("/orders", orderData);
+
       // Adicionar novo pedido à lista
-      setPedidos(prev => [response.data.order, ...prev]);
-      
+      setPedidos((prev) => [response.data.order, ...prev]);
+
       setSnackbar({
         open: true,
-        message: 'Pedido criado com sucesso',
-        severity: 'success'
+        message: "Pedido criado com sucesso",
+        severity: "success",
       });
-      
+
       setOpenCreateDialog(false);
       setLoading(false);
     } catch (err) {
-      console.error('Erro ao criar pedido:', err);
+      console.error("Erro ao criar pedido:", err);
       setSnackbar({
         open: true,
-        message: 'Erro ao criar pedido',
-        severity: 'error'
+        message: "Erro ao criar pedido",
+        severity: "error",
       });
       setLoading(false);
     }
@@ -435,9 +462,9 @@ const Pedidos = () => {
 
   // Fechar snackbar
   const handleCloseSnackbar = () => {
-    setSnackbar(prev => ({
+    setSnackbar((prev) => ({
       ...prev,
-      open: false
+      open: false,
     }));
   };
 
@@ -445,46 +472,66 @@ const Pedidos = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate('/login');
+      navigate("/login");
     } catch (error) {
-      console.error('Erro ao fazer logout:', error);
+      console.error("Erro ao fazer logout:", error);
     }
   };
 
   // Formatação de data e hora
   const formatDateTime = (dateString) => {
     const date = new Date(dateString);
-    return new Intl.DateTimeFormat('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     }).format(date);
   };
 
   // Formatação de valor monetário
   const formatCurrency = (value) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
     }).format(value);
   };
 
   // Obter chip colorido de acordo com o status
   const getStatusChip = (status) => {
     const statusConfig = {
-      pendente: { color: 'warning', icon: <ScheduleIcon fontSize="small" />, label: 'Pendente' },
-      em_preparo: { color: 'primary', icon: <CheckIcon fontSize="small" />, label: 'Em Preparo' },
-      em_entrega: { color: 'info', icon: <DeliveryIcon fontSize="small" />, label: 'Em Entrega' },
-      entregue: { color: 'success', icon: <DoneAllIcon fontSize="small" />, label: 'Entregue' },
-      cancelado: { color: 'error', icon: <CloseIcon fontSize="small" />, label: 'Cancelado' }
+      pendente: {
+        color: "warning",
+        icon: <ScheduleIcon fontSize="small" />,
+        label: "Pendente",
+      },
+      em_preparo: {
+        color: "primary",
+        icon: <CheckIcon fontSize="small" />,
+        label: "Em Preparo",
+      },
+      em_entrega: {
+        color: "info",
+        icon: <DeliveryIcon fontSize="small" />,
+        label: "Em Entrega",
+      },
+      entregue: {
+        color: "success",
+        icon: <DoneAllIcon fontSize="small" />,
+        label: "Entregue",
+      },
+      cancelado: {
+        color: "error",
+        icon: <CloseIcon fontSize="small" />,
+        label: "Cancelado",
+      },
     };
 
     const config = statusConfig[status] || statusConfig.pendente;
 
     return (
-      <Chip 
+      <Chip
         icon={config.icon}
         label={config.label}
         color={config.color}
@@ -496,8 +543,8 @@ const Pedidos = () => {
   // Drawer content
   const drawerItems = (
     <Box sx={{ width: 250 }}>
-      <Box sx={{ p: 2, textAlign: 'center' }}>
-        <img 
+      <Box sx={{ p: 2, textAlign: "center" }}>
+        <img
           src="https://i.imgur.com/8jOdfcO.png"
           style={{ height: 50, marginBottom: 16 }}
           alt="Gringo Delivery"
@@ -505,50 +552,50 @@ const Pedidos = () => {
       </Box>
       <Divider />
       <List>
-        <ListItem 
-          button 
-          component={Link} 
-          to="/dashboard" 
-          sx={{ 
-            color: 'text.primary',
-            '&:hover': { bgcolor: 'primary.light', color: 'white' } 
+        <ListItem
+          button
+          component={Link}
+          to="/dashboard"
+          sx={{
+            color: "text.primary",
+            "&:hover": { bgcolor: "primary.light", color: "white" },
           }}
         >
-          <ListItemIcon sx={{ color: 'inherit' }}>
+          <ListItemIcon sx={{ color: "inherit" }}>
             <DashboardIcon />
           </ListItemIcon>
           <ListItemText primary="Dashboard" />
         </ListItem>
-        <ListItem 
-          button 
-          component={Link} 
+        <ListItem
+          button
+          component={Link}
           to="/produtos"
-          sx={{ 
-            color: 'text.primary',
-            '&:hover': { bgcolor: 'primary.light', color: 'white' } 
+          sx={{
+            color: "text.primary",
+            "&:hover": { bgcolor: "primary.light", color: "white" },
           }}
         >
-          <ListItemIcon sx={{ color: 'inherit' }}>
+          <ListItemIcon sx={{ color: "inherit" }}>
             <ProductsIcon />
           </ListItemIcon>
           <ListItemText primary="Produtos" />
         </ListItem>
-        <ListItem 
-          button 
-          component={Link} 
+        <ListItem
+          button
+          component={Link}
           to="/pedidos"
           selected={true}
-          sx={{ 
-            color: 'text.primary',
-            '&.Mui-selected': { 
-              bgcolor: 'primary.main',
-              color: 'white',
-              '&:hover': { bgcolor: 'primary.dark' } 
+          sx={{
+            color: "text.primary",
+            "&.Mui-selected": {
+              bgcolor: "primary.main",
+              color: "white",
+              "&:hover": { bgcolor: "primary.dark" },
             },
-            '&:hover': { bgcolor: 'primary.light', color: 'white' } 
+            "&:hover": { bgcolor: "primary.light", color: "white" },
           }}
         >
-          <ListItemIcon sx={{ color: 'inherit' }}>
+          <ListItemIcon sx={{ color: "inherit" }}>
             <OrdersIcon />
           </ListItemIcon>
           <ListItemText primary="Pedidos" />
@@ -556,12 +603,12 @@ const Pedidos = () => {
       </List>
       <Divider />
       <List>
-        <ListItem 
-          button 
+        <ListItem
+          button
           onClick={handleLogout}
-          sx={{ '&:hover': { bgcolor: 'error.light', color: 'white' } }}
+          sx={{ "&:hover": { bgcolor: "error.light", color: "white" } }}
         >
-          <ListItemIcon sx={{ color: 'inherit' }}>
+          <ListItemIcon sx={{ color: "inherit" }}>
             <LogoutIcon />
           </ListItemIcon>
           <ListItemText primary="Sair" />
@@ -572,27 +619,31 @@ const Pedidos = () => {
 
   // Renderizar estado vazio (sem pedidos)
   const renderEmptyState = () => (
-    <Box 
-      sx={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        py: 8 
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        py: 8,
       }}
     >
-      <OrdersIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
-      <Typography variant="h5" sx={{ mb: 1, fontWeight: 'bold' }}>
+      <OrdersIcon sx={{ fontSize: 60, color: "text.disabled", mb: 2 }} />
+      <Typography variant="h5" sx={{ mb: 1, fontWeight: "bold" }}>
         Nenhum pedido encontrado
       </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 3, textAlign: 'center' }}>
+      <Typography
+        variant="body1"
+        color="text.secondary"
+        sx={{ mb: 3, textAlign: "center" }}
+      >
         Não há pedidos registrados no momento.
         <br />
         Crie um novo pedido ou aguarde pedidos dos clientes.
       </Typography>
-      <Button 
-        variant="contained" 
-        color="primary" 
+      <Button
+        variant="contained"
+        color="primary"
         onClick={handleOpenCreateDialog}
         startIcon={<AddIcon />}
       >
@@ -603,25 +654,25 @@ const Pedidos = () => {
 
   // Renderizar estado vazio após filtros
   const renderEmptyFilterState = () => (
-    <Box 
-      sx={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        py: 8 
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        py: 8,
       }}
     >
-      <FilterListIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
-      <Typography variant="h5" sx={{ mb: 1, fontWeight: 'bold' }}>
+      <FilterListIcon sx={{ fontSize: 60, color: "text.disabled", mb: 2 }} />
+      <Typography variant="h5" sx={{ mb: 1, fontWeight: "bold" }}>
         Nenhum pedido encontrado com esses filtros
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
         Tente ajustar seus critérios de busca ou limpar os filtros.
       </Typography>
-      <Button 
-        variant="contained" 
-        color="primary" 
+      <Button
+        variant="contained"
+        color="primary"
         onClick={handleClearFilters}
         startIcon={<ClearIcon />}
       >
@@ -631,10 +682,16 @@ const Pedidos = () => {
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        bgcolor: "background.default",
+      }}
+    >
       {/* AppBar para dispositivos móveis */}
       {isMobile && (
-        <AppBar position="fixed" sx={{ bgcolor: 'primary.main' }}>
+        <AppBar position="fixed" sx={{ bgcolor: "primary.main" }}>
           <Toolbar>
             <IconButton
               color="inherit"
@@ -644,7 +701,11 @@ const Pedidos = () => {
             >
               <MenuIcon />
             </IconButton>
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
+            <Typography
+              variant="h6"
+              component="div"
+              sx={{ flexGrow: 1, fontWeight: "bold" }}
+            >
               Gringo Delivery
             </Typography>
           </Toolbar>
@@ -660,43 +721,66 @@ const Pedidos = () => {
         sx={{
           width: 250,
           flexShrink: 0,
-          '& .MuiDrawer-paper': {
+          "& .MuiDrawer-paper": {
             width: 250,
-            boxSizing: 'border-box',
+            boxSizing: "border-box",
           },
         }}
       >
         {drawerItems}
       </Drawer>
-      
+
       {/* Main content */}
-      <Box component="main" sx={{ 
-        flexGrow: 1, 
-        p: 3,
-        ml: isMobile ? 0 : '2px',
-        mt: isMobile ? '64px' : 0,
-        position: 'relative'
-      }}>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: 3,
+          ml: isMobile ? 0 : "2px",
+          mt: isMobile ? "64px" : 0,
+          position: "relative",
+        }}
+      >
         <Container maxWidth="lg">
           {/* Cabeçalho */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-            <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 4,
+            }}
+          >
+            <Typography
+              variant="h4"
+              component="h1"
+              sx={{ fontWeight: "bold", color: "primary.main" }}
+            >
               Pedidos
             </Typography>
-            <Button 
-              variant="contained" 
-              color="primary" 
+            <Button
+              variant="contained"
+              color="primary"
               startIcon={<AddIcon />}
               onClick={handleOpenCreateDialog}
             >
               Novo Pedido
             </Button>
           </Box>
-          
+
           {/* Filtros */}
           <Paper elevation={2} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
             <Box sx={{ mb: 2 }}>
-              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2, display: 'flex', alignItems: 'center', color: 'primary.main' }}>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: "bold",
+                  mb: 2,
+                  display: "flex",
+                  alignItems: "center",
+                  color: "primary.main",
+                }}
+              >
                 <FilterListIcon sx={{ mr: 1 }} /> Filtros
               </Typography>
               <Grid container spacing={2}>
@@ -714,11 +798,14 @@ const Pedidos = () => {
                       ),
                       endAdornment: searchTerm ? (
                         <InputAdornment position="end">
-                          <IconButton onClick={() => setSearchTerm('')} size="small">
+                          <IconButton
+                            onClick={() => setSearchTerm("")}
+                            size="small"
+                          >
                             <ClearIcon />
                           </IconButton>
                         </InputAdornment>
-                      ) : null
+                      ) : null,
                     }}
                     variant="outlined"
                     size="small"
@@ -726,7 +813,9 @@ const Pedidos = () => {
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth size="small">
-                    <InputLabel id="status-filter-label">Status do Pedido</InputLabel>
+                    <InputLabel id="status-filter-label">
+                      Status do Pedido
+                    </InputLabel>
                     <Select
                       labelId="status-filter-label"
                       value={filterStatus}
@@ -744,60 +833,84 @@ const Pedidos = () => {
                 </Grid>
               </Grid>
             </Box>
-            
+
             {/* Exibir resumo dos filtros ativos e botão para limpar */}
-            {(searchTerm || filterStatus !== 'todos') && (
-              <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+            {(searchTerm || filterStatus !== "todos") && (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: 1,
+                }}
+              >
                 <Typography variant="body2" color="text.secondary">
                   Filtros ativos:
                 </Typography>
-                
+
                 {searchTerm && (
-                  <Chip 
-                    label={`Busca: "${searchTerm}"`} 
-                    size="small" 
-                    onDelete={() => setSearchTerm('')}
-                  />
-                )}
-                
-                {filterStatus !== 'todos' && (
-                  <Chip 
-                    label={`Status: ${filterStatus === 'pendente' ? 'Pendentes' : 
-                           filterStatus === 'em_preparo' ? 'Em Preparo' : 
-                           filterStatus === 'em_entrega' ? 'Em Entrega' : 
-                           filterStatus === 'entregue' ? 'Entregues' : 'Cancelados'}`} 
+                  <Chip
+                    label={`Busca: "${searchTerm}"`}
                     size="small"
-                    color={filterStatus === 'pendente' ? 'warning' : 
-                           filterStatus === 'em_preparo' ? 'primary' : 
-                           filterStatus === 'em_entrega' ? 'info' : 
-                           filterStatus === 'entregue' ? 'success' : 'error'}
-                    onDelete={() => setFilterStatus('todos')}
+                    onDelete={() => setSearchTerm("")}
                   />
                 )}
-                
-                <Button 
-                  size="small" 
-                  variant="outlined" 
+
+                {filterStatus !== "todos" && (
+                  <Chip
+                    label={`Status: ${
+                      filterStatus === "pendente"
+                        ? "Pendentes"
+                        : filterStatus === "em_preparo"
+                        ? "Em Preparo"
+                        : filterStatus === "em_entrega"
+                        ? "Em Entrega"
+                        : filterStatus === "entregue"
+                        ? "Entregues"
+                        : "Cancelados"
+                    }`}
+                    size="small"
+                    color={
+                      filterStatus === "pendente"
+                        ? "warning"
+                        : filterStatus === "em_preparo"
+                        ? "primary"
+                        : filterStatus === "em_entrega"
+                        ? "info"
+                        : filterStatus === "entregue"
+                        ? "success"
+                        : "error"
+                    }
+                    onDelete={() => setFilterStatus("todos")}
+                  />
+                )}
+
+                <Button
+                  size="small"
+                  variant="outlined"
                   startIcon={<ClearIcon />}
                   onClick={handleClearFilters}
-                  sx={{ ml: 'auto' }}
+                  sx={{ ml: "auto" }}
                 >
                   Limpar filtros
                 </Button>
               </Box>
             )}
           </Paper>
-          
+
           {/* Contagem de pedidos */}
           <Box sx={{ mb: 2 }}>
             <Typography variant="body2" color="text.secondary">
-              Exibindo {filteredPedidos.length} pedido{filteredPedidos.length !== 1 ? 's' : ''} {filteredPedidos.length !== pedidos.length && `de ${pedidos.length} total`}
+              Exibindo {filteredPedidos.length} pedido
+              {filteredPedidos.length !== 1 ? "s" : ""}{" "}
+              {filteredPedidos.length !== pedidos.length &&
+                `de ${pedidos.length} total`}
             </Typography>
           </Box>
-          
+
           {/* Pedidos */}
           {loading && pedidos.length === 0 ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
               <CircularProgress color="primary" />
             </Box>
           ) : pedidos.length === 0 ? (
@@ -805,35 +918,57 @@ const Pedidos = () => {
           ) : filteredPedidos.length === 0 ? (
             renderEmptyFilterState()
           ) : (
-            <TableContainer component={Paper} sx={{ mb: 4, borderRadius: 2, overflowX: 'auto' }}>
+            <TableContainer
+              component={Paper}
+              sx={{ mb: 4, borderRadius: 2, overflowX: "auto" }}
+            >
               <Table sx={{ minWidth: 650 }}>
-                <TableHead sx={{ bgcolor: 'primary.main' }}>
+                <TableHead sx={{ bgcolor: "primary.main" }}>
                   <TableRow>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>ID</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Data</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Cliente</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Total</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Status</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Ações</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                      ID
+                    </TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                      Data
+                    </TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                      Cliente
+                    </TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                      Total
+                    </TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                      Status
+                    </TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                      Ações
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {filteredPedidos.map((pedido) => (
-                    <TableRow 
+                    <TableRow
                       key={pedido._id}
                       hover
                       sx={{
-                        '&:last-child td, &:last-child th': { border: 0 },
-                        cursor: 'pointer',
-                        bgcolor: 
-                          pedido.status === 'pendente' ? 'warning.lightest' : 
-                          pedido.status === 'cancelado' ? 'error.lightest' : 
-                          pedido.status === 'entregue' ? 'success.lightest' : 
-                          'inherit'
+                        "&:last-child td, &:last-child th": { border: 0 },
+                        cursor: "pointer",
+                        bgcolor:
+                          pedido.status === "pendente"
+                            ? "warning.lightest"
+                            : pedido.status === "cancelado"
+                            ? "error.lightest"
+                            : pedido.status === "entregue"
+                            ? "success.lightest"
+                            : "inherit",
                       }}
                       onClick={() => handleViewPedido(pedido)}
                     >
-                      <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>
+                      <TableCell
+                        component="th"
+                        scope="row"
+                        sx={{ fontWeight: "bold" }}
+                      >
                         {pedido.orderNumber}
                       </TableCell>
                       <TableCell>{formatDateTime(pedido.orderDate)}</TableCell>
@@ -841,8 +976,8 @@ const Pedidos = () => {
                       <TableCell>{formatCurrency(pedido.total)}</TableCell>
                       <TableCell>{getStatusChip(pedido.status)}</TableCell>
                       <TableCell>
-                        <IconButton 
-                          size="small" 
+                        <IconButton
+                          size="small"
                           color="primary"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -858,19 +993,25 @@ const Pedidos = () => {
               </Table>
             </TableContainer>
           )}
-          
+
           {/* Dialog para visualizar detalhes do pedido */}
-          <Dialog 
-            open={openDialog} 
+          <Dialog
+            open={openDialog}
             onClose={() => setOpenDialog(false)}
             maxWidth="md"
             fullWidth
           >
             {currentPedido && (
               <>
-                <DialogTitle sx={{ bgcolor: 'primary.main', color: 'white' }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                <DialogTitle sx={{ bgcolor: "primary.main", color: "white" }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Typography variant="h6" sx={{ fontWeight: "bold" }}>
                       Detalhes do Pedido #{currentPedido.orderNumber}
                     </Typography>
                     {getStatusChip(currentPedido.status)}
@@ -880,56 +1021,121 @@ const Pedidos = () => {
                   <Grid container spacing={3}>
                     {/* Informações do Cliente */}
                     <Grid item xs={12} md={6}>
-                      <Paper elevation={1} sx={{ p: 2, height: '100%' }}>
-                        <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 'bold' }}>
+                      <Paper elevation={1} sx={{ p: 2, height: "100%" }}>
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            mb: 2,
+                            color: "primary.main",
+                            fontWeight: "bold",
+                          }}
+                        >
                           Informações do Cliente
                         </Typography>
                         <Box sx={{ mb: 1 }}>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Nome:</Typography>
-                          <Typography variant="body2">{currentPedido.customer.name}</Typography>
+                          <Typography
+                            variant="subtitle2"
+                            sx={{ fontWeight: "bold" }}
+                          >
+                            Nome:
+                          </Typography>
+                          <Typography variant="body2">
+                            {currentPedido.customer.name}
+                          </Typography>
                         </Box>
                         <Box sx={{ mb: 1 }}>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Telefone:</Typography>
-                          <Typography variant="body2">{currentPedido.customer.phone}</Typography>
+                          <Typography
+                            variant="subtitle2"
+                            sx={{ fontWeight: "bold" }}
+                          >
+                            Telefone:
+                          </Typography>
+                          <Typography variant="body2">
+                            {currentPedido.customer.phone}
+                          </Typography>
                         </Box>
                         <Box>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Endereço:</Typography>
-                          <Typography variant="body2">{currentPedido.customer.address}</Typography>
+                          <Typography
+                            variant="subtitle2"
+                            sx={{ fontWeight: "bold" }}
+                          >
+                            Endereço:
+                          </Typography>
+                          <Typography variant="body2">
+                            {currentPedido.customer.address}
+                          </Typography>
                         </Box>
                       </Paper>
                     </Grid>
-                    
+
                     {/* Informações do Pagamento */}
                     <Grid item xs={12} md={6}>
-                      <Paper elevation={1} sx={{ p: 2, height: '100%' }}>
-                        <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 'bold' }}>
+                      <Paper elevation={1} sx={{ p: 2, height: "100%" }}>
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            mb: 2,
+                            color: "primary.main",
+                            fontWeight: "bold",
+                          }}
+                        >
                           Informações do Pagamento
                         </Typography>
                         <Box sx={{ mb: 1 }}>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Forma de Pagamento:</Typography>
-                          <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
+                          <Typography
+                            variant="subtitle2"
+                            sx={{ fontWeight: "bold" }}
+                          >
+                            Forma de Pagamento:
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            sx={{ textTransform: "capitalize" }}
+                          >
                             {currentPedido.payment.method}
                           </Typography>
                         </Box>
                         <Box sx={{ mb: 1 }}>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Total:</Typography>
-                          <Typography variant="body2">{formatCurrency(currentPedido.total)}</Typography>
+                          <Typography
+                            variant="subtitle2"
+                            sx={{ fontWeight: "bold" }}
+                          >
+                            Total:
+                          </Typography>
+                          <Typography variant="body2">
+                            {formatCurrency(currentPedido.total)}
+                          </Typography>
                         </Box>
                         {currentPedido.payment.change > 0 && (
                           <Box>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Troco para:</Typography>
+                            <Typography
+                              variant="subtitle2"
+                              sx={{ fontWeight: "bold" }}
+                            >
+                              Troco para:
+                            </Typography>
                             <Typography variant="body2">
-                              {formatCurrency(currentPedido.total + currentPedido.payment.change)}
+                              {formatCurrency(
+                                currentPedido.total +
+                                  currentPedido.payment.change
+                              )}
                             </Typography>
                           </Box>
                         )}
                       </Paper>
                     </Grid>
-                    
+
                     {/* Itens do Pedido */}
                     <Grid item xs={12}>
                       <Paper elevation={1} sx={{ p: 2 }}>
-                        <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 'bold' }}>
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            mb: 2,
+                            color: "primary.main",
+                            fontWeight: "bold",
+                          }}
+                        >
                           Itens do Pedido
                         </Typography>
                         <TableContainer>
@@ -946,26 +1152,50 @@ const Pedidos = () => {
                               {currentPedido.items.map((item, index) => (
                                 <TableRow key={index}>
                                   <TableCell>{item.productName}</TableCell>
-                                  <TableCell align="center">{item.quantity}</TableCell>
-                                  <TableCell align="right">{formatCurrency(item.price)}</TableCell>
-                                  <TableCell align="right">{formatCurrency(item.price * item.quantity)}</TableCell>
+                                  <TableCell align="center">
+                                    {item.quantity}
+                                  </TableCell>
+                                  <TableCell align="right">
+                                    {formatCurrency(item.price)}
+                                  </TableCell>
+                                  <TableCell align="right">
+                                    {formatCurrency(item.price * item.quantity)}
+                                  </TableCell>
                                 </TableRow>
                               ))}
                               <TableRow>
-                                <TableCell colSpan={3} align="right" sx={{ fontWeight: 'bold' }}>Total:</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 'bold' }}>{formatCurrency(currentPedido.total)}</TableCell>
+                                <TableCell
+                                  colSpan={3}
+                                  align="right"
+                                  sx={{ fontWeight: "bold" }}
+                                >
+                                  Total:
+                                </TableCell>
+                                <TableCell
+                                  align="right"
+                                  sx={{ fontWeight: "bold" }}
+                                >
+                                  {formatCurrency(currentPedido.total)}
+                                </TableCell>
                               </TableRow>
                             </TableBody>
                           </Table>
                         </TableContainer>
                       </Paper>
                     </Grid>
-                    
+
                     {/* Observações */}
                     {currentPedido.notes && (
                       <Grid item xs={12}>
                         <Paper elevation={1} sx={{ p: 2 }}>
-                          <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 'bold' }}>
+                          <Typography
+                            variant="h6"
+                            sx={{
+                              mb: 2,
+                              color: "primary.main",
+                              fontWeight: "bold",
+                            }}
+                          >
                             Observações
                           </Typography>
                           <Typography variant="body2">
@@ -974,79 +1204,115 @@ const Pedidos = () => {
                         </Paper>
                       </Grid>
                     )}
-                    
+
                     {/* Atualizar Status */}
                     <Grid item xs={12}>
                       <Paper elevation={1} sx={{ p: 2 }}>
-                        <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 'bold' }}>
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            mb: 2,
+                            color: "primary.main",
+                            fontWeight: "bold",
+                          }}
+                        >
                           Atualizar Status do Pedido
                         </Typography>
-                        
-                        {currentPedido.status !== 'cancelado' && currentPedido.status !== 'entregue' ? (
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                            {currentPedido.status === 'pendente' && (
+
+                        {currentPedido.status !== "cancelado" &&
+                        currentPedido.status !== "entregue" ? (
+                          <Box
+                            sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}
+                          >
+                            {currentPedido.status === "pendente" && (
                               <Button
                                 variant="contained"
                                 color="primary"
                                 startIcon={<CheckIcon />}
-                                onClick={() => handleUpdateStatus(currentPedido._id, 'em_preparo')}
+                                onClick={() =>
+                                  handleUpdateStatus(
+                                    currentPedido._id,
+                                    "em_preparo"
+                                  )
+                                }
                               >
                                 Iniciar Preparo
                               </Button>
                             )}
-                            
-                            {currentPedido.status === 'em_preparo' && (
+
+                            {currentPedido.status === "em_preparo" && (
                               <Button
                                 variant="contained"
                                 color="info"
                                 startIcon={<DeliveryIcon />}
-                                onClick={() => handleUpdateStatus(currentPedido._id, 'em_entrega')}
+                                onClick={() =>
+                                  handleUpdateStatus(
+                                    currentPedido._id,
+                                    "em_entrega"
+                                  )
+                                }
                               >
                                 Enviar para Entrega
                               </Button>
                             )}
-                            
-                            {currentPedido.status === 'em_entrega' && (
+
+                            {currentPedido.status === "em_entrega" && (
                               <Button
                                 variant="contained"
                                 color="success"
                                 startIcon={<DoneAllIcon />}
-                                onClick={() => handleUpdateStatus(currentPedido._id, 'entregue')}
+                                onClick={() =>
+                                  handleUpdateStatus(
+                                    currentPedido._id,
+                                    "entregue"
+                                  )
+                                }
                               >
                                 Confirmar Entrega
                               </Button>
                             )}
-                            
+
                             <Button
                               variant="outlined"
                               color="error"
                               startIcon={<CloseIcon />}
                               onClick={() => {
-                                if (window.confirm('Tem certeza que deseja cancelar este pedido?')) {
-                                  handleUpdateStatus(currentPedido._id, 'cancelado')
+                                if (
+                                  window.confirm(
+                                    "Tem certeza que deseja cancelar este pedido?"
+                                  )
+                                ) {
+                                  handleUpdateStatus(
+                                    currentPedido._id,
+                                    "cancelado"
+                                  );
                                 }
                               }}
-                              sx={{ ml: 'auto' }}
+                              sx={{ ml: "auto" }}
                             >
                               Cancelar Pedido
                             </Button>
                           </Box>
                         ) : (
                           <Typography variant="body2" color="text.secondary">
-                            Este pedido não pode ser atualizado pois já foi {currentPedido.status === 'entregue' ? 'entregue' : 'cancelado'}.
+                            Este pedido não pode ser atualizado pois já foi{" "}
+                            {currentPedido.status === "entregue"
+                              ? "entregue"
+                              : "cancelado"}
+                            .
                           </Typography>
                         )}
                       </Paper>
                     </Grid>
                   </Grid>
-                  </DialogContent>
+                </DialogContent>
                 <DialogActions>
                   <Button onClick={() => setOpenDialog(false)}>Fechar</Button>
                 </DialogActions>
               </>
             )}
           </Dialog>
-          
+
           {/* Dialog para criação de novo pedido */}
           <Dialog
             open={openCreateDialog}
@@ -1054,16 +1320,31 @@ const Pedidos = () => {
             maxWidth="md"
             fullWidth
           >
-            <DialogTitle sx={{ bgcolor: 'primary.main', color: 'white', fontWeight: 'bold' }}>
+            <DialogTitle
+              sx={{
+                bgcolor: "primary.main",
+                color: "white",
+                fontWeight: "bold",
+              }}
+            >
               Criar Novo Pedido
             </DialogTitle>
             <DialogContent sx={{ p: 3, mt: 2 }}>
               {/* Formulário de Pedido */}
-              <Grid container spacing={3} >
+              <Grid container spacing={3}>
                 {/* Dados do Cliente */}
                 <Grid item xs={12} width="100%">
                   <Paper elevation={1} sx={{ p: 2 }}>
-                    <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        mb: 2,
+                        color: "primary.main",
+                        fontWeight: "bold",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
                       <PersonIcon sx={{ mr: 1 }} /> Dados do Cliente
                     </Typography>
                     <Grid container spacing={2}>
@@ -1091,7 +1372,7 @@ const Pedidos = () => {
                               <InputAdornment position="start">
                                 <PhoneIcon color="primary" />
                               </InputAdornment>
-                            )
+                            ),
                           }}
                         />
                       </Grid>
@@ -1110,7 +1391,7 @@ const Pedidos = () => {
                               <InputAdornment position="start">
                                 <LocationIcon color="primary" />
                               </InputAdornment>
-                            )
+                            ),
                           }}
                         />
                       </Grid>
@@ -1120,28 +1401,39 @@ const Pedidos = () => {
 
                 {/* Itens do Pedido */}
                 <Grid item xs={12} width="100%">
-                  <Paper elevation={1} sx={{ p: 2}}>
-                    <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+                  <Paper elevation={1} sx={{ p: 2 }}>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        mb: 2,
+                        color: "primary.main",
+                        fontWeight: "bold",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
                       <ShoppingBagIcon sx={{ mr: 1 }} /> Itens do Pedido
                     </Typography>
-                    
+
                     {/* Adicionar Novo Item */}
                     <Grid container spacing={2} sx={{ mb: 2 }}>
                       <Grid item xs={12} sm={6} width="300px">
                         <Autocomplete
                           options={produtos}
-                          getOptionLabel={(option) => option.productName || ''}
+                          getOptionLabel={(option) => option.productName || ""}
                           onChange={handleProductSelect}
                           renderInput={(params) => (
-                            <TextField 
-                              {...params} 
-                              label="Selecionar Produto" 
+                            <TextField
+                              {...params}
+                              label="Selecionar Produto"
                               variant="outlined"
                               fullWidth
                             />
                           )}
                           loading={loadingProdutos}
-                          isOptionEqualToValue={(option, value) => option._id === value._id}
+                          isOptionEqualToValue={(option, value) =>
+                            option._id === value._id
+                          }
                         />
                       </Grid>
                       <Grid item xs={6} sm={3}>
@@ -1152,7 +1444,7 @@ const Pedidos = () => {
                           value={currentItem.quantity}
                           onChange={handleQuantityChange}
                           InputProps={{
-                            inputProps: { min: 1 }
+                            inputProps: { min: 1 },
                           }}
                         />
                       </Grid>
@@ -1162,13 +1454,13 @@ const Pedidos = () => {
                           variant="contained"
                           color="primary"
                           onClick={handleAddItem}
-                          sx={{ height: '100%' }}
+                          sx={{ height: "100%" }}
                         >
                           Adicionar Item
                         </Button>
                       </Grid>
                     </Grid>
-                    
+
                     {/* Lista de Itens */}
                     {novoPedido.items.length > 0 ? (
                       <TableContainer>
@@ -1186,9 +1478,15 @@ const Pedidos = () => {
                             {novoPedido.items.map((item, index) => (
                               <TableRow key={index}>
                                 <TableCell>{item.productName}</TableCell>
-                                <TableCell align="center">{item.quantity}</TableCell>
-                                <TableCell align="right">{formatCurrency(item.price)}</TableCell>
-                                <TableCell align="right">{formatCurrency(item.price * item.quantity)}</TableCell>
+                                <TableCell align="center">
+                                  {item.quantity}
+                                </TableCell>
+                                <TableCell align="right">
+                                  {formatCurrency(item.price)}
+                                </TableCell>
+                                <TableCell align="right">
+                                  {formatCurrency(item.price * item.quantity)}
+                                </TableCell>
                                 <TableCell align="center">
                                   <IconButton
                                     size="small"
@@ -1201,10 +1499,17 @@ const Pedidos = () => {
                               </TableRow>
                             ))}
                             <TableRow>
-                              <TableCell colSpan={3} align="right" sx={{ fontWeight: 'bold' }}>
+                              <TableCell
+                                colSpan={3}
+                                align="right"
+                                sx={{ fontWeight: "bold" }}
+                              >
                                 Total:
                               </TableCell>
-                              <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                              <TableCell
+                                align="right"
+                                sx={{ fontWeight: "bold" }}
+                              >
                                 {formatCurrency(novoPedido.total)}
                               </TableCell>
                               <TableCell />
@@ -1213,7 +1518,7 @@ const Pedidos = () => {
                         </Table>
                       </TableContainer>
                     ) : (
-                      <Box sx={{ p: 2, textAlign: 'center' }}>
+                      <Box sx={{ p: 2, textAlign: "center" }}>
                         <Typography color="text.secondary">
                           Nenhum item adicionado ao pedido
                         </Typography>
@@ -1224,8 +1529,17 @@ const Pedidos = () => {
 
                 {/* Forma de Pagamento */}
                 <Grid item xs={12} md={6}>
-                  <Paper elevation={1} sx={{ p: 2, height: '100%' }}>
-                    <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+                  <Paper elevation={1} sx={{ p: 2, height: "100%" }}>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        mb: 2,
+                        color: "primary.main",
+                        fontWeight: "bold",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
                       <MoneyIcon sx={{ mr: 1 }} /> Forma de Pagamento
                     </Typography>
                     <FormControl fullWidth sx={{ mb: 2 }}>
@@ -1240,8 +1554,8 @@ const Pedidos = () => {
                         <MenuItem value="pix">PIX</MenuItem>
                       </Select>
                     </FormControl>
-                    
-                    {novoPedido.payment.method === 'dinheiro' && (
+
+                    {novoPedido.payment.method === "dinheiro" && (
                       <TextField
                         fullWidth
                         label="Troco para"
@@ -1250,11 +1564,9 @@ const Pedidos = () => {
                         onChange={handleChangeValueChange}
                         InputProps={{
                           startAdornment: (
-                            <InputAdornment position="start">
-                              R$
-                            </InputAdornment>
+                            <InputAdornment position="start">R$</InputAdornment>
                           ),
-                          inputProps: { step: "0.01", min: "0" }
+                          inputProps: { step: "0.01", min: "0" },
                         }}
                       />
                     )}
@@ -1263,8 +1575,11 @@ const Pedidos = () => {
 
                 {/* Observações */}
                 <Grid item xs={12} md={6}>
-                  <Paper elevation={1} sx={{ p: 2, height: '100%' }}>
-                    <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 'bold' }}>
+                  <Paper elevation={1} sx={{ p: 2, height: "100%" }}>
+                    <Typography
+                      variant="h6"
+                      sx={{ mb: 2, color: "primary.main", fontWeight: "bold" }}
+                    >
                       Observações
                     </Typography>
                     <TextField
@@ -1287,33 +1602,37 @@ const Pedidos = () => {
                 onClick={handleCreatePedido}
                 disabled={loading || novoPedido.items.length === 0}
               >
-                {loading ? <CircularProgress size={24} color="inherit" /> : "Criar Pedido"}
+                {loading ? (
+                  <CircularProgress size={24} color="inherit" />
+                ) : (
+                  "Criar Pedido"
+                )}
               </Button>
             </DialogActions>
           </Dialog>
-          
+
           {/* Snackbar para mensagens */}
-          <Snackbar 
-            open={snackbar.open} 
-            autoHideDuration={6000} 
+          <Snackbar
+            open={snackbar.open}
+            autoHideDuration={6000}
             onClose={handleCloseSnackbar}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
           >
-            <Alert 
-              onClose={handleCloseSnackbar} 
-              severity={snackbar.severity} 
-              sx={{ width: '100%' }}
+            <Alert
+              onClose={handleCloseSnackbar}
+              severity={snackbar.severity}
+              sx={{ width: "100%" }}
             >
               {snackbar.message}
             </Alert>
           </Snackbar>
-          
+
           {/* Botão flutuante para criar pedido (visível em dispositivos móveis) */}
           {isMobile && (
             <Fab
               color="primary"
               aria-label="Adicionar"
-              sx={{ position: 'fixed', bottom: 16, right: 16 }}
+              sx={{ position: "fixed", bottom: 16, right: 16 }}
               onClick={handleOpenCreateDialog}
             >
               <AddIcon />

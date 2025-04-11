@@ -169,6 +169,7 @@ const geocodeAddress = async (address) => {
 };
 
 // Criar novo pedido (para uso do app do cliente)
+// Criar novo pedido (para uso do app do cliente)
 router.post("/", async (req, res) => {
   try {
     const { cnpj, customer, items, total, payment, notes } = req.body;
@@ -179,27 +180,18 @@ router.post("/", async (req, res) => {
         .json({ message: "Dados obrigatórios não fornecidos" });
     }
 
-    console.log(cnpj, customer, items, total, payment);
+    console.log("Dados recebidos:", cnpj, customer, items, total, payment);
 
     // Gerar número do pedido (formato: PD + timestamp)
     const orderNumber = "PD" + Date.now().toString().substr(-6);
 
-    // Tentar geocodificar o endereço do cliente
-    // let geolocation;
-    // try {
-    //   geolocation = await geocodeAddress(customer.address);
-    // } catch (error) {
-    //   console.error('Erro ao geocodificar endereço:', error);
-    //   // Continuar sem geolocalização, não é crítico
-    // }
-
-    // Criar novo pedido
+    // Criar novo pedido sem geolocalização
     const newOrder = new Order({
       cnpj,
       orderNumber,
       customer: {
         ...customer,
-        geolocation, // Adicionar coordenadas do endereço
+        // Sem campo geolocation
       },
       items,
       total,
@@ -209,8 +201,6 @@ router.post("/", async (req, res) => {
     });
 
     await newOrder.save();
-
-    // Aqui você poderia implementar notificações push para o estabelecimento
 
     res
       .status(201)
