@@ -1,10 +1,10 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const admin = require('firebase-admin');
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+const dotenv = require("dotenv");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const admin = require("firebase-admin");
 
 // Configuração das variáveis de ambiente
 dotenv.config();
@@ -21,28 +21,32 @@ app.use(express.json());
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100 // limite de 100 requisições por IP
+  max: 100, // limite de 100 requisições por IP
 });
 app.use(limiter);
 
 // Inicializar Firebase Admin
-const serviceAccount = require('./serviceAccountKey.json');
+const serviceAccount = require("./serviceAccountKey.json");
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+  credential: admin.credential.cert(serviceAccount),
 });
 
 // Conexão com MongoDB
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('Conectado ao MongoDB Atlas'))
-  .catch(err => console.error('Erro ao conectar ao MongoDB:', err));
+console.log(process.env.MONGODB_URI);
+mongoose
+  .connect(process.env.MONGODB_URI)
+  .then(() => console.log("Conectado ao MongoDB Atlas"))
+  .catch((err) => console.error("Erro ao conectar ao MongoDB:", err));
 
 // Middleware de autenticação
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.split(' ')[1];
-  
+  const token = authHeader && authHeader.split(" ")[1];
+
   if (!token) {
-    return res.status(401).json({ message: 'Token de autenticação não fornecido' });
+    return res
+      .status(401)
+      .json({ message: "Token de autenticação não fornecido" });
   }
 
   try {
@@ -50,23 +54,23 @@ const authenticateToken = async (req, res, next) => {
     req.user = decodedToken;
     next();
   } catch (error) {
-    return res.status(403).json({ message: 'Token inválido ou expirado' });
+    return res.status(403).json({ message: "Token inválido ou expirado" });
   }
 };
 
 // Rotas
-app.get('/', (req, res) => {
-  res.send('API está funcionando');
+app.get("/", (req, res) => {
+  res.send("API está funcionando");
 });
 
 // Importar rotas
-const userRoutes = require('./routes/userRoutes');
-const productRoutes = require('./routes/productRoutes');
-const orderRoutes = require('./routes/orderRoutes');
+const userRoutes = require("./routes/userRoutes");
+const productRoutes = require("./routes/productRoutes");
+const orderRoutes = require("./routes/orderRoutes");
 
-app.use('/api/users', userRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/orders', orderRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/orders", orderRoutes);
 
 // Iniciar o servidor
 app.listen(PORT, () => {

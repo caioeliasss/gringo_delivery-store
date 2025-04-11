@@ -1,13 +1,14 @@
-import axios from 'axios';
-import { auth } from '../firebase';
+import axios from "axios";
+import { auth } from "../firebase";
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080/api";
 
+console.log(process.env.REACT_APP_API_URL);
 const api = axios.create({
   baseURL: API_URL,
   headers: {
-    'Content-Type': 'application/json'
-  }
+    "Content-Type": "application/json",
+  },
 });
 
 // Interceptor para adicionar token de autenticação
@@ -27,20 +28,20 @@ api.interceptors.request.use(
 
 // Serviços do Usuário
 export const createUserProfile = async (userData) => {
-  return api.post('/users/profile', userData);
+  return api.post("/users/profile", userData);
 };
 
 export const getUserProfile = async () => {
-  return api.get('/users/me');
+  return api.get("/users/me");
 };
 
 export const updateUserProfile = async (profileData) => {
-  return api.post('/users/profile', profileData);
+  return api.post("/users/profile", profileData);
 };
 
 // Serviços de Produtos
 export const getProducts = async () => {
-  return api.get('/products');
+  return api.get("/products");
 };
 
 export const getProductById = async (id) => {
@@ -48,7 +49,7 @@ export const getProductById = async (id) => {
 };
 
 export const createProduct = async (productData) => {
-  return api.post('/products/create', productData);
+  return api.post("/products/create", productData);
 };
 
 export const updateProduct = async (id, productData) => {
@@ -61,7 +62,7 @@ export const deleteProduct = async (id) => {
 
 // Serviços de Pedidos
 export const getOrders = async () => {
-  return api.get('/orders');
+  return api.get("/orders");
 };
 
 export const getOrderById = async (id) => {
@@ -69,7 +70,7 @@ export const getOrderById = async (id) => {
 };
 
 export const createOrder = async (orderData) => {
-  return api.post('/orders', orderData);
+  return api.post("/orders", orderData);
 };
 
 export const updateOrderStatus = async (id, status) => {
@@ -78,15 +79,15 @@ export const updateOrderStatus = async (id, status) => {
 
 // Serviços de Motoboy
 export const getMotoboys = async () => {
-  return api.get('/motoboys');
+  return api.get("/motoboys");
 };
 
 export const findNearestMotoboy = async (coords) => {
-  return api.post('/motoboys/find-nearest', coords);
+  return api.post("/motoboys/find-nearest", coords);
 };
 
 export const updateMotoboyLocation = async (locationData) => {
-  return api.put('/motoboys/update-location', locationData);
+  return api.put("/motoboys/update-location", locationData);
 };
 
 // Função utilitária para converter endereço em coordenadas usando a API do Google Maps
@@ -99,18 +100,18 @@ export const geocodeAddress = async (address) => {
     const response = await axios.get(
       `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${apiKey}`
     );
-    
-    if (response.data.status === 'OK' && response.data.results.length > 0) {
+
+    if (response.data.status === "OK" && response.data.results.length > 0) {
       const location = response.data.results[0].geometry.location;
       return {
         latitude: location.lat,
-        longitude: location.lng
+        longitude: location.lng,
       };
     }
-    
-    throw new Error('Não foi possível geocodificar o endereço');
+
+    throw new Error("Não foi possível geocodificar o endereço");
   } catch (error) {
-    console.error('Erro ao geocodificar endereço:', error);
+    console.error("Erro ao geocodificar endereço:", error);
     throw error;
   }
 };
