@@ -690,14 +690,16 @@ const Produtos = () => {
                         <Typography 
                           variant="body2" 
                           sx={{ 
-                            textDecoration: produto.priceOnSale ? 'line-through' : 'none',
-                            color: produto.priceOnSale ? 'text.secondary' : 'text.primary',
+                            textDecoration: produto.priceOnSale > 0 ? 'line-through' : 'none',
+                            color: produto.priceOnSale > 0 ? 'text.secondary' : 'text.primary',
+                            fontWeight: "bold",
+                            fontSize: produto.priceOnSale > 0 ? "14px" : "20px",
                             mr: 1
                           }}
                         >
                           R$ {produto.priceFull.toFixed(2)}
                         </Typography>
-                        {produto.priceOnSale && (
+                        {produto.priceOnSale > 0 && (
                           <Typography variant="h6" color="primary" sx={{ fontWeight: 'bold' }}>
                             R$ {produto.priceOnSale.toFixed(2)}
                           </Typography>

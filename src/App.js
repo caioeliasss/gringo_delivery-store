@@ -12,6 +12,57 @@ import './App.css';
 
 // Definir tema personalizado com a paleta de cores da Gringo Delivery
 const theme = createTheme({
+  typography: {
+    fontFamily: [
+      'Poppins',
+      'Roboto',
+      'Arial',
+      'sans-serif',
+    ].join(','),
+    h1: {
+      fontFamily: 'Poppins, sans-serif',
+      fontWeight: 700,
+    },
+    h2: {
+      fontFamily: 'Poppins, sans-serif',
+      fontWeight: 700,
+    },
+    h3: {
+      fontFamily: 'Poppins, sans-serif',
+      fontWeight: 600,
+    },
+    h4: {
+      fontFamily: 'Poppins, sans-serif',
+      fontWeight: 600,
+    },
+    h5: {
+      fontFamily: 'Poppins, sans-serif',
+      fontWeight: 500,
+    },
+    h6: {
+      fontFamily: 'Poppins, sans-serif',
+      fontWeight: 500,
+    },
+    subtitle1: {
+      fontFamily: 'Poppins, sans-serif',
+      fontWeight: 500,
+    },
+    subtitle2: {
+      fontFamily: 'Poppins, sans-serif',
+      fontWeight: 500,
+    },
+    body1: {
+      fontFamily: 'Poppins, sans-serif',
+    },
+    body2: {
+      fontFamily: 'Poppins, sans-serif',
+    },
+    button: {
+      fontFamily: 'Poppins, sans-serif',
+      fontWeight: 500,
+      textTransform: 'none',
+    },
+  },
   palette: {
     primary: {
       main: '#EB2E3E', // Vermelho Gringo
@@ -58,22 +109,6 @@ const theme = createTheme({
     text: {
       primary: '#333333',
       secondary: '#666666',
-    },
-  },
-  typography: {
-    fontFamily: [
-      'Roboto',
-      'Arial',
-      'sans-serif',
-    ].join(','),
-    h4: {
-      fontWeight: 700,
-    },
-    h5: {
-      fontWeight: 600,
-    },
-    h6: {
-      fontWeight: 600,
     },
   },
   components: {

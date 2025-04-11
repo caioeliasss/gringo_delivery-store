@@ -1,3 +1,14 @@
 // todo
 
-adicionar importação em grande escala com planilha
+adicionar importação de produto em grande escala com planilha
+qrcode para iniciar corrida
+enviar req p/ motoboy e aguardar resposta
+incluir gateway de pagamento asaas/mercadopago
+
+
+//OrderStats
+adicionar timebound
+relacionar ao banco de dados
+
+//users
+adicionar validacao de cnpj real
