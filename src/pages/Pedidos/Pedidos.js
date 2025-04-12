@@ -427,7 +427,7 @@ const Pedidos = () => {
 
     try {
       setLoading(true);
-      const userProfileResponse = await api.get("/users/me");
+      const userProfileResponse = await api.get("/stores/me");
       const userCnpj = userProfileResponse.data.cnpj;
 
       const orderData = {

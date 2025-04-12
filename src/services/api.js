@@ -28,15 +28,15 @@ api.interceptors.request.use(
 
 // Serviços do Usuário
 export const createUserProfile = async (userData) => {
-  return api.post("/users/profile", userData);
+  return api.post("/stores/profile", userData);
 };
 
 export const getUserProfile = async () => {
-  return api.get("/users/me");
+  return api.get("/stores/me");
 };
 
 export const updateUserProfile = async (profileData) => {
-  return api.post("/users/profile", profileData);
+  return api.post("/stores/profile", profileData);
 };
 
 // Serviços de Produtos
