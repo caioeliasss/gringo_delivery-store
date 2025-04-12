@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const admin = require("firebase-admin");
-const User = require("../models/User");
+const Store = require("../models/Store");
 const Product = require("../models/Product");
 
 // Middleware de autenticação
@@ -36,7 +36,7 @@ router.post("/create", authenticateToken, async (req, res) => {
       superPromo,
     } = req.body;
 
-    let user = await User.findOne({ firebaseUid: req.user.uid });
+    let user = await Store.findOne({ firebaseUid: req.user.uid });
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
@@ -86,7 +86,7 @@ router.post("/create", authenticateToken, async (req, res) => {
 // Listar todos os produtos (pelo CNPJ do usuário)
 router.get("/", authenticateToken, async (req, res) => {
   try {
-    const user = await User.findOne({ firebaseUid: req.user.uid });
+    const user = await Store.findOne({ firebaseUid: req.user.uid });
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
@@ -104,7 +104,7 @@ router.get("/", authenticateToken, async (req, res) => {
 // Obter produto por ID
 router.get("/:id", authenticateToken, async (req, res) => {
   try {
-    const user = await User.findOne({ firebaseUid: req.user.uid });
+    const user = await Store.findOne({ firebaseUid: req.user.uid });
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
@@ -129,7 +129,7 @@ router.get("/:id", authenticateToken, async (req, res) => {
 // Atualizar produto
 router.put("/:id", authenticateToken, async (req, res) => {
   try {
-    const user = await User.findOne({ firebaseUid: req.user.uid });
+    const user = await Store.findOne({ firebaseUid: req.user.uid });
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
@@ -175,7 +175,7 @@ router.put("/:id", authenticateToken, async (req, res) => {
 // Excluir produto
 router.delete("/:id", authenticateToken, async (req, res) => {
   try {
-    const user = await User.findOne({ firebaseUid: req.user.uid });
+    const user = await Store.findOne({ firebaseUid: req.user.uid });
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }

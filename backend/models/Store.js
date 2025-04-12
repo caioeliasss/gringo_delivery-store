@@ -14,7 +14,7 @@ const pointSchema = new mongoose.Schema({
   },
 });
 
-const userSchema = new mongoose.Schema({
+const storeSchema = new mongoose.Schema({
   firebaseUid: {
     type: String,
     required: true,
@@ -80,9 +80,9 @@ const userSchema = new mongoose.Schema({
 });
 
 // Middleware para atualizar o campo updatedAt antes de salvar
-userSchema.pre("save", function (next) {
+storeSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
   next();
 });
 
-module.exports = mongoose.model("User", userSchema);
+module.exports = mongoose.model("Store", storeSchema);

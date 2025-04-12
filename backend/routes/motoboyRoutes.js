@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const admin = require("firebase-admin");
-const User = require("../models/User");
+const Store = require("../models/Store");
 const Motoboy = require("../models/Motoboy");
 const Order = require("../models/Order");
 const geocodeService = require("../services/geocodeService");
@@ -41,37 +41,31 @@ const isMotoboyMiddleware = async (req, res, next) => {
     req.motoboy = motoboy;
     next();
   } catch (error) {
-    return res
-      .status(500)
-      .json({
-        message: "Erro ao verificar perfil de motoboy",
-        error: error.message,
-      });
+    return res.status(500).json({
+      message: "Erro ao verificar perfil de motoboy",
+      error: error.message,
+    });
   }
 };
 
 // Middleware para verificar se o usuário é um estabelecimento
 const isEstablishmentMiddleware = async (req, res, next) => {
   try {
-    const user = await User.findOne({ firebaseUid: req.user.uid });
+    const user = await Store.findOne({ firebaseUid: req.user.uid });
     if (!user || !user.cnpj || !user.cnpj_approved) {
-      return res
-        .status(403)
-        .json({
-          message: "Acesso permitido apenas para estabelecimentos aprovados",
-        });
+      return res.status(403).json({
+        message: "Acesso permitido apenas para estabelecimentos aprovados",
+      });
     }
 
     // Adicionar estabelecimento ao objeto de requisição para uso nas rotas
     req.establishment = user;
     next();
   } catch (error) {
-    return res
-      .status(500)
-      .json({
-        message: "Erro ao verificar perfil de estabelecimento",
-        error: error.message,
-      });
+    return res.status(500).json({
+      message: "Erro ao verificar perfil de estabelecimento",
+      error: error.message,
+    });
   }
 };
 
@@ -246,11 +240,9 @@ router.put(
       const { longitude, latitude } = req.body;
 
       if (!longitude || !latitude) {
-        return res
-          .status(400)
-          .json({
-            message: "Coordenadas de longitude e latitude são obrigatórias",
-          });
+        return res.status(400).json({
+          message: "Coordenadas de longitude e latitude são obrigatórias",
+        });
       }
 
       // Atualizar localização
@@ -270,12 +262,10 @@ router.put(
       });
     } catch (error) {
       console.error("Erro ao atualizar localização:", error);
-      res
-        .status(500)
-        .json({
-          message: "Erro ao atualizar localização",
-          error: error.message,
-        });
+      res.status(500).json({
+        message: "Erro ao atualizar localização",
+        error: error.message,
+      });
     }
   }
 );
@@ -306,12 +296,10 @@ router.put(
       });
     } catch (error) {
       console.error("Erro ao atualizar disponibilidade:", error);
-      res
-        .status(500)
-        .json({
-          message: "Erro ao atualizar disponibilidade",
-          error: error.message,
-        });
+      res.status(500).json({
+        message: "Erro ao atualizar disponibilidade",
+        error: error.message,
+      });
     }
   }
 );
@@ -382,20 +370,16 @@ router.post(
 
       // Verificar se o motoboy está disponível
       if (!req.motoboy.isAvailable) {
-        return res
-          .status(400)
-          .json({
-            message: "Você precisa estar disponível para aceitar pedidos",
-          });
+        return res.status(400).json({
+          message: "Você precisa estar disponível para aceitar pedidos",
+        });
       }
 
       // Verificar se o motoboy está aprovado
       if (!req.motoboy.register_approved) {
-        return res
-          .status(403)
-          .json({
-            message: "Seu registro como motoboy ainda não foi aprovado",
-          });
+        return res.status(403).json({
+          message: "Seu registro como motoboy ainda não foi aprovado",
+        });
       }
 
       // Atribuir motoboy ao pedido
@@ -457,11 +441,9 @@ router.put(
       });
 
       if (!order) {
-        return res
-          .status(404)
-          .json({
-            message: "Pedido não encontrado ou não está em entrega por você",
-          });
+        return res.status(404).json({
+          message: "Pedido não encontrado ou não está em entrega por você",
+        });
       }
 
       // Calcular tempo de entrega
@@ -518,11 +500,9 @@ router.put(
       });
 
       if (!order) {
-        return res
-          .status(404)
-          .json({
-            message: "Pedido não encontrado ou não está em entrega por você",
-          });
+        return res.status(404).json({
+          message: "Pedido não encontrado ou não está em entrega por você",
+        });
       }
 
       // Atualizar pedido para pendente novamente e remover motoboy
@@ -567,11 +547,9 @@ router.get(
       } = req.query;
 
       if (!longitude || !latitude) {
-        return res
-          .status(400)
-          .json({
-            message: "Coordenadas de longitude e latitude são obrigatórias",
-          });
+        return res.status(400).json({
+          message: "Coordenadas de longitude e latitude são obrigatórias",
+        });
       }
 
       // Construir query
@@ -624,12 +602,10 @@ router.get(
       res.status(200).json(motoboyWithDistance);
     } catch (error) {
       console.error("Erro ao buscar motoboys próximos:", error);
-      res
-        .status(500)
-        .json({
-          message: "Erro ao buscar motoboys próximos",
-          error: error.message,
-        });
+      res.status(500).json({
+        message: "Erro ao buscar motoboys próximos",
+        error: error.message,
+      });
     }
   }
 );
@@ -657,12 +633,9 @@ router.post(
       });
 
       if (!order) {
-        return res
-          .status(404)
-          .json({
-            message:
-              "Pedido não encontrado ou não está disponível para entrega",
-          });
+        return res.status(404).json({
+          message: "Pedido não encontrado ou não está disponível para entrega",
+        });
       }
 
       // Verificar se o motoboy existe e está disponível
@@ -859,15 +832,13 @@ router.post("/rate/:motoboyId", authenticateToken, async (req, res) => {
     });
 
     if (!order) {
-      return res
-        .status(404)
-        .json({
-          message: "Pedido não encontrado ou não foi entregue por este motoboy",
-        });
+      return res.status(404).json({
+        message: "Pedido não encontrado ou não foi entregue por este motoboy",
+      });
     }
 
     // Verificar se o pedido pertence ao usuário ou estabelecimento
-    const user = await User.findOne({ firebaseUid: req.user.uid });
+    const user = await Store.findOne({ firebaseUid: req.user.uid });
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
@@ -875,12 +846,10 @@ router.post("/rate/:motoboyId", authenticateToken, async (req, res) => {
     // Para simplificar, vamos assumir que um estabelecimento só pode avaliar
     // um motoboy se o pedido pertencer a ele
     if (order.cnpj !== user.cnpj) {
-      return res
-        .status(403)
-        .json({
-          message:
-            "Você não tem permissão para avaliar este motoboy para este pedido",
-        });
+      return res.status(403).json({
+        message:
+          "Você não tem permissão para avaliar este motoboy para este pedido",
+      });
     }
 
     // Encontrar o motoboy

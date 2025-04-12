@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const admin = require("firebase-admin");
-const User = require("../models/User");
+const Store = require("../models/Store");
 const Order = require("../models/Order");
 const Motoboy = require("../models/Motoboy");
 const axios = require("axios");
@@ -29,7 +29,7 @@ const authenticateToken = async (req, res, next) => {
 // Listar todos os pedidos do estabelecimento
 router.get("/", authenticateToken, async (req, res) => {
   try {
-    const user = await User.findOne({ firebaseUid: req.user.uid });
+    const user = await Store.findOne({ firebaseUid: req.user.uid });
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
@@ -56,7 +56,7 @@ router.get("/", authenticateToken, async (req, res) => {
 // Obter pedido por ID
 router.get("/:id", authenticateToken, async (req, res) => {
   try {
-    const user = await User.findOne({ firebaseUid: req.user.uid });
+    const user = await Store.findOne({ firebaseUid: req.user.uid });
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
@@ -95,7 +95,7 @@ router.put("/:id/status", authenticateToken, async (req, res) => {
       return res.status(400).json({ message: "Status inválido" });
     }
 
-    const user = await User.findOne({ firebaseUid: req.user.uid });
+    const user = await Store.findOne({ firebaseUid: req.user.uid });
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
@@ -216,7 +216,7 @@ router.post("/", async (req, res) => {
 // Buscar motoboys próximos para atribuir a um pedido
 router.get("/:id/nearby-motoboys", authenticateToken, async (req, res) => {
   try {
-    const user = await User.findOne({ firebaseUid: req.user.uid });
+    const user = await Store.findOne({ firebaseUid: req.user.uid });
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
@@ -263,7 +263,7 @@ router.get("/:id/nearby-motoboys", authenticateToken, async (req, res) => {
 // Atribuir motoboy a um pedido
 router.post("/:id/assign-motoboy", authenticateToken, async (req, res) => {
   try {
-    const user = await User.findOne({ firebaseUid: req.user.uid });
+    const user = await Store.findOne({ firebaseUid: req.user.uid });
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
@@ -352,7 +352,7 @@ router.post("/:id/assign-motoboy", authenticateToken, async (req, res) => {
 // Endpoint para estatísticas de pedidos
 router.get("/stats/summary", authenticateToken, async (req, res) => {
   try {
-    const user = await User.findOne({ firebaseUid: req.user.uid });
+    const user = await Store.findOne({ firebaseUid: req.user.uid });
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }

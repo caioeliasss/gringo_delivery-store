@@ -32,7 +32,6 @@ admin.initializeApp({
 });
 
 // Conexão com MongoDB
-console.log(process.env.MONGODB_URI);
 mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => console.log("Conectado ao MongoDB Atlas"))
@@ -64,11 +63,11 @@ app.get("/", (req, res) => {
 });
 
 // Importar rotas
-const userRoutes = require("./routes/userRoutes");
+const storeRoutes = require("./routes/storeRoutes");
 const productRoutes = require("./routes/productRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 
-app.use("/api/users", userRoutes);
+app.use("/api/stores", storeRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 
