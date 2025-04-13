@@ -198,6 +198,7 @@ router.post("/", async (req, res) => {
       payment,
       notes: notes || "",
       status: "pendente",
+      motoboy_id: "",
     });
 
     await newOrder.save();
