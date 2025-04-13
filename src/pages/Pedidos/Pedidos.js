@@ -429,10 +429,12 @@ const Pedidos = () => {
       setLoading(true);
       const userProfileResponse = await api.get("/stores/me");
       const userCnpj = userProfileResponse.data.cnpj;
-
+      const userGeolocation = userProfileResponse.data.geolocation;
+      console.log("geloc: ", userGeolocation);
       const orderData = {
         ...novoPedido,
         cnpj: userCnpj,
+        geolocation: userGeolocation,
       };
 
       // Chamar API para criar pedido

@@ -168,11 +168,33 @@ const geocodeAddress = async (address) => {
   }
 };
 
+const customerGeolocation = async (address) => {
+  const url = `https://www.cepaberto.com/api/v3/cep?cep=${address}`;
+  const headers = {
+    headers: {
+      Authorization: "Token token=4a63e414a4b85704bbe354a6ccda8aad",
+    },
+  };
+
+  try {
+    const response = await fetch(url, headers);
+
+    if (!response.ok) {
+      throw new Error(`Erro na requisição: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Erro ao obter geolocalização:", error);
+    throw error;
+  }
+};
 // Criar novo pedido (para uso do app do cliente)
 // Criar novo pedido (para uso do app do cliente)
 router.post("/", async (req, res) => {
   try {
-    const { cnpj, customer, items, total, payment, notes } = req.body;
+    const { cnpj, customer, items, total, payment, notes, geolocation } =
+      req.body;
 
     if (!cnpj || !customer || !items || !total || !payment) {
       return res
@@ -180,7 +202,17 @@ router.post("/", async (req, res) => {
         .json({ message: "Dados obrigatórios não fornecidos" });
     }
 
-    console.log("Dados recebidos:", cnpj, customer, items, total, payment);
+    const { latitude, longitude } = await customerGeolocation(customer.address);
+
+    // console.log(
+    //   "Dados recebidos:",
+    //   cnpj,
+    //   customer,
+    //   items,
+    //   total,
+    //   payment,
+    //   geolocation
+    // );
 
     // Gerar número do pedido (formato: PD + timestamp)
     const orderNumber = "PD" + Date.now().toString().substr(-6);
@@ -191,6 +223,13 @@ router.post("/", async (req, res) => {
       orderNumber,
       customer: {
         ...customer,
+        geolocation: {
+          type: "Point",
+          coordinates: [
+            latitude, // Longitude primeiro
+            longitude, // Latitude depois
+          ],
+        },
         // Sem campo geolocation
       },
       items,
@@ -198,7 +237,12 @@ router.post("/", async (req, res) => {
       payment,
       notes: notes || "",
       status: "pendente",
-      motoboy_id: "",
+      motoboy: {
+        motoboyId: null,
+        name: "",
+        phone: null,
+      },
+      geolocation: geolocation,
     });
 
     await newOrder.save();

@@ -128,6 +128,11 @@ const orderSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
+  geolocation: {
+    type: pointSchema,
+    index: "2dsphere", // Índice espacial para consultas de proximidade
+    required: false, // Tornar explicitamente opcional
+  },
   createdAt: {
     type: Date,
     default: Date.now,
