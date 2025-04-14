@@ -5,7 +5,6 @@ const Store = require("../models/Store");
 const Order = require("../models/Order");
 const Motoboy = require("../models/Motoboy");
 const axios = require("axios");
-const { ConstructionOutlined } = require("@mui/icons-material");
 
 // Middleware de autenticação
 const authenticateToken = async (req, res, next) => {
