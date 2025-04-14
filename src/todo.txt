@@ -1,5 +1,0 @@
-//Pagamento cardapio-app
-TODO incluir gateway de pagamento asaas/mercadopago
-
-//users dashboard-admin
-TODO adicionar validacao de cnpj real

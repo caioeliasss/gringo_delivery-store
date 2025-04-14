@@ -193,7 +193,7 @@ const customerGeolocation = async (address) => {
 // Criar novo pedido (para uso do app do cliente)
 router.post("/", async (req, res) => {
   try {
-    const { cnpj, customer, items, total, payment, notes, geolocation } =
+    const { cnpj, customer, items, total, payment, notes, coordinates } =
       req.body;
 
     if (!cnpj || !customer || !items || !total || !payment) {
@@ -201,8 +201,6 @@ router.post("/", async (req, res) => {
         .status(400)
         .json({ message: "Dados obrigatórios não fornecidos" });
     }
-
-    const { latitude, longitude } = await customerGeolocation(customer.address);
 
     // console.log(
     //   "Dados recebidos:",
@@ -223,13 +221,6 @@ router.post("/", async (req, res) => {
       orderNumber,
       customer: {
         ...customer,
-        geolocation: {
-          type: "Point",
-          coordinates: [
-            latitude, // Longitude primeiro
-            longitude, // Latitude depois
-          ],
-        },
         // Sem campo geolocation
       },
       items,
@@ -242,7 +233,7 @@ router.post("/", async (req, res) => {
         name: "",
         phone: null,
       },
-      geolocation: geolocation,
+      coordinates: coordinates,
     });
 
     await newOrder.save();

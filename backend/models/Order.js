@@ -14,6 +14,29 @@ const pointSchema = new mongoose.Schema({
   },
 });
 
+const customerAddress = new mongoose.Schema({
+  cep: {
+    type: Number,
+    required: true,
+  },
+  address: {
+    type: String,
+    required: true,
+  },
+  addressNumber: {
+    type: String,
+    required: true,
+  },
+  bairro: {
+    type: String,
+    required: true,
+  },
+  cidade: {
+    type: String,
+    required: true,
+  },
+});
+
 const orderItemSchema = new mongoose.Schema({
   productId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -53,10 +76,7 @@ const orderSchema = new mongoose.Schema({
       type: String,
       required: true,
     },
-    address: {
-      type: String,
-      required: true,
-    },
+    customerAddress: customerAddress,
     // Adição de geolocalização como opcional para o endereço de entrega
     geolocation: {
       type: pointSchema,
@@ -128,11 +148,15 @@ const orderSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
-  geolocation: {
-    type: pointSchema,
-    index: "2dsphere", // Índice espacial para consultas de proximidade
-    required: false, // Tornar explicitamente opcional
+  coordinates: {
+    type: [Number], // [longitude, latitude]
+    required: false, // mudar para false para tornar opcional
   },
+  // geolocation: {
+  //   type: pointSchema,
+  //   index: "2dsphere", // Índice espacial para consultas de proximidade
+  //   required: false, // Tornar explicitamente opcional
+  // },
   createdAt: {
     type: Date,
     default: Date.now,

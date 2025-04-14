@@ -26,7 +26,6 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
-//TODO adicionar logica para procurar motoboys disponiveis
 // Middleware para verificar se o usuário é um motoboy
 const isMotoboyMiddleware = async (req, res, next) => {
   try {

@@ -90,7 +90,13 @@ const Pedidos = () => {
     customer: {
       name: "",
       phone: "",
-      address: "",
+      customerAddress: {
+        cep: null,
+        address: "",
+        addressNumber: "",
+        bairro: "",
+        cidade: "",
+      },
     },
     items: [],
     payment: {
@@ -170,12 +176,7 @@ const Pedidos = () => {
           pedido.customer?.name
             ?.toLowerCase()
             .includes(searchTerm.toLowerCase()) ||
-          pedido.orderNumber
-            ?.toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          pedido.customer?.address
-            ?.toLowerCase()
-            .includes(searchTerm.toLowerCase())
+          pedido.orderNumber?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -254,7 +255,13 @@ const Pedidos = () => {
       customer: {
         name: "",
         phone: "",
-        address: "",
+        customerAddress: {
+          cep: null,
+          address: "",
+          addressNumber: "",
+          bairro: "",
+          cidade: "",
+        },
       },
       items: [],
       payment: {
@@ -279,15 +286,44 @@ const Pedidos = () => {
   };
 
   // Atualizar dados do cliente
+  // Atualizar dados do cliente
   const handleCustomerChange = (e) => {
     const { name, value } = e.target;
-    setNovoPedido((prev) => ({
-      ...prev,
-      customer: {
-        ...prev.customer,
-        [name]: value,
-      },
-    }));
+
+    // Check if the field belongs to the address object
+    if (
+      ["cep", "address", "addressNumber", "bairro", "cidade"].includes(name)
+    ) {
+      let processedValue = value;
+
+      // Para campos numéricos, remover caracteres não numéricos e converter para número
+      if (["cep"].includes(name)) {
+        processedValue = value.replace(/\D/g, "");
+        if (processedValue !== "") {
+          processedValue = Number(processedValue);
+        }
+      }
+
+      setNovoPedido((prev) => ({
+        ...prev,
+        customer: {
+          ...prev.customer,
+          customerAddress: {
+            ...prev.customer.customerAddress,
+            [name]: processedValue,
+          },
+        },
+      }));
+    } else {
+      // Handle regular customer fields
+      setNovoPedido((prev) => ({
+        ...prev,
+        customer: {
+          ...prev.customer,
+          [name]: value,
+        },
+      }));
+    }
   };
 
   // Atualizar forma de pagamento
@@ -406,7 +442,7 @@ const Pedidos = () => {
     if (
       !novoPedido.customer.name ||
       !novoPedido.customer.phone ||
-      !novoPedido.customer.address
+      !novoPedido.customer.customerAddress.address
     ) {
       setSnackbar({
         open: true,
@@ -430,13 +466,14 @@ const Pedidos = () => {
       const userProfileResponse = await api.get("/stores/me");
       const userCnpj = userProfileResponse.data.cnpj;
       const userGeolocation = userProfileResponse.data.geolocation;
-      console.log("geloc: ", userGeolocation);
+      console.log("coordinates: ", userGeolocation.coordinates);
       const orderData = {
         ...novoPedido,
         cnpj: userCnpj,
-        geolocation: userGeolocation,
+        coordinates: userGeolocation.coordinates,
+        // geolocation: userGeolocation,
       };
-
+      console.log("orderdata: ", orderData);
       // Chamar API para criar pedido
       const response = await api.post("/orders", orderData);
 
@@ -1061,10 +1098,57 @@ const Pedidos = () => {
                             variant="subtitle2"
                             sx={{ fontWeight: "bold" }}
                           >
-                            Endereço:
+                            CEP:
                           </Typography>
                           <Typography variant="body2">
-                            {currentPedido.customer.address}
+                            {currentPedido.customer.customerAddress.cep}
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Typography
+                            variant="subtitle2"
+                            sx={{ fontWeight: "bold" }}
+                          >
+                            Logradoro:
+                          </Typography>
+                          <Typography variant="body2">
+                            {currentPedido.customer.customerAddress.address}
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Typography
+                            variant="subtitle2"
+                            sx={{ fontWeight: "bold" }}
+                          >
+                            Numero:
+                          </Typography>
+                          <Typography variant="body2">
+                            {
+                              currentPedido.customer.customerAddress
+                                .addressNumber
+                            }
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Typography
+                            variant="subtitle2"
+                            sx={{ fontWeight: "bold" }}
+                          >
+                            Bairro:
+                          </Typography>
+                          <Typography variant="body2">
+                            {currentPedido.customer.customerAddress.bairro}
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Typography
+                            variant="subtitle2"
+                            sx={{ fontWeight: "bold" }}
+                          >
+                            Cidade:
+                          </Typography>
+                          <Typography variant="body2">
+                            {currentPedido.customer.customerAddress.cidade}
                           </Typography>
                         </Box>
                       </Paper>
@@ -1379,24 +1463,61 @@ const Pedidos = () => {
                           }}
                         />
                       </Grid>
+                      <TextField
+                        label="CEP"
+                        name="cep"
+                        value={novoPedido.customer.customerAddress.cep}
+                        onChange={handleCustomerChange}
+                        required
+                        inputProps={{
+                          inputMode: "numeric",
+                          pattern: "[0-9]*",
+                        }}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <LocationIcon color="primary" />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
                       <Grid item xs={12}>
-                        <TextField
-                          fullWidth
-                          label="Endereço de Entrega"
-                          name="address"
-                          value={novoPedido.customer.address}
-                          onChange={handleCustomerChange}
-                          required
-                          multiline
-                          rows={1}
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <LocationIcon color="primary" />
-                              </InputAdornment>
-                            ),
-                          }}
-                        />
+                        <Box sx={{ p: 0, display: "flex" }} columnGap={1}>
+                          <TextField
+                            fullWidth
+                            label="Logradouro"
+                            name="address"
+                            value={novoPedido.customer.customerAddress.address}
+                            onChange={handleCustomerChange}
+                            required
+                          />
+
+                          <TextField
+                            label="Número"
+                            name="addressNumber"
+                            value={
+                              novoPedido.customer.customerAddress.addressNumber
+                            }
+                            onChange={handleCustomerChange}
+                            required
+                          />
+
+                          <TextField
+                            label="Bairro"
+                            name="bairro"
+                            value={novoPedido.customer.customerAddress.bairro}
+                            onChange={handleCustomerChange}
+                            required
+                          />
+
+                          <TextField
+                            label="Cidade"
+                            name="cidade"
+                            value={novoPedido.customer.customerAddress.cidade}
+                            onChange={handleCustomerChange}
+                            required
+                          />
+                        </Box>
                       </Grid>
                     </Grid>
                   </Paper>

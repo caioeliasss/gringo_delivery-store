@@ -97,7 +97,7 @@ const OrderStats = () => {
       >
         <TrendingUpIcon sx={{ mr: 1 }} /> Estatísticas de Pedidos
       </Typography>
-      {/* // TODO adicionar datepickers e filtrar no banco d dadose */}
+      {/* // TODO adicionar datepickers e filtrar no banco de dados */}
       <Grid container spacing={2}>
         {/* Total de Pedidos */}
         <Grid item xs={6} md={3}>
