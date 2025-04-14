@@ -5,6 +5,7 @@ const Store = require("../models/Store");
 const Order = require("../models/Order");
 const Motoboy = require("../models/Motoboy");
 const axios = require("axios");
+const { ConstructionOutlined } = require("@mui/icons-material");
 
 // Middleware de autenticação
 const authenticateToken = async (req, res, next) => {
@@ -228,6 +229,7 @@ router.post("/", async (req, res) => {
       payment,
       notes: notes || "",
       status: "pendente",
+      cliente_cod: customer.phone.replace(/\D/g, "").slice(-4),
       motoboy: {
         motoboyId: null,
         name: "",
@@ -235,6 +237,8 @@ router.post("/", async (req, res) => {
       },
       coordinates: coordinates,
     });
+
+    // console.log(newOrder);
 
     await newOrder.save();
 

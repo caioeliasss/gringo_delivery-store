@@ -84,6 +84,7 @@ const Pedidos = () => {
   });
   const [produtos, setProdutos] = useState([]);
   const [loadingProdutos, setLoadingProdutos] = useState(false);
+  const [driverCode, setDriverCode] = useState(null);
 
   // Estado para o formulário de novo pedido
   const [novoPedido, setNovoPedido] = useState({
@@ -243,6 +244,29 @@ const Pedidos = () => {
       setSnackbar({
         open: true,
         message: "Erro ao atualizar status do pedido",
+        severity: "error",
+      });
+      setLoading(false);
+    }
+  };
+
+  const handleDriverCode = (code, pedido) => {
+    if (pedido.motoboy.phone === null) {
+      setSnackbar({
+        open: true,
+        message: "Não há um motoboy atribuido ao pedido ainda.",
+        severity: "error",
+      });
+      setLoading(false);
+      return;
+    }
+    const driverCode = pedido.motoboy.phone.slice(-4);
+    if (code === driverCode) {
+      handleUpdateStatus(pedido._id, "em_entrega");
+    } else {
+      setSnackbar({
+        open: true,
+        message: "Erro ao atualizar status, codigo invalido",
         severity: "error",
       });
       setLoading(false);
@@ -466,14 +490,14 @@ const Pedidos = () => {
       const userProfileResponse = await api.get("/stores/me");
       const userCnpj = userProfileResponse.data.cnpj;
       const userGeolocation = userProfileResponse.data.geolocation;
-      console.log("coordinates: ", userGeolocation.coordinates);
+
       const orderData = {
         ...novoPedido,
         cnpj: userCnpj,
         coordinates: userGeolocation.coordinates,
         // geolocation: userGeolocation,
       };
-      console.log("orderdata: ", orderData);
+
       // Chamar API para criar pedido
       const response = await api.post("/orders", orderData);
 
@@ -1304,60 +1328,129 @@ const Pedidos = () => {
                         >
                           Atualizar Status do Pedido
                         </Typography>
-
+                        {currentPedido.motoboy.phone !== "" ? (
+                          <Box display="flex">
+                            <Typography
+                              fontSize={"12px"}
+                              sx={{ mb: 2, color: "secundary.main" }}
+                            >
+                              Nome do motoboy:
+                            </Typography>
+                            <Typography
+                              fontSize={"12px"}
+                              sx={{
+                                ml: 0.5,
+                                mb: 2,
+                                color: "primary.main",
+                                fontWeight: "bold",
+                              }}
+                            >
+                              {currentPedido.motoboy.name}
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Box>
+                            <Typography
+                              fontSize={"12px"}
+                              sx={{
+                                ml: 0.5,
+                                mb: 2,
+                                color: "primary.main",
+                                fontWeight: "bold",
+                              }}
+                            >
+                              Motoboy não encontrado.
+                            </Typography>
+                          </Box>
+                        )}
                         {currentPedido.status !== "cancelado" &&
                         currentPedido.status !== "entregue" ? (
                           <Box
-                            sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}
+                            sx={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              justifyContent: "space-between", // Distribui os elementos
+                              alignItems: "center",
+                              gap: 2,
+                            }}
                           >
-                            {currentPedido.status === "pendente" && (
-                              <Button
-                                variant="contained"
-                                color="primary"
-                                startIcon={<CheckIcon />}
-                                onClick={() =>
-                                  handleUpdateStatus(
-                                    currentPedido._id,
-                                    "em_preparo"
-                                  )
-                                }
-                              >
-                                Iniciar Preparo
-                              </Button>
-                            )}
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 2,
+                              }}
+                            >
+                              {currentPedido.status === "pendente" && (
+                                <Button
+                                  variant="contained"
+                                  color="primary"
+                                  startIcon={<CheckIcon />}
+                                  onClick={() =>
+                                    handleUpdateStatus(
+                                      currentPedido._id,
+                                      "em_preparo"
+                                    )
+                                  }
+                                >
+                                  Iniciar Preparo
+                                </Button>
+                              )}
 
-                            {currentPedido.status === "em_preparo" && (
-                              <Button
-                                variant="contained"
-                                color="info"
-                                startIcon={<DeliveryIcon />}
-                                onClick={() =>
-                                  handleUpdateStatus(
-                                    currentPedido._id,
-                                    "em_entrega"
-                                  )
-                                }
-                              >
-                                Enviar para Entrega
-                              </Button>
-                            )}
+                              {currentPedido.status === "em_preparo" && (
+                                <Box sx={{ display: "flex", gap: 2 }}>
+                                  <TextField
+                                    fullWidth
+                                    variant="outlined"
+                                    size="small"
+                                    label="Código do entregador"
+                                    onChange={(e) =>
+                                      setDriverCode(e.target.value)
+                                    }
+                                    value={driverCode || ""}
+                                    sx={{
+                                      maxWidth: { sm: "220px" },
+                                    }}
+                                  />
+                                  <Button
+                                    variant="contained"
+                                    color="info"
+                                    startIcon={<DeliveryIcon />}
+                                    onClick={() =>
+                                      handleDriverCode(
+                                        driverCode,
+                                        currentPedido
+                                      )
+                                    }
+                                    sx={{
+                                      py: 1,
+                                      px: 2,
+                                      height: "40px",
+                                    }}
+                                  >
+                                    Enviar para Entrega
+                                  </Button>
+                                </Box>
+                              )}
 
-                            {currentPedido.status === "em_entrega" && (
-                              <Button
-                                variant="contained"
-                                color="success"
-                                startIcon={<DoneAllIcon />}
-                                onClick={() =>
-                                  handleUpdateStatus(
-                                    currentPedido._id,
-                                    "entregue"
-                                  )
-                                }
-                              >
-                                Confirmar Entrega
-                              </Button>
-                            )}
+                              {currentPedido.status === "em_entrega" && (
+                                <Button
+                                  variant="contained"
+                                  color="success"
+                                  startIcon={<DoneAllIcon />}
+                                  onClick={() =>
+                                    handleUpdateStatus(
+                                      currentPedido._id,
+                                      "entregue"
+                                    )
+                                  }
+                                >
+                                  Confirmar Entrega
+                                </Button>
+                              )}
+                            </Box>
 
+                            {/* Botão cancelar sempre à direita */}
                             <Button
                               variant="outlined"
                               color="error"
@@ -1374,7 +1467,6 @@ const Pedidos = () => {
                                   );
                                 }
                               }}
-                              sx={{ ml: "auto" }}
                             >
                               Cancelar Pedido
                             </Button>
@@ -1387,7 +1479,6 @@ const Pedidos = () => {
                               : "cancelado"}
                             .
                           </Typography>
-                          // TODO qrcode para iniciar corrida + logica
                         )}
                       </Paper>
                     </Grid>

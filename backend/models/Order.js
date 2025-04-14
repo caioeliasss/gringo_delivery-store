@@ -157,6 +157,10 @@ const orderSchema = new mongoose.Schema({
   //   index: "2dsphere", // Índice espacial para consultas de proximidade
   //   required: false, // Tornar explicitamente opcional
   // },
+  cliente_cod: {
+    type: Number,
+    required: false,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
