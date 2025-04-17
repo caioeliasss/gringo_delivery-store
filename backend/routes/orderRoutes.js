@@ -6,6 +6,20 @@ const Order = require("../models/Order");
 const Motoboy = require("../models/Motoboy");
 const axios = require("axios");
 
+const buscarCnpj = async (cnpj) => {
+  const API_URL = "https://brasilapi.com.br/api/cnpj/v1";
+
+  const api = axios.create({
+    baseURL: API_URL,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer 123",
+    },
+  });
+
+  return api.get(`/${cnpj}`);
+};
+
 // Middleware de autenticação
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -41,7 +55,7 @@ router.get("/", authenticateToken, async (req, res) => {
         .json({ message: "CNPJ não aprovado ou não fornecido" });
     }
 
-    const orders = await Order.find({ cnpj: user.cnpj }).sort({
+    const orders = await Order.find({ "store.cnpj": user.cnpj }).sort({
       orderDate: -1,
     });
     res.status(200).json(orders);
@@ -216,12 +230,24 @@ router.post("/", async (req, res) => {
     const orderNumber = "PD" + Date.now().toString().substr(-6);
 
     // Criar novo pedido sem geolocalização
+
+    const getCep = async () => {
+      const response = await buscarCnpj(cnpj);
+      const cep = response.data.cep;
+      return cep;
+    };
+
+    const cep = await getCep();
+
     const newOrder = new Order({
-      cnpj,
+      store: {
+        cnpj: cnpj,
+        coordinates: coordinates,
+        cep: cep,
+      },
       orderNumber,
       customer: {
         ...customer,
-        // Sem campo geolocation
       },
       items,
       total,
@@ -234,11 +260,9 @@ router.post("/", async (req, res) => {
         name: "",
         phone: null,
       },
-      coordinates: coordinates,
     });
 
     // console.log(newOrder);
-
     await newOrder.save();
 
     res

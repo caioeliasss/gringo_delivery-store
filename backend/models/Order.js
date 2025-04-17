@@ -58,9 +58,24 @@ const orderItemSchema = new mongoose.Schema({
   },
 });
 
-const orderSchema = new mongoose.Schema({
+const storeSchema = new mongoose.Schema({
   cnpj: {
     type: String,
+    required: true,
+  },
+  cep: {
+    type: String,
+    required: true,
+  },
+  coordinates: {
+    type: [Number], // [longitude, latitude]
+    required: false,
+  },
+});
+
+const orderSchema = new mongoose.Schema({
+  store: {
+    type: storeSchema,
     required: true,
   },
   orderNumber: {
@@ -77,14 +92,12 @@ const orderSchema = new mongoose.Schema({
       required: true,
     },
     customerAddress: customerAddress,
-    // Adição de geolocalização como opcional para o endereço de entrega
     geolocation: {
       type: pointSchema,
-      index: "2dsphere", // Índice espacial para consultas de proximidade
-      required: false, // Tornar explicitamente opcional
+      index: "2dsphere",
+      required: false,
     },
   },
-  // Campo para registrar qual motoboy está atendendo o pedido
   motoboy: {
     motoboyId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -125,7 +138,6 @@ const orderSchema = new mongoose.Schema({
       default: 0,
     },
   },
-  // Campo para rastrear informações sobre a entrega
   delivery: {
     estimatedTime: {
       type: Number, // em minutos
@@ -148,15 +160,6 @@ const orderSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
-  coordinates: {
-    type: [Number], // [longitude, latitude]
-    required: false, // mudar para false para tornar opcional
-  },
-  // geolocation: {
-  //   type: pointSchema,
-  //   index: "2dsphere", // Índice espacial para consultas de proximidade
-  //   required: false, // Tornar explicitamente opcional
-  // },
   cliente_cod: {
     type: Number,
     required: false,

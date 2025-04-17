@@ -42,6 +42,7 @@ import {
   useTheme,
   Fab,
   Autocomplete,
+  Icon,
 } from "@mui/material";
 import {
   Dashboard as DashboardIcon,
@@ -60,6 +61,7 @@ import {
   LocalShipping as DeliveryIcon,
   DoneAll as DoneAllIcon,
   Add as AddIcon,
+  Refresh as RefreshIcon,
   Person as PersonIcon,
   Phone as PhoneIcon,
   LocationOn as LocationIcon,
@@ -121,6 +123,52 @@ const Pedidos = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const navigate = useNavigate();
 
+  const handleFetchPedidos = () => {
+    const fetchPedidos = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get("/orders");
+        setPedidos(response.data);
+        setFilteredPedidos(response.data);
+        setLoading(false);
+      } catch (err) {
+        console.error("Erro ao carregar pedidos:", err);
+        setError(
+          "Não foi possível carregar os pedidos. Tente novamente mais tarde."
+        );
+        setSnackbar({
+          open: true,
+          message: "Erro ao carregar pedidos",
+          severity: "error",
+        });
+        setLoading(false);
+      }
+    };
+    fetchPedidos();
+  };
+
+  const handleThisFetchPedido = (id) => {
+    const fetchPedido = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get(`/orders/${id}`);
+        setCurrentPedido(response.data);
+        setLoading(false);
+      } catch (err) {
+        console.error("Erro ao carregar pedidos:", err);
+        setError(
+          "Não foi possível carregar os pedidos. Tente novamente mais tarde."
+        );
+        setSnackbar({
+          open: true,
+          message: "Erro ao carregar pedido",
+          severity: "error",
+        });
+        setLoading(false);
+      }
+    };
+    fetchPedido();
+  };
   // Carregar pedidos
   useEffect(() => {
     const fetchPedidos = async () => {
@@ -962,13 +1010,21 @@ const Pedidos = () => {
           </Paper>
 
           {/* Contagem de pedidos */}
-          <Box sx={{ mb: 2 }}>
+          <Box
+            sx={{ mb: 2 }}
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+          >
             <Typography variant="body2" color="text.secondary">
               Exibindo {filteredPedidos.length} pedido
               {filteredPedidos.length !== 1 ? "s" : ""}{" "}
               {filteredPedidos.length !== pedidos.length &&
                 `de ${pedidos.length} total`}
             </Typography>
+            <Button onClick={handleFetchPedidos}>
+              <RefreshIcon></RefreshIcon>
+            </Button>
           </Box>
 
           {/* Pedidos */}
@@ -1349,18 +1405,40 @@ const Pedidos = () => {
                             </Typography>
                           </Box>
                         ) : (
-                          <Box>
+                          <Box
+                            display="flex"
+                            sx={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              justifyContent: "space-between", // Distribui os elementos
+                              alignItems: "center",
+                              mb: 2,
+                            }}
+                          >
                             <Typography
                               fontSize={"12px"}
                               sx={{
-                                ml: 0.5,
-                                mb: 2,
                                 color: "primary.main",
                                 fontWeight: "bold",
                               }}
                             >
                               Motoboy não encontrado.
                             </Typography>
+                            <Button
+                              onClick={() =>
+                                handleThisFetchPedido(currentPedido._id)
+                              }
+                            >
+                              {loading ? (
+                                <CircularProgress
+                                  sx={{ width: "14px", height: "14px" }}
+                                ></CircularProgress>
+                              ) : (
+                                <RefreshIcon
+                                  sx={{ width: "20px", height: "20px" }}
+                                ></RefreshIcon>
+                              )}
+                            </Button>
                           </Box>
                         )}
                         {currentPedido.status !== "cancelado" &&
