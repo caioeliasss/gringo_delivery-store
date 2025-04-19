@@ -5,6 +5,8 @@ const Store = require("../models/Store");
 const Order = require("../models/Order");
 const Motoboy = require("../models/Motoboy");
 const axios = require("axios");
+const motoboyService = require("../services/motoboyServices");
+const motoboyServices = require("../services/motoboyServices");
 
 const buscarCnpj = async (cnpj) => {
   const API_URL = "https://brasilapi.com.br/api/cnpj/v1";
@@ -39,6 +41,29 @@ const authenticateToken = async (req, res, next) => {
     return res.status(403).json({ message: "Token inválido ou expirado" });
   }
 };
+
+router.get("/test-find-motoboys", async (req, res) => {
+  try {
+    // Test coordinates (replace with coordinates you know are valid for your environment)
+    const testCoordinates = [-46.6333, -23.5505]; // Example: São Paulo
+
+    // Call the service
+    const order = await Order.find().limit(1);
+    const motoboys = await motoboyService.findBestMotoboys(testCoordinates);
+    const orderA = await motoboyServices.processMotoboyQueue(motoboys, order);
+    res.status(200).json({
+      success: true,
+      motoboy: motoboys,
+      order: orderA,
+    });
+  } catch (error) {
+    console.error("Test error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
 
 // Listar todos os pedidos do estabelecimento
 router.get("/", authenticateToken, async (req, res) => {

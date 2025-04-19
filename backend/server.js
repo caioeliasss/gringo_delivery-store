@@ -66,6 +66,7 @@ app.get("/", (req, res) => {
 const storeRoutes = require("./routes/storeRoutes");
 const productRoutes = require("./routes/productRoutes");
 const orderRoutes = require("./routes/orderRoutes");
+const motoboyRoutes = require("./routes/motoboyRoutes");
 
 app.use("/api/stores", storeRoutes);
 app.use("/api/products", productRoutes);
