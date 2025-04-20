@@ -1,5 +1,31 @@
 const Motoboy = require("../models/Motoboy");
 const Order = require("../models/Order");
+const express = require("express");
+const router = express.Router();
+
+const authenticateToken = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.split(" ")[1];
+
+  if (!token) {
+    return res
+      .status(401)
+      .json({ message: "Token de autenticação não fornecido" });
+  }
+
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    req.user = decodedToken;
+    next();
+  } catch (error) {
+    return res.status(403).json({ message: "Token inválido ou expirado" });
+  }
+};
+
+router.get("/", authenticateToken, getMotoboys);
+router.get("/me", authenticateToken, getMotoboyMe);
+router.post("/", createMotoboy);
+router.put("/", authenticateToken, updateMotoboy);
 
 // Get all users
 const getMotoboys = async (req, res) => {
