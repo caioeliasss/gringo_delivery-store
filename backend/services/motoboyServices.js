@@ -32,7 +32,7 @@ class MotoboyService {
         .sort({ score: -1 }) // First sort by availability and score
         .limit(parseInt(limit))
         .select(
-          "name phone coordinates score profileImage isAvailable lastActive"
+          "name phoneNumber coordinates score profileImage isAvailable lastActive"
         );
 
       //   console.log(nearbyMotoboys.length);
@@ -53,11 +53,10 @@ class MotoboyService {
             longitude: motoboy.coordinates[0],
           }
         );
-
         return {
           _id: motoboy._id,
           name: motoboy.name,
-          phone: motoboy.phone,
+          phoneNumber: motoboy.phoneNumber,
           score: motoboy.score,
           profileImage: motoboy.profileImage,
           isAvailable: motoboy.isAvailable,
@@ -118,22 +117,21 @@ class MotoboyService {
     const motoboy = motoboys[0];
     try {
       // Mark this motoboy as being requested
-      this.requestQueue.set(motoboy._id.toString(), order._id.toString());
+      // this.requestQueue.set(motoboy._id.toString(), order._id.toString());
 
       // Simulate motoboy accepting/rejecting request
       // In a real system, we would send a notification to the motoboy's app
       // and wait for their response with a timeout
       const accepted = await this.requestMotoboy(motoboy, order);
-      console.log(accepted);
       // Remove from request queue
-      this.requestQueue.delete(motoboy._id.toString());
+      // this.requestQueue.delete(motoboy._id.toString());
 
       if (accepted) {
         // Motoboy accepted, assign to order
         order.motoboy = {
           motoboyId: motoboy._id,
           name: motoboy.name,
-          phone: motoboy.phone,
+          phone: motoboy.phoneNumber,
         };
 
         // Add delivery information
@@ -142,7 +140,6 @@ class MotoboyService {
           distance: motoboy.distance,
           startTime: new Date(),
         };
-
         // Save the updated order
         await order.save();
 
@@ -157,7 +154,7 @@ class MotoboyService {
       }
     } catch (error) {
       // Remove from request queue if there was an error
-      this.requestQueue.delete(motoboy._id.toString());
+      // this.requestQueue.delete(motoboy._id.toString());
 
       // Try next motoboy
       return this.processMotoboyQueue(motoboys.slice(1), order);

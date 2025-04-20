@@ -2,6 +2,7 @@ const Motoboy = require("../models/Motoboy");
 const Order = require("../models/Order");
 const express = require("express");
 const router = express.Router();
+const motoboyServices = require("../services/motoboyServices");
 
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -21,11 +22,6 @@ const authenticateToken = async (req, res, next) => {
     return res.status(403).json({ message: "Token inválido ou expirado" });
   }
 };
-
-router.get("/", authenticateToken, getMotoboys);
-router.get("/me", authenticateToken, getMotoboyMe);
-router.post("/", createMotoboy);
-router.put("/", authenticateToken, updateMotoboy);
 
 // Get all users
 const getMotoboys = async (req, res) => {
@@ -203,3 +199,39 @@ const getMotoboyByFirebaseUid = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+const findMotoboys = async (req, res) => {
+  try {
+    // Test coordinates (replace with coordinates you know are valid for your environment)
+    const testCoordinates = [-46.6333, -23.5505]; // Example: São Paulo
+
+    // Call the service
+    const order = await Order.findOne();
+    const motoboys = await motoboyServices.findBestMotoboys(testCoordinates);
+    const motoboyRequest = await motoboyServices.processMotoboyQueue(
+      motoboys,
+      order
+    );
+    console.log(order._id);
+
+    res.status(200).json({
+      success: true,
+      motoboy: motoboys,
+      order: motoboyRequest,
+    });
+  } catch (error) {
+    console.error("Test error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+router.get("/find-motoboys", findMotoboys);
+router.get("/", authenticateToken, getMotoboys);
+router.get("/me", authenticateToken, getMotoboyMe);
+router.post("/", createMotoboy);
+router.put("/", authenticateToken, updateMotoboy);
+
+module.exports = router;
