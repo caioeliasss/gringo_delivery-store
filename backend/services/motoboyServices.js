@@ -171,29 +171,150 @@ class MotoboyService {
    * @returns {Promise<boolean>} - Whether the motoboy accepted
    */
   async requestMotoboy(motoboy, order) {
-    return new Promise((resolve) => {
-      // Simulate network delay and motoboy response time
-      const responseTime = 1000 + Math.random() * 2000; // 1-3 seconds
+    try {
+      console.log(
+        `Tentando notificar motoboy ${motoboy.name} para o pedido ${order.orderNumber}`
+      );
 
-      setTimeout(() => {
-        // In a real system, we'd wait for the motoboy's actual response
-        // For demo purposes, simulate a 90% acceptance rate for available motoboys
-        const accepted = Math.random() < 0.9;
+      // 1. Verificar se o motoboy ainda está disponível
+      const currentMotoboyStatus = await Motoboy.findById(motoboy._id).select(
+        "isAvailable"
+      );
 
-        // If they accept, we'd update their status in a real system
-        if (accepted) {
+      if (!currentMotoboyStatus || !currentMotoboyStatus.isAvailable) {
+        console.log(`Motoboy ${motoboy.name} não está mais disponível`);
+        return false;
+      }
+
+      // 2. Criar uma notificação no banco de dados
+      const Notification = require("../models/Notification"); // Você precisará criar este modelo
+      const notification = new Notification({
+        motoboyId: motoboy._id,
+        type: "DELIVERY_REQUEST",
+        title: "Nova solicitação de entrega",
+        message: `Pedido #${order.orderNumber} - ${order.customer.name}`,
+        data: {
+          orderId: order._id,
+          customerName: order.customer.name,
+          customerAddress: order.customer.customerAddress,
+          storeName: "Nome da loja", // Você pode obter isso do store
+          estimatedDistance: motoboy.distance || 0,
+          estimatedTime: motoboy.estimatedTimeMinutes || 0,
+          payment: {
+            value: order.total,
+            method: order.payment.method,
+          },
+        },
+        expiresAt: new Date(Date.now() + 60000), // Expira em 1 minuto
+      });
+
+      await notification.save();
+
+      // 3. Enviar a notificação por algum canal em tempo real
+
+      // A. Opção com Firebase Cloud Messaging (FCM)
+      if (process.env.ENABLE_FCM === "true") {
+        const fcm = require("../services/fcmService"); // Você precisará criar este serviço
+        await fcm.sendNotification(motoboy.fcmToken, {
+          title: "Nova solicitação de entrega",
+          body: `Pedido #${order.orderNumber} - ${order.customer.name}`,
+          data: {
+            notificationId: notification._id.toString(),
+            orderId: order._id.toString(),
+            type: "DELIVERY_REQUEST",
+          },
+        });
+      }
+
+      // 4. Aguardar a resposta do motoboy (com timeout)
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          // Se o motoboy não responder em 30 segundos, considerar como recusado
+          notification.status = "EXPIRED";
+          notification
+            .save()
+            .catch((err) =>
+              console.error("Erro ao atualizar notificação expirada:", err)
+            );
           console.log(
-            `Motoboy ${motoboy.name} accepted delivery for order ${order.orderNumber}`
+            `Tempo limite excedido para motoboy ${motoboy.name} no pedido ${order.orderNumber}`
           );
+          resolve(false);
+        }, 30000); // 30 segundos
+
+        // Configurar um listener para a resposta (webhook, socket, etc)
+        if (process.env.ENABLE_SOCKETIO === "true") {
+          const io = require("../services/socketService").getIO();
+          io.once(`response:${notification._id}`, async (response) => {
+            clearTimeout(timeout);
+
+            // Atualizar a notificação com a resposta
+            notification.status = response.accepted ? "ACCEPTED" : "REJECTED";
+            notification.respondedAt = new Date();
+            await notification.save();
+
+            if (response.accepted) {
+              // Se o motoboy aceitou, atualizar seu status
+              await Motoboy.findByIdAndUpdate(motoboy._id, {
+                $set: {
+                  isAvailable: false,
+                  currentOrderId: order._id,
+                  lastActive: new Date(),
+                },
+              });
+              console.log(
+                `Motoboy ${motoboy.name} aceitou a entrega do pedido ${order.orderNumber}`
+              );
+            } else {
+              console.log(
+                `Motoboy ${motoboy.name} recusou a entrega do pedido ${order.orderNumber}`
+              );
+            }
+
+            resolve(response.accepted);
+          });
         } else {
-          console.log(
-            `Motoboy ${motoboy.name} rejected delivery for order ${order.orderNumber}`
-          );
-        }
+          // Para desenvolvimento/teste, simular uma resposta
+          setTimeout(() => {
+            clearTimeout(timeout);
+            const accepted = Math.random() < 0.9;
 
-        resolve(accepted);
-      }, responseTime);
-    });
+            notification.status = accepted ? "ACCEPTED" : "REJECTED";
+            notification.respondedAt = new Date();
+            notification
+              .save()
+              .catch((err) =>
+                console.error("Erro ao atualizar notificação:", err)
+              );
+
+            if (accepted) {
+              Motoboy.findByIdAndUpdate(motoboy._id, {
+                $set: {
+                  isAvailable: false,
+                  currentOrderId: order._id,
+                  lastActive: new Date(),
+                },
+              }).catch((err) =>
+                console.error("Erro ao atualizar status do motoboy:", err)
+              );
+
+              console.log(
+                `Motoboy ${motoboy.name} aceitou a entrega do pedido ${order.orderNumber}`
+              );
+            } else {
+              console.log(
+                `Motoboy ${motoboy.name} recusou a entrega do pedido ${order.orderNumber}`
+              );
+            }
+
+            resolve(accepted);
+          }, 3000 + Math.random() * 5000); // Simular resposta entre 3-8 segundos
+        }
+      });
+    } catch (error) {
+      console.error("Erro ao solicitar motoboy:", error);
+      return false; // Em caso de erro, considerar como recusado
+    }
   }
 }
 
