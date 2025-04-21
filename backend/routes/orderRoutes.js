@@ -267,6 +267,10 @@ router.post("/", async (req, res) => {
         motoboyId: null,
         name: "",
         phone: null,
+        location: {
+          distance: 0,
+          estimatedTime: 0,
+        },
       },
     });
 

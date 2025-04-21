@@ -116,15 +116,7 @@ class MotoboyService {
 
     const motoboy = motoboys[0];
     try {
-      // Mark this motoboy as being requested
-      // this.requestQueue.set(motoboy._id.toString(), order._id.toString());
-
-      // Simulate motoboy accepting/rejecting request
-      // In a real system, we would send a notification to the motoboy's app
-      // and wait for their response with a timeout
       const accepted = await this.requestMotoboy(motoboy, order);
-      // Remove from request queue
-      // this.requestQueue.delete(motoboy._id.toString());
 
       if (accepted) {
         // Motoboy accepted, assign to order
@@ -132,14 +124,13 @@ class MotoboyService {
           motoboyId: motoboy._id,
           name: motoboy.name,
           phone: motoboy.phoneNumber,
+          location: {
+            estimatedTime: motoboy.estimatedTimeMinutes,
+            distance: motoboy.distance,
+            startTime: new Date(),
+          },
         };
 
-        // Add delivery information
-        order.delivery = {
-          estimatedTime: motoboy.estimatedTimeMinutes,
-          distance: motoboy.distance,
-          startTime: new Date(),
-        };
         // Save the updated order
         await order.save();
 
@@ -197,7 +188,7 @@ class MotoboyService {
           orderId: order._id,
           customerName: order.customer.name,
           customerAddress: order.customer.customerAddress,
-          storeName: "Nome da loja", // Você pode obter isso do store
+          storeName: order.store.name,
           estimatedDistance: motoboy.distance || 0,
           estimatedTime: motoboy.estimatedTimeMinutes || 0,
           payment: {

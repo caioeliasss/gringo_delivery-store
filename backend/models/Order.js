@@ -116,6 +116,24 @@ const orderSchema = new mongoose.Schema({
       type: String,
       required: false,
     },
+    location: {
+      estimatedTime: {
+        type: Number, // em minutos
+        required: false,
+      },
+      distance: {
+        type: Number, // em metros
+        required: false,
+      },
+      startTime: {
+        type: Date,
+        required: false,
+      },
+      endTime: {
+        type: Date,
+        required: false,
+      },
+    },
   },
   items: [orderItemSchema],
   status: {

@@ -554,7 +554,7 @@ const Pedidos = () => {
         // geolocation: userGeolocation,
       };
 
-      console.log(orderData);
+      // console.log(orderData);
       // Chamar API para criar pedido
       const response = await api.post("/orders", orderData);
 
