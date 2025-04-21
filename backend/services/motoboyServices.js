@@ -208,6 +208,8 @@ class MotoboyService {
         expiresAt: new Date(Date.now() + 60000), // Expira em 1 minuto
       });
 
+      // console.log(notification)
+
       await notification.save();
 
       // 3. Enviar a notificação por algum canal em tempo real
@@ -228,7 +230,7 @@ class MotoboyService {
 
       // 4. Aguardar a resposta do motoboy (com timeout)
       return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
+        setTimeout(() => {
           // Se o motoboy não responder em 30 segundos, considerar como recusado
           notification.status = "EXPIRED";
           notification
@@ -241,75 +243,6 @@ class MotoboyService {
           );
           resolve(false);
         }, 30000); // 30 segundos
-
-        // Configurar um listener para a resposta (webhook, socket, etc)
-        if (process.env.ENABLE_SOCKETIO === "true") {
-          const io = require("../services/socketService").getIO();
-          io.once(`response:${notification._id}`, async (response) => {
-            clearTimeout(timeout);
-
-            // Atualizar a notificação com a resposta
-            notification.status = response.accepted ? "ACCEPTED" : "REJECTED";
-            notification.respondedAt = new Date();
-            await notification.save();
-
-            if (response.accepted) {
-              // Se o motoboy aceitou, atualizar seu status
-              await Motoboy.findByIdAndUpdate(motoboy._id, {
-                $set: {
-                  isAvailable: false,
-                  currentOrderId: order._id,
-                  lastActive: new Date(),
-                },
-              });
-              console.log(
-                `Motoboy ${motoboy.name} aceitou a entrega do pedido ${order.orderNumber}`
-              );
-            } else {
-              console.log(
-                `Motoboy ${motoboy.name} recusou a entrega do pedido ${order.orderNumber}`
-              );
-            }
-
-            resolve(response.accepted);
-          });
-        } else {
-          // Para desenvolvimento/teste, simular uma resposta
-          setTimeout(() => {
-            clearTimeout(timeout);
-            const accepted = Math.random() < 0.9;
-
-            notification.status = accepted ? "ACCEPTED" : "REJECTED";
-            notification.respondedAt = new Date();
-            notification
-              .save()
-              .catch((err) =>
-                console.error("Erro ao atualizar notificação:", err)
-              );
-
-            if (accepted) {
-              Motoboy.findByIdAndUpdate(motoboy._id, {
-                $set: {
-                  isAvailable: false,
-                  currentOrderId: order._id,
-                  lastActive: new Date(),
-                },
-              }).catch((err) =>
-                console.error("Erro ao atualizar status do motoboy:", err)
-              );
-
-              console.log(
-                `Motoboy ${motoboy.name} aceitou a entrega do pedido ${order.orderNumber}`
-              );
-            } else {
-              console.log(
-                `Motoboy ${motoboy.name} recusou a entrega do pedido ${order.orderNumber}`
-              );
-            }
-
-            resolve(accepted);
-          }, 3000 + Math.random() * 5000); // Simular resposta entre 3-8 segundos
-        }
       });
     } catch (error) {
       console.error("Erro ao solicitar motoboy:", error);
