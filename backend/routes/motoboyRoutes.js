@@ -228,7 +228,7 @@ const findMotoboys = async (req, res) => {
   }
 };
 
-router.get("/find-motoboys", findMotoboys);
+router.get("/find", findMotoboys);
 router.get("/", authenticateToken, getMotoboys);
 router.get("/me", authenticateToken, getMotoboyMe);
 router.post("/", createMotoboy);

@@ -207,14 +207,15 @@ const customerGeolocation = async (address) => {
 // Criar novo pedido (para uso do app do cliente)
 router.post("/", async (req, res) => {
   try {
-    const { cnpj, customer, items, total, payment, notes, coordinates } =
-      req.body;
+    const { store, customer, items, total, payment, notes } = req.body;
 
-    if (!cnpj || !customer || !items || !total || !payment) {
+    if (!store.cnpj || !customer || !items || !total || !payment) {
       return res
         .status(400)
         .json({ message: "Dados obrigatórios não fornecidos" });
     }
+
+    const cnpj = store.cnpj;
 
     // console.log(
     //   "Dados recebidos:",
@@ -234,15 +235,22 @@ router.post("/", async (req, res) => {
     const getCep = async (cnpj) => {
       const response = await buscarCnpj(cnpj);
       const cep = response.data.cep;
-      return cep;
+
+      let storeName = response.data.nome_fantasia;
+      if (!storeName) {
+        storeName = response.data.razao_social;
+      }
+
+      return { cep, storeName };
     };
 
-    const cep = await getCep(cnpj);
+    const { cep, storeName } = await getCep(cnpj);
 
     const newOrder = new Order({
       store: {
+        name: storeName,
         cnpj: cnpj,
-        coordinates: coordinates,
+        coordinates: store.coordinates,
         cep: cep,
       },
       orderNumber,

@@ -59,13 +59,17 @@ const orderItemSchema = new mongoose.Schema({
 });
 
 const storeSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: false,
+  },
   cnpj: {
     type: String,
     required: true,
   },
   cep: {
     type: String,
-    required: true,
+    required: false,
   },
   coordinates: {
     type: [Number], // [longitude, latitude]

@@ -324,6 +324,12 @@ const Pedidos = () => {
   // Abrir formulário de criação de pedido
   const handleOpenCreateDialog = () => {
     setNovoPedido({
+      store: {
+        name: "",
+        cnpj: "",
+        cep: null,
+        coordinates: [],
+      },
       customer: {
         name: "",
         phone: "",
@@ -541,11 +547,14 @@ const Pedidos = () => {
 
       const orderData = {
         ...novoPedido,
-        cnpj: userCnpj,
-        coordinates: userGeolocation.coordinates,
+        store: {
+          cnpj: userCnpj,
+          coordinates: userGeolocation.coordinates,
+        },
         // geolocation: userGeolocation,
       };
 
+      console.log(orderData);
       // Chamar API para criar pedido
       const response = await api.post("/orders", orderData);
 
