@@ -71,7 +71,7 @@ const motoboyRoutes = require("./routes/motoboyRoutes");
 app.use("/api/stores", storeRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
-app.use("/api/motoboys", motoboyRoutes);
+app.use("/api/motoboys", authenticateToken, motoboyRoutes);
 
 // Iniciar o servidor
 app.listen(PORT, () => {

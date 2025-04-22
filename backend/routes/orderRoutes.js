@@ -114,7 +114,7 @@ router.put("/:id/status", authenticateToken, async (req, res) => {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
 
-    const order = await Order.findOne({ _id: req.params.id, cnpj: user.cnpj });
+    const order = await Order.findById(req.params.id);
     if (!order) {
       return res.status(404).json({ message: "Pedido não encontrado" });
     }

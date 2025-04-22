@@ -311,7 +311,13 @@ const Pedidos = () => {
     }
     const driverCode = pedido.motoboy.phone.slice(-4);
     if (code === driverCode) {
+      console.log("pedido:", pedido._id);
       handleUpdateStatus(pedido._id, "em_entrega");
+      setSnackbar({
+        open: true,
+        message: "Pedido atualizado, em rota de entrega",
+        severity: "success",
+      });
     } else {
       setSnackbar({
         open: true,

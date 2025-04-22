@@ -243,9 +243,9 @@ const findMotoboys = async (req, res) => {
 };
 
 router.get("/find", findMotoboys);
-router.get("/", authenticateToken, getMotoboys);
-router.get("/me", authenticateToken, getMotoboyMe);
+router.get("/", getMotoboys);
+router.get("/me", getMotoboyMe);
 router.post("/", createMotoboy);
-router.put("/", authenticateToken, updateMotoboy);
+router.put("/", updateMotoboy);
 
 module.exports = router;
