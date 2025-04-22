@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../services/api";
+import { findMotoboys } from "../../services/api";
 import {
   Container,
   Typography,
@@ -558,6 +559,16 @@ const Pedidos = () => {
       // Chamar API para criar pedido
       const response = await api.post("/orders", orderData);
 
+      const orderId = response.data._id || response.data.order._id;
+
+      if (!orderId) {
+        setSnackbar({
+          open: true,
+          message: "Erro ao criar pedido",
+          severity: "error",
+        });
+        return;
+      }
       // Adicionar novo pedido à lista
       setPedidos((prev) => [response.data.order, ...prev]);
 
@@ -569,6 +580,8 @@ const Pedidos = () => {
 
       setOpenCreateDialog(false);
       setLoading(false);
+
+      findMotoboys(orderId);
     } catch (err) {
       console.error("Erro ao criar pedido:", err);
       setSnackbar({
@@ -624,7 +637,7 @@ const Pedidos = () => {
       pendente: {
         color: "warning",
         icon: <ScheduleIcon fontSize="small" />,
-        label: "Pendente",
+        label: "Buscando motorista",
       },
       em_preparo: {
         color: "primary",

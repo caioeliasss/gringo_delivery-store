@@ -82,8 +82,12 @@ export const getMotoboys = async () => {
   return api.get("/motoboys");
 };
 
-export const findNearestMotoboy = async (coords) => {
-  return api.post("/motoboys/find-nearest", coords);
+export const findMotoboys = async (orderId) => {
+  return api.get("/motoboys/find", {
+    params: {
+      order_id: orderId,
+    },
+  });
 };
 
 export const updateMotoboyLocation = async (locationData) => {

@@ -273,6 +273,7 @@ class MotoboyService {
         name: motoboy.name,
         phone: motoboy.phoneNumber,
       };
+      order.status = "em_preparo";
       await order.save();
       return { success: true, order, motoboy };
     } else {
