@@ -67,11 +67,13 @@ const storeRoutes = require("./routes/storeRoutes");
 const productRoutes = require("./routes/productRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const motoboyRoutes = require("./routes/motoboyRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 
 app.use("/api/stores", storeRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/motoboys", authenticateToken, motoboyRoutes);
+app.use("/api/notifications", authenticateToken, notificationRoutes);
 
 // Iniciar o servidor
 app.listen(PORT, () => {
