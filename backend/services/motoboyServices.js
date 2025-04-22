@@ -1,6 +1,6 @@
 const Motoboy = require("../models/Motoboy");
 const geolib = require("geolib");
-const Notification = require("../models/Notification")
+const Notification = require("../models/Notification");
 const mongoose = require("mongoose");
 
 /**
@@ -166,7 +166,9 @@ class MotoboyService {
   async requestMotoboy(motoboy, order) {
     try {
       // Verificar disponibilidade
-      const motoboyAtual = await Motoboy.findById(motoboy._id).select("isAvailable");
+      const motoboyAtual = await Motoboy.findById(motoboy._id).select(
+        "isAvailable"
+      );
       if (!motoboyAtual || !motoboyAtual.isAvailable) {
         return false;
       }
@@ -180,50 +182,55 @@ class MotoboyService {
         data: {
           orderId: order._id,
           customerName: order.customer.name,
-          address: order.customer.customerAddress
+          address: order.customer.customerAddress,
         },
         status: "PENDING",
-        expiresAt: new Date(Date.now() + 60000)
+        expiresAt: new Date(Date.now() + 60000),
       });
 
       await notification.save();
 
       // Enviar push/notificação ao app (simulado)
-      console.log(`Notificando motoboy ${motoboy.name} para pedido ${order.orderNumber}`);
+      console.log(
+        `Notificando motoboy ${motoboy.name} para pedido ${order.orderNumber}`
+      );
 
       // Aguardar resposta com Change Stream
       return new Promise((resolve) => {
         // 1. Monitorar mudanças na notificação
         const changeStream = Notification.watch([
-          { $match: { 'documentKey._id': notification._id } }
+          { $match: { "documentKey._id": notification._id } },
         ]);
 
         // 2. Quando houver mudança
-        changeStream.on('change', async (change) => {
+        changeStream.on("change", async (change) => {
           let novoStatus;
-          
+
           // Extrair o novo status
-          if (change.operationType === 'update' && change.updateDescription.updatedFields.status) {
+          if (
+            change.operationType === "update" &&
+            change.updateDescription.updatedFields.status
+          ) {
             novoStatus = change.updateDescription.updatedFields.status;
-          } else if (change.operationType === 'replace') {
+          } else if (change.operationType === "replace") {
             novoStatus = change.fullDocument.status;
           }
-          
+
           // Se status mudou e não é mais PENDING
           if (novoStatus && novoStatus !== "PENDING") {
             // Fechar monitoramento
             changeStream.close();
-            
+
             const aceito = novoStatus === "ACCEPTED";
-            
+
             // Se aceitou, atualizar motoboy como indisponível
             if (aceito) {
               await Motoboy.findByIdAndUpdate(motoboy._id, {
                 isAvailable: false,
-                currentOrderId: order._id
+                currentOrderId: order._id,
               });
             }
-            
+
             resolve(aceito);
           }
         });
@@ -231,14 +238,16 @@ class MotoboyService {
         // 3. Timeout para caso não haja resposta
         const timeout = setTimeout(async () => {
           changeStream.close();
-          
+
           // Verificar se notificação ainda está pendente
-          const notificacaoAtual = await Notification.findById(notification._id);
+          const notificacaoAtual = await Notification.findById(
+            notification._id
+          );
           if (notificacaoAtual && notificacaoAtual.status === "PENDING") {
             notificacaoAtual.status = "EXPIRED";
             await notificacaoAtual.save();
           }
-          
+
           resolve(false);
         }, 30000); // 30 segundos
       });
@@ -262,7 +271,7 @@ class MotoboyService {
       order.motoboy = {
         motoboyId: motoboy._id,
         name: motoboy.name,
-        phone: motoboy.phoneNumber
+        phone: motoboy.phoneNumber,
       };
       await order.save();
       return { success: true, order, motoboy };
