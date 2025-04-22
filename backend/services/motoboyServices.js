@@ -1,5 +1,7 @@
 const Motoboy = require("../models/Motoboy");
 const geolib = require("geolib");
+const Notification = require("../models/Notification")
+const mongoose = require("mongoose");
 
 /**
  * Service for handling motoboy operations
@@ -163,81 +165,110 @@ class MotoboyService {
    */
   async requestMotoboy(motoboy, order) {
     try {
-      console.log(
-        `Tentando notificar motoboy ${motoboy.name} para o pedido ${order.orderNumber}`
-      );
-
-      // 1. Verificar se o motoboy ainda está disponível
-      const currentMotoboyStatus = await Motoboy.findById(motoboy._id).select(
-        "isAvailable"
-      );
-
-      if (!currentMotoboyStatus || !currentMotoboyStatus.isAvailable) {
-        console.log(`Motoboy ${motoboy.name} não está mais disponível`);
+      // Verificar disponibilidade
+      const motoboyAtual = await Motoboy.findById(motoboy._id).select("isAvailable");
+      if (!motoboyAtual || !motoboyAtual.isAvailable) {
         return false;
       }
 
-      // 2. Criar uma notificação no banco de dados
-      const Notification = require("../models/Notification"); // Você precisará criar este modelo
+      // Criar notificação
       const notification = new Notification({
         motoboyId: motoboy._id,
         type: "DELIVERY_REQUEST",
-        title: "Nova solicitação de entrega",
-        message: `Pedido #${order.orderNumber} - ${order.customer.name}`,
+        title: "Nova entrega",
+        message: `Pedido #${order.orderNumber}`,
         data: {
           orderId: order._id,
           customerName: order.customer.name,
-          customerAddress: order.customer.customerAddress,
-          storeName: order.store.name,
-          estimatedDistance: motoboy.distance || 0,
-          estimatedTime: motoboy.estimatedTimeMinutes || 0,
-          payment: {
-            value: order.total,
-            method: order.payment.method,
-          },
+          address: order.customer.customerAddress
         },
-        expiresAt: new Date(Date.now() + 60000), // Expira em 1 minuto
+        status: "PENDING",
+        expiresAt: new Date(Date.now() + 60000)
       });
-
-      // console.log(notification)
 
       await notification.save();
 
-      // 3. Enviar a notificação por algum canal em tempo real
+      // Enviar push/notificação ao app (simulado)
+      console.log(`Notificando motoboy ${motoboy.name} para pedido ${order.orderNumber}`);
 
-      // A. Opção com Firebase Cloud Messaging (FCM)
-      if (process.env.ENABLE_FCM === "true") {
-        const fcm = require("../services/fcmService"); // Você precisará criar este serviço
-        await fcm.sendNotification(motoboy.fcmToken, {
-          title: "Nova solicitação de entrega",
-          body: `Pedido #${order.orderNumber} - ${order.customer.name}`,
-          data: {
-            notificationId: notification._id.toString(),
-            orderId: order._id.toString(),
-            type: "DELIVERY_REQUEST",
-          },
+      // Aguardar resposta com Change Stream
+      return new Promise((resolve) => {
+        // 1. Monitorar mudanças na notificação
+        const changeStream = Notification.watch([
+          { $match: { 'documentKey._id': notification._id } }
+        ]);
+
+        // 2. Quando houver mudança
+        changeStream.on('change', async (change) => {
+          let novoStatus;
+          
+          // Extrair o novo status
+          if (change.operationType === 'update' && change.updateDescription.updatedFields.status) {
+            novoStatus = change.updateDescription.updatedFields.status;
+          } else if (change.operationType === 'replace') {
+            novoStatus = change.fullDocument.status;
+          }
+          
+          // Se status mudou e não é mais PENDING
+          if (novoStatus && novoStatus !== "PENDING") {
+            // Fechar monitoramento
+            changeStream.close();
+            
+            const aceito = novoStatus === "ACCEPTED";
+            
+            // Se aceitou, atualizar motoboy como indisponível
+            if (aceito) {
+              await Motoboy.findByIdAndUpdate(motoboy._id, {
+                isAvailable: false,
+                currentOrderId: order._id
+              });
+            }
+            
+            resolve(aceito);
+          }
         });
-      }
 
-      // 4. Aguardar a resposta do motoboy (com timeout)
-      return new Promise((resolve, reject) => {
-        setTimeout(() => {
-          // Se o motoboy não responder em 30 segundos, considerar como recusado
-          notification.status = "EXPIRED";
-          notification
-            .save()
-            .catch((err) =>
-              console.error("Erro ao atualizar notificação expirada:", err)
-            );
-          console.log(
-            `Tempo limite excedido para motoboy ${motoboy.name} no pedido ${order.orderNumber}`
-          );
+        // 3. Timeout para caso não haja resposta
+        const timeout = setTimeout(async () => {
+          changeStream.close();
+          
+          // Verificar se notificação ainda está pendente
+          const notificacaoAtual = await Notification.findById(notification._id);
+          if (notificacaoAtual && notificacaoAtual.status === "PENDING") {
+            notificacaoAtual.status = "EXPIRED";
+            await notificacaoAtual.save();
+          }
+          
           resolve(false);
         }, 30000); // 30 segundos
       });
     } catch (error) {
       console.error("Erro ao solicitar motoboy:", error);
-      return false; // Em caso de erro, considerar como recusado
+      return false;
+    }
+  }
+
+  // Método para processar fila de motoboys (simplificado)
+  async processMotoboyQueue(motoboys, order) {
+    if (motoboys.length === 0) {
+      return { success: false };
+    }
+
+    const motoboy = motoboys[0];
+    const aceito = await this.requestMotoboy(motoboy, order);
+
+    if (aceito) {
+      // Atribuir motoboy ao pedido
+      order.motoboy = {
+        motoboyId: motoboy._id,
+        name: motoboy.name,
+        phone: motoboy.phoneNumber
+      };
+      await order.save();
+      return { success: true, order, motoboy };
+    } else {
+      // Tentar próximo motoboy
+      return this.processMotoboyQueue(motoboys.slice(1), order);
     }
   }
 }
