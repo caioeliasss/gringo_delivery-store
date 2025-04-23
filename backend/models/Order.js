@@ -79,6 +79,10 @@ const storeSchema = new mongoose.Schema({
     type: [Number], // [longitude, latitude]
     required: false,
   },
+  address: {
+    type: customerAddress,
+    required: false,
+  },
 });
 
 const orderSchema = new mongoose.Schema({

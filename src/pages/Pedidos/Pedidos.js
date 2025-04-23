@@ -336,6 +336,7 @@ const Pedidos = () => {
         cnpj: "",
         cep: null,
         coordinates: [],
+        address: {},
       },
       customer: {
         name: "",
@@ -550,12 +551,14 @@ const Pedidos = () => {
       setLoading(true);
       const userProfileResponse = await api.get("/stores/me");
       const userCnpj = userProfileResponse.data.cnpj;
+      const storeAddress = userProfileResponse.data.address;
       const userGeolocation = userProfileResponse.data.geolocation;
 
       const orderData = {
         ...novoPedido,
         store: {
           cnpj: userCnpj,
+          address: storeAddress,
           coordinates: userGeolocation.coordinates,
         },
         // geolocation: userGeolocation,

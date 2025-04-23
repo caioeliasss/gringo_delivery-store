@@ -251,6 +251,7 @@ router.post("/", async (req, res) => {
         name: storeName,
         cnpj: cnpj,
         coordinates: store.coordinates,
+        address: store.address,
         cep: cep,
       },
       orderNumber,

@@ -16,7 +16,7 @@ const pointSchema = new mongoose.Schema({
 
 const storeAddress = new mongoose.Schema({
   cep: {
-    type: Number,
+    type: String,
     required: true,
   },
   address: {
