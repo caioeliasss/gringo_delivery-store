@@ -1,12 +1,32 @@
 const mongoose = require("mongoose");
 
-const deliveryPriceSchema = new mongoose.Schema({
-  fixedPrice: {
-    type: Number,
-    required: false,
+const deliveryPriceSchema = new mongoose.Schema(
+  {
+    fixedPrice: {
+      type: Number,
+      required: false,
+    },
+    bonusKm: {
+      type: Number,
+      required: false,
+    },
+    priceRain: {
+      type: Number,
+      required: false,
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now,
+    },
   },
-  pricePerKm: {
-    type: Number,
-    required: false,
-  },
+  {
+    timestamps: true,
+  }
+);
+
+deliveryPriceSchema.pre("save", function (next) {
+  this.updatedAt = Date.now();
+  next();
 });
+
+module.exports = mongoose.model("DeliveryPrice", deliveryPriceSchema);

@@ -20,8 +20,5 @@ const getNotifications = async (req, res) => {
 };
 
 router.get("/", getNotifications);
-router.get("/boi", async (req, res) => {
-  res.status(200).json({ message: "vc é o boi" });
-});
 
 module.exports = router;

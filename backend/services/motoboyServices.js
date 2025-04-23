@@ -180,6 +180,8 @@ class MotoboyService {
         title: `${order.store.name}`,
         message: `Pedido #${order.orderNumber}`,
         data: {
+          storeAddress: order.store.address,
+          order: order,
           orderId: order._id,
           customerName: order.customer.name,
           address: order.customer.customerAddress,
