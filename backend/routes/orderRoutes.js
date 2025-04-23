@@ -5,6 +5,8 @@ const Store = require("../models/Store");
 const Order = require("../models/Order");
 const Motoboy = require("../models/Motoboy");
 const axios = require("axios");
+const geolib = require("geolib");
+const DeliveryPrice = require("../models/DeliveryPrice");
 
 const buscarCnpj = async (cnpj) => {
   const API_URL = "https://brasilapi.com.br/api/cnpj/v1";
@@ -18,6 +20,28 @@ const buscarCnpj = async (cnpj) => {
   });
 
   return api.get(`/${cnpj}`);
+};
+
+const buscarCep = async (cep) => {
+  const API_URL = `https://viacep.com.br/ws/${cep}/json/`;
+
+  const api = axios.create({
+    baseURL: API_URL,
+  });
+
+  return api.get(`/`);
+};
+const buscarCoord = async (logradoro, cidade, estado) => {
+  const API_URL =
+    "https://nominatim.openstreetmap.org/search?format=json&q=RUA+ANTONIO+FERNANDES+DE+BARROS,+MOGI+MIRIM,+SP";
+
+  const api = axios.create({
+    baseURL: API_URL,
+  });
+
+  return api.get(
+    `/${logradoro.replace(" ", "+")},+${cidade.replace(" ", "+")},+${estado}`
+  );
 };
 
 // Middleware de autenticação
@@ -244,6 +268,59 @@ router.post("/", async (req, res) => {
       return { cep, storeName };
     };
 
+    const calculatePrice = async (coordFrom, cep) => {
+      const response = await buscarCep(cep);
+      const addressCustomer = response.data;
+
+      const responseCoord = await buscarCoord(
+        addressCustomer.logradouro,
+        addressCustomer.localidade,
+        addressCustomer.uf
+      );
+
+      const { lat, lon } = responseCoord.data; // pega o primeiro resultado válido
+      const coordTo = { latitude: parseFloat(lat), longitude: parseFloat(lon) };
+
+      let distance = geolib.getDistance(
+        { latitude: coordFrom[1], longitude: coordFrom[0] }, // coordFrom no formato [lng, lat]
+        coordTo
+      );
+      distance = distance * 1000;
+
+      const priceList = await DeliveryPrice.findOne();
+
+      if (!priceList) {
+        console.log("Price List nao encontrado");
+        return;
+      }
+
+      let cost;
+      let valorFixo;
+
+      if (priceList.isRain) {
+        valorFixo = priceList.priceRain;
+      } else if (priceList.isHighDemand) {
+        valorFixo = priceList.fixedPriceHigh;
+      } else {
+        valorFixo = priceList.fixedPrice;
+      }
+      console.log(valorFixo);
+
+      if (distance > priceList.fixedKm) {
+        let bonusDistance = valorFixo - distance;
+        cost = bonusDistance * priceList.bonusKm;
+        cost = cost + valorFixo;
+      } else {
+        cost = valorFixo;
+      }
+      console.log(cost);
+      return { cost, distance };
+    };
+
+    const { cost, distance } = await calculatePrice(
+      store.coordinates,
+      customer.customerAddress.cep
+    );
     const { cep, storeName } = await getCep(cnpj);
 
     const newOrder = new Order({
@@ -265,6 +342,7 @@ router.post("/", async (req, res) => {
       status: "pendente",
       cliente_cod: customer.phone.replace(/\D/g, "").slice(-4),
       motoboy: {
+        price: cost,
         motoboyId: null,
         name: "",
         phone: null,

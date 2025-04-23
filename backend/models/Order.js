@@ -111,6 +111,10 @@ const orderSchema = new mongoose.Schema({
     },
   },
   motoboy: {
+    price: {
+      type: Number,
+      required: false,
+    },
     motoboyId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Motoboy",

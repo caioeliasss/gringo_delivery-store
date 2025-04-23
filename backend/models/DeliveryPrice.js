@@ -2,6 +2,14 @@ const mongoose = require("mongoose");
 
 const deliveryPriceSchema = new mongoose.Schema(
   {
+    fixedKm: {
+      type: Number,
+      required: false,
+    },
+    fixedPriceHigh: {
+      type: Number,
+      required: false,
+    },
     fixedPrice: {
       type: Number,
       required: false,
@@ -12,6 +20,14 @@ const deliveryPriceSchema = new mongoose.Schema(
     },
     priceRain: {
       type: Number,
+      required: false,
+    },
+    isRain: {
+      type: Boolean,
+      required: false,
+    },
+    isHighDemand: {
+      type: Boolean,
       required: false,
     },
     updatedAt: {
