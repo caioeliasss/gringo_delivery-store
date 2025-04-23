@@ -122,13 +122,27 @@ const Register = () => {
         // Caso falhe, podemos manter o CEP como fallback ou deixar null
       }
 
+      let storeAddress;
+      try {
+        const response = await buscarCnpj(cnpjNumbers);
+        const data = response.data;
+        storeAddress = {
+          cep: data.cep,
+          address: data.logradouro,
+          bairro: data.bairro,
+          addressNumber: data.numero,
+          cidade: data.municipio,
+        };
+      } catch (error) {}
+      console.log(storeAddress);
       // Após registro no Firebase, criar perfil no backend com CNPJ
       try {
         await createUserProfile({
           displayName: email.split("@")[0], // Nome baseado no email
           email: email,
           cnpj: cnpjNumbers,
-          geolocation: geolocation,
+          location: geolocation,
+          address: storeAddress,
         });
         navigate("/dashboard");
       } catch (profileError) {

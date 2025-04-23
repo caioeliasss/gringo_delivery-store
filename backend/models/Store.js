@@ -14,6 +14,29 @@ const pointSchema = new mongoose.Schema({
   },
 });
 
+const storeAddress = new mongoose.Schema({
+  cep: {
+    type: Number,
+    required: true,
+  },
+  address: {
+    type: String,
+    required: true,
+  },
+  addressNumber: {
+    type: String,
+    required: true,
+  },
+  bairro: {
+    type: String,
+    required: true,
+  },
+  cidade: {
+    type: String,
+    required: true,
+  },
+});
+
 const storeSchema = new mongoose.Schema({
   firebaseUid: {
     type: String,
@@ -49,7 +72,7 @@ const storeSchema = new mongoose.Schema({
     required: false,
   },
   address: {
-    type: String,
+    type: storeAddress,
     required: false,
   },
   phone: {

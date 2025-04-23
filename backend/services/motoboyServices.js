@@ -177,7 +177,7 @@ class MotoboyService {
       const notification = new Notification({
         motoboyId: motoboy._id,
         type: "DELIVERY_REQUEST",
-        title: `Entrega de ${order.store.name}`,
+        title: `${order.store.name}`,
         message: `Pedido #${order.orderNumber}`,
         data: {
           orderId: order._id,

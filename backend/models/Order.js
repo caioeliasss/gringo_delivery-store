@@ -67,6 +67,10 @@ const storeSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  location: {
+    type: customerAddress,
+    required: false,
+  },
   cep: {
     type: String,
     required: false,
@@ -133,6 +137,10 @@ const orderSchema = new mongoose.Schema({
         type: Date,
         required: false,
       },
+    },
+    payment: {
+      type: Number,
+      required: false,
     },
   },
   items: [orderItemSchema],
