@@ -32,16 +32,17 @@ const buscarCep = async (cep) => {
   return api.get(`/`);
 };
 const buscarCoord = async (logradoro, cidade, estado) => {
-  const API_URL =
-    "https://nominatim.openstreetmap.org/search?format=json&q=RUA+ANTONIO+FERNANDES+DE+BARROS,+MOGI+MIRIM,+SP";
+  const API_URL = "https://nominatim.openstreetmap.org/search?format=json&q=";
 
-  const api = axios.create({
-    baseURL: API_URL,
-  });
+  const api = axios.create({ baseURL: API_URL });
 
-  return api.get(
-    `/${logradoro.replace(" ", "+")},+${cidade.replace(" ", "+")},+${estado}`
-  );
+  const formatar = (str) => str.replace(/ /g, "+");
+
+  const query = `${formatar(logradoro)},+${formatar(cidade)},+${formatar(
+    estado
+  )}`;
+
+  return api.get(query);
 };
 
 // Middleware de autenticação
@@ -278,14 +279,14 @@ router.post("/", async (req, res) => {
         addressCustomer.uf
       );
 
-      const { lat, lon } = responseCoord.data; // pega o primeiro resultado válido
+      const { lat, lon } = responseCoord.data[0]; // pega o primeiro resultado válido
       const coordTo = { latitude: parseFloat(lat), longitude: parseFloat(lon) };
 
       let distance = geolib.getDistance(
         { latitude: coordFrom[1], longitude: coordFrom[0] }, // coordFrom no formato [lng, lat]
         coordTo
       );
-      distance = distance * 1000;
+      distance = distance / 1000;
 
       const priceList = await DeliveryPrice.findOne();
 
@@ -304,7 +305,6 @@ router.post("/", async (req, res) => {
       } else {
         valorFixo = priceList.fixedPrice;
       }
-      console.log(valorFixo);
 
       if (distance > priceList.fixedKm) {
         let bonusDistance = valorFixo - distance;
@@ -313,16 +313,14 @@ router.post("/", async (req, res) => {
       } else {
         cost = valorFixo;
       }
-      console.log(cost);
-      return { cost, distance };
+      return { cost, distance, coordTo };
     };
 
-    const { cost, distance } = await calculatePrice(
+    const { cost, distance, coordTo } = await calculatePrice(
       store.coordinates,
       customer.customerAddress.cep
     );
     const { cep, storeName } = await getCep(cnpj);
-
     const newOrder = new Order({
       store: {
         name: storeName,
@@ -333,7 +331,11 @@ router.post("/", async (req, res) => {
       },
       orderNumber,
       customer: {
-        ...customer,
+        ...customer, //TODO add coordinates
+        customerAddress: {
+          ...customer.customerAddress,
+          coordinates: [coordTo.longitude, coordTo.latitude],
+        },
       },
       items,
       total,
@@ -341,6 +343,9 @@ router.post("/", async (req, res) => {
       notes: notes || "",
       status: "pendente",
       cliente_cod: customer.phone.replace(/\D/g, "").slice(-4),
+      delivery: {
+        distance: distance,
+      },
       motoboy: {
         price: cost,
         motoboyId: null,
@@ -353,7 +358,7 @@ router.post("/", async (req, res) => {
       },
     });
 
-    // console.log(newOrder);
+    // console.log(newOrder.customer.customerAddress.coordinates);
     await newOrder.save();
 
     res

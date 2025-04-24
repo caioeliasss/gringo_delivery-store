@@ -25,10 +25,6 @@ const travelSchema = mongoose.Schema({
     type: [Number],
     required: false,
   },
-  store: {
-    type: Object,
-    default: {},
-  },
   order: {
     type: Object,
     default: {},

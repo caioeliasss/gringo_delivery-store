@@ -43,6 +43,7 @@ const notificationSchema = new mongoose.Schema({
 });
 
 // Criar índice para expiração automática
+//FIXME
 notificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 module.exports = mongoose.model("Notification", notificationSchema);
