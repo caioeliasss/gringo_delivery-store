@@ -246,7 +246,7 @@ class MotoboyService {
             notification._id
           );
           if (notificacaoAtual && notificacaoAtual.status === "PENDING") {
-            notificacaoAtual.status = "PENDING"; //FIXME
+            notificacaoAtual.status = "EXPIRED";
             await notificacaoAtual.save();
           }
 

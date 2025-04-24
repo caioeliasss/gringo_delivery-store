@@ -29,4 +29,10 @@ const travelSchema = mongoose.Schema({
     type: Object,
     default: {},
   },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
+
+module.exports = mongoose.model("Travel", travelSchema);
