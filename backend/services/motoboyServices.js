@@ -247,11 +247,12 @@ class MotoboyService {
           );
           if (notificacaoAtual && notificacaoAtual.status === "PENDING") {
             notificacaoAtual.status = "EXPIRED";
+            console.log("EXPIRED NOW");
             await notificacaoAtual.save();
           }
 
           resolve(false);
-        }, 30000); // 30 segundos
+        }, 60000); // 30 segundos
       });
     } catch (error) {
       console.error("Erro ao solicitar motoboy:", error);

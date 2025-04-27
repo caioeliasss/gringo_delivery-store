@@ -27,7 +27,6 @@ const authenticateToken = async (req, res, next) => {
 router.get("/me", authenticateToken, async (req, res) => {
   try {
     const user = await Store.findOne({ firebaseUid: req.user.uid });
-    console.log(user);
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }

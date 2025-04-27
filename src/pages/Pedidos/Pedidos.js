@@ -68,6 +68,7 @@ import {
   LocationOn as LocationIcon,
   AttachMoney as MoneyIcon,
 } from "@mui/icons-material";
+import eventService from "../../services/eventService";
 
 const Pedidos = () => {
   const { currentUser, logout } = useAuth();
@@ -123,6 +124,47 @@ const Pedidos = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [drawerOpen, setDrawerOpen] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Só conectar o SSE se o usuário estiver autenticado
+    if (currentUser) {
+      // Conectar com o UID do usuário atual como identificador da loja
+      eventService.connect(currentUser.uid);
+
+      // Configurar manipulador para atualizações de pedidos
+      const handleOrderUpdate = (orderData) => {
+        console.log("Atualização de pedido recebida:", orderData);
+
+        // Atualizar o pedido na lista local se o pedido já existir
+        setPedidos((prevPedidos) =>
+          prevPedidos.map((pedido) =>
+            pedido._id === orderData._id ? { ...pedido, ...orderData } : pedido
+          )
+        );
+
+        // Se o pedido atual estiver aberto, atualizá-lo também
+        if (currentPedido && currentPedido._id === orderData._id) {
+          setCurrentPedido((prevPedido) => ({ ...prevPedido, ...orderData }));
+        }
+
+        // Notificar o usuário sobre a mudança
+        setSnackbar({
+          open: true,
+          message: `Pedido #${orderData.orderNumber} atualizado para ${orderData.status}`,
+          severity: "info",
+        });
+      };
+
+      // Registrar o manipulador de eventos
+      eventService.on("orderUpdate", handleOrderUpdate);
+
+      // Limpar na desmontagem
+      return () => {
+        eventService.off("orderUpdate", handleOrderUpdate);
+        // Não desconectar, pois outros componentes podem precisar da conexão
+      };
+    }
+  }, [currentUser, currentPedido]);
 
   const handleFetchPedidos = () => {
     const fetchPedidos = async () => {

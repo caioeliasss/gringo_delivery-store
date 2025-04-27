@@ -115,10 +115,12 @@ router.get("/:id", authenticateToken, async (req, res) => {
 });
 
 // Atualizar status do pedido
-router.put("/:id/status", authenticateToken, async (req, res) => {
+// backend/routes/orderRoutes.js - modificar a rota de atualização de status
+
+router.put("/status", authenticateToken, async (req, res) => {
   try {
-    const { status } = req.body;
-    if (!status) {
+    const { status, id } = req.body;
+    if (!status || !id) {
       return res.status(400).json({ message: "Status não fornecido" });
     }
 
@@ -134,14 +136,14 @@ router.put("/:id/status", authenticateToken, async (req, res) => {
       return res.status(400).json({ message: "Status inválido" });
     }
 
-    const user = await Store.findOne({ firebaseUid: req.user.uid });
-    if (!user) {
-      return res.status(404).json({ message: "Usuário não encontrado" });
-    }
-
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findById(id);
     if (!order) {
       return res.status(404).json({ message: "Pedido não encontrado" });
+    }
+
+    const user = await Store.findOne({ cnpj: order.store.cnpj });
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
     }
 
     // Se o pedido já estiver entregue ou cancelado, não permitir alteração
@@ -153,9 +155,61 @@ router.put("/:id/status", authenticateToken, async (req, res) => {
       });
     }
 
+    // Guardar status anterior para comparação
+    const previousStatus = order.status;
+
     // Atualizar status
     order.status = status;
     await order.save();
+
+    // console.log(
+    //   `Pedido ${order._id} atualizado: ${previousStatus} -> ${status}`
+    // );
+
+    // Se o status mudou, enviar notificação via SSE
+    if (previousStatus !== status) {
+      // console.log("Tentando enviar notificação SSE...");
+      // console.log("User UID para notificação:", user.firebaseUid);
+
+      // Verificar se a função de notificação existe
+      if (!req.app.locals.sendEventToStore) {
+        console.error(
+          "ERRO: função sendEventToStore não encontrada em app.locals"
+        );
+        return res.status(200).json({
+          message:
+            "Status do pedido atualizado com sucesso, mas notificação falhou",
+          order,
+        });
+      }
+
+      // Preparar dados do pedido para a notificação
+      const orderData = {
+        _id: order._id,
+        orderNumber: order.orderNumber,
+        status: order.status,
+        customer: {
+          name: order.customer.name,
+        },
+        total: order.total,
+        orderDate: order.orderDate,
+      };
+
+      // console.log("Dados para enviar:", JSON.stringify(orderData));
+
+      // Tentar enviar a notificação
+      try {
+        const notified = req.app.locals.sendEventToStore(
+          user.firebaseUid,
+          "orderUpdate",
+          orderData
+        );
+
+        // console.log(`Notificação SSE ${notified ? "ENVIADA" : "FALHOU"}`);
+      } catch (notifyError) {
+        console.error("Erro ao enviar notificação SSE:", notifyError);
+      }
+    }
 
     res
       .status(200)
@@ -168,7 +222,6 @@ router.put("/:id/status", authenticateToken, async (req, res) => {
     });
   }
 });
-
 // Função auxiliar para geocodificar um endereço usando Google Maps API
 const geocodeAddress = async (address) => {
   try {
