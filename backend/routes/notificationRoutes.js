@@ -1,4 +1,5 @@
 const Notification = require("../models/Notification");
+const Motoboy = require("../models/Motoboy");
 const Order = require("../models/Order");
 const express = require("express");
 const router = express.Router();
@@ -18,6 +19,84 @@ const getNotifications = async (req, res) => {
   }
 };
 
+const createNotification = async (req, res) => {
+  try {
+    const { motoboyId, order } = req.body;
+
+    if (!motoboyId || !order) {
+      return res.status(400).json({
+        message: "Dados incompletos. motoboyId e order são obrigatórios",
+      });
+    }
+
+    // Verificar se motoboy existe e está disponível
+    const motoboy = await Motoboy.findById(motoboyId);
+    if (!motoboy) {
+      return res.status(404).json({ message: "Motoboy não encontrado" });
+    }
+
+    // console.log(motoboy._id)
+
+    if (!motoboy.isAvailable) {
+      return res.status(400).json({ message: "Motoboy não está disponível" });
+    }
+
+    // Criar a notificação
+    const notification = new Notification({
+      motoboyId: motoboyId,
+      type: "DELIVERY_REQUEST",
+      title: `${order.store.name}`,
+      message: `Pedido #${order.orderNumber}`,
+      data: {
+        storeAddress: order.store.address,
+        order: order,
+        orderId: order._id,
+        customerName: order.customer.name,
+        address: order.customer.customerAddress,
+      },
+      status: "PENDING",
+      expiresAt: new Date(Date.now() + 60000), // 1 minuto para expirar
+    });
+
+    await notification.save();
+    console.log(
+      `Notificação criada: ${notification._id} para motoboy ${motoboyId}`
+    );
+
+    // Enviar evento SSE se disponível na aplicação
+    if (req.app.locals.sendEventToMotoboy) {
+      try {
+        const notifyData = {
+          notificationId: notification._id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          data: notification.data,
+        };
+
+        const notified = req.app.locals.sendEventToMotoboy(
+          motoboy.firebaseUid,
+          "notificationUpdate",
+          notifyData
+        );
+
+        console.log(
+          `Notificação SSE ${notified ? "ENVIADA" : "FALHOU"} para motoboy ${
+            motoboy.name
+          }`
+        );
+      } catch (notifyError) {
+        console.error("Erro ao enviar notificação SSE:", notifyError);
+      }
+    }
+
+    res.status(201).json(notification);
+  } catch (error) {
+    console.error("Erro ao criar notificação:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 const updateNotification = async (req, res) => {
   try {
     const { id, status } = req.body;
@@ -29,50 +108,6 @@ const updateNotification = async (req, res) => {
     if (!order) {
       return res.status(404).json({ message: "Pedido não encontrado" });
     }
-
-    if (status === status) {
-      console.log("Tentando enviar notificação SSE...");
-      console.log("User UID para notificação:", req.user.uid);
-
-      // Verificar se a função de notificação existe
-      if (!req.app.locals.sendEventToStore) {
-        console.error(
-          "ERRO: função sendEventToStore não encontrada em app.locals"
-        );
-        return res.status(200).json({
-          message:
-            "Status do pedido atualizado com sucesso, mas notificação falhou",
-          order,
-        });
-      }
-
-      // Preparar dados do pedido para a notificação
-      const orderData = {
-        _id: order._id,
-        orderNumber: order.orderNumber,
-        status: "em_preparacao",
-        customer: {
-          name: order.customer.name,
-        },
-        total: order.total,
-        orderDate: order.orderDate,
-      };
-
-      console.log("Dados para enviar:", JSON.stringify(orderData));
-
-      // Tentar enviar a notificação
-      try {
-        const notified = req.app.locals.sendEventToStore(
-          req.user.uid,
-          "orderUpdate",
-          orderData
-        );
-
-        console.log(`Notificação SSE ${notified ? "ENVIADA" : "FALHOU"}`);
-      } catch (notifyError) {
-        console.error("Erro ao enviar notificação SSE:", notifyError);
-      }
-    }
     res.status(200).json({ message: "Atualizado com sucesso", notification });
   } catch (error) {
     res.status(500).json({ message: "Erro interno", error });
@@ -80,6 +115,7 @@ const updateNotification = async (req, res) => {
 };
 
 router.get("/", getNotifications);
+router.post("/", createNotification);
 router.put("/", updateNotification);
 
 module.exports = router;

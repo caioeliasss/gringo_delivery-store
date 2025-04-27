@@ -116,7 +116,6 @@ const updateMotoboy = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
-
     // Campos básicos
     if (req.body.name) user.name = req.body.name;
     if (req.body.email) user.email = req.body.email;
