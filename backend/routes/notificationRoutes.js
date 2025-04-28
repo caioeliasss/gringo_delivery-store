@@ -64,7 +64,7 @@ const createNotification = async (req, res) => {
     );
 
     // Enviar evento SSE se disponível na aplicação
-    if (req.app.locals.sendEventToMotoboy) {
+    if (req.app.locals.sendEventToStore) {
       try {
         const notifyData = {
           notificationId: notification._id,
@@ -74,7 +74,7 @@ const createNotification = async (req, res) => {
           data: notification.data,
         };
 
-        const notified = req.app.locals.sendEventToMotoboy(
+        const notified = req.app.locals.sendEventToStore(
           motoboy.firebaseUid,
           "notificationUpdate",
           notifyData
