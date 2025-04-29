@@ -162,6 +162,7 @@ const updateMotoboy = async (req, res) => {
         } já está em uso.`,
       });
     }
+    console.log(error.message);
 
     // Outros erros
     res.status(500).json({

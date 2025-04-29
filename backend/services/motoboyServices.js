@@ -187,10 +187,20 @@ class MotoboyService {
 
         return new Promise((resolve) => {
           // 1. Monitorar mudanças na notificação
-          const changeStream = Notification.watch([
-            { $match: { "documentKey._id": response.data._id } },
-          ]);
+          const notificationId =
+            typeof response.data._id === "string"
+              ? new mongoose.Types.ObjectId(response.data._id)
+              : response.data._id;
 
+          // Use a more reliable match pattern
+          const changeStream = Notification.watch([
+            {
+              $match: {
+                operationType: { $in: ["update", "replace"] },
+                "documentKey._id": notificationId,
+              },
+            },
+          ]);
           // 2. Quando houver mudança
           changeStream.on("change", async (change) => {
             let novoStatus;
@@ -209,9 +219,7 @@ class MotoboyService {
             if (novoStatus && novoStatus !== "PENDING") {
               // Fechar monitoramento
               changeStream.close();
-
               const aceito = novoStatus === "ACCEPTED";
-
               // Se aceitou, atualizar motoboy como indisponível
               if (aceito) {
                 await Motoboy.findByIdAndUpdate(motoboy._id, {
@@ -260,12 +268,13 @@ class MotoboyService {
 
     if (aceito) {
       // Atribuir motoboy ao pedido
+
       order.motoboy = {
+        ...order.motoboy,
         motoboyId: motoboy._id,
         name: motoboy.name,
         phone: motoboy.phoneNumber,
       };
-      order.status = "em_preparo";
       // console.log("salvando agora");
       await order.save();
       return { success: true, order, motoboy };

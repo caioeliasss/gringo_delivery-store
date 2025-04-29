@@ -133,6 +133,8 @@ const orderSchema = new mongoose.Schema({
       required: false,
     },
     location: {
+      type: Object,
+      required: false,
       estimatedTime: {
         type: Number, // em minutos
         required: false,

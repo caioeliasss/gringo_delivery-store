@@ -1254,7 +1254,7 @@ const Pedidos = () => {
                             CEP:
                           </Typography>
                           <Typography variant="body2">
-                            {currentPedido.customer.customerAddress.cep}
+                            {currentPedido.customer.customerAddress.cep.toString()}
                           </Typography>
                         </Box>
                         <Box>
