@@ -185,7 +185,61 @@ class MotoboyService {
         // Enviar push/notificação ao app (simulado)
         console.log(`Notificando id: ${response.data._id}`);
 
-        return response.data;
+        return new Promise((resolve) => {
+          // 1. Monitorar mudanças na notificação
+          const changeStream = Notification.watch([
+            { $match: { "documentKey._id": response.data._id } },
+          ]);
+
+          // 2. Quando houver mudança
+          changeStream.on("change", async (change) => {
+            let novoStatus;
+
+            // Extrair o novo status
+            if (
+              change.operationType === "update" &&
+              change.updateDescription.updatedFields.status
+            ) {
+              novoStatus = change.updateDescription.updatedFields.status;
+            } else if (change.operationType === "replace") {
+              novoStatus = change.fullDocument.status;
+            }
+
+            // Se status mudou e não é mais PENDING
+            if (novoStatus && novoStatus !== "PENDING") {
+              // Fechar monitoramento
+              changeStream.close();
+
+              const aceito = novoStatus === "ACCEPTED";
+
+              // Se aceitou, atualizar motoboy como indisponível
+              if (aceito) {
+                await Motoboy.findByIdAndUpdate(motoboy._id, {
+                  isAvailable: false,
+                  currentOrderId: order._id,
+                });
+              }
+
+              resolve(aceito);
+            }
+          });
+
+          // 3. Timeout para caso não haja resposta
+          const timeout = setTimeout(async () => {
+            changeStream.close();
+
+            // Verificar se notificação ainda está pendente
+            const notificacaoAtual = await Notification.findById(
+              response.data._id
+            );
+            if (notificacaoAtual && notificacaoAtual.status === "PENDING") {
+              notificacaoAtual.status = "EXPIRED";
+              await notificacaoAtual.save();
+            }
+
+            resolve(false);
+          }, 60000); // 30 segundos
+        });
       } catch (error) {
         console.error(error);
       }
@@ -212,6 +266,7 @@ class MotoboyService {
         phone: motoboy.phoneNumber,
       };
       order.status = "em_preparo";
+      // console.log("salvando agora");
       await order.save();
       return { success: true, order, motoboy };
     } else {

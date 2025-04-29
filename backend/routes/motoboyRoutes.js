@@ -203,7 +203,7 @@ const findMotoboys = async (req, res) => {
   try {
     // Test coordinates (replace with coordinates you know are valid for your environment)
     const testCoordinates = [-46.6333, -23.5505]; // Example: São Paulo
-    const { order_id } = req.query;
+    const { order_id } = req.query || req.params;
 
     if (!order_id) {
       res.status(404).json({
@@ -219,7 +219,7 @@ const findMotoboys = async (req, res) => {
     // console.log("storecoord:", storeCoordinates);
 
     const motoboys = await motoboyServices.findBestMotoboys(storeCoordinates);
-    // console.log("motoboys:", motoboys);
+    console.log("motoboys:", motoboys);
 
     const motoboyRequest = await motoboyServices.processMotoboyQueue(
       motoboys,
