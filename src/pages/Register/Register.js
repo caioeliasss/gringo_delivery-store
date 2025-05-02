@@ -82,10 +82,7 @@ const Register = () => {
       setError("");
       setLoading(true);
       // Registrar no Firebase
-      const userCredential = await signup(email, password);
-
-      const response = await buscarCnpj(cnpjNumbers);
-      const data = response.data;
+      await signup(email, password);
 
       // Obter a geolocalização do navegador
       let geolocation = null;

@@ -7,6 +7,7 @@ const Motoboy = require("../models/Motoboy");
 const axios = require("axios");
 const geolib = require("geolib");
 const DeliveryPrice = require("../models/DeliveryPrice");
+const mongoose = require("mongoose");
 
 const buscarCnpj = async (cnpj) => {
   const API_URL = "https://brasilapi.com.br/api/cnpj/v1";
@@ -95,22 +96,20 @@ router.get("/", authenticateToken, async (req, res) => {
 // Obter pedido por ID
 router.get("/:id", authenticateToken, async (req, res) => {
   try {
-    const user = await Store.findOne({ firebaseUid: req.user.uid });
-    if (!user) {
-      return res.status(404).json({ message: "Usuário não encontrado" });
-    }
+    const { id } = req.params;
 
-    const order = await Order.findOne({ _id: req.params.id, cnpj: user.cnpj });
+    const order = await Order.findById(id);
     if (!order) {
-      return res.status(404).json({ message: "Pedido não encontrado" });
+      return res.status(404).json({ message: "Pedido não encontrado", id: id });
     }
 
     res.status(200).json(order);
   } catch (error) {
     console.error("Erro ao buscar pedido:", error);
-    res
-      .status(500)
-      .json({ message: "Erro ao buscar pedido", error: error.message });
+    res.status(500).json({
+      message: "Erro ao buscar pedido",
+      error: error.message,
+    });
   }
 });
 

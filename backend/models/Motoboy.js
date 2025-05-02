@@ -52,6 +52,18 @@ const motoboySchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+    race: {
+      type: Object,
+      required: false,
+      active: {
+        type: Boolean,
+        default: false,
+      },
+      orderId: {
+        type: String,
+        default: "",
+      },
+    },
     createdAt: {
       type: Date,
       default: Date.now,

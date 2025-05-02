@@ -224,7 +224,10 @@ class MotoboyService {
               if (aceito) {
                 await Motoboy.findByIdAndUpdate(motoboy._id, {
                   isAvailable: false,
-                  currentOrderId: order._id,
+                  race: {
+                    orderId: order._id,
+                    active: true,
+                  },
                 });
               }
 
