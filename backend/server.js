@@ -1,4 +1,4 @@
-// backend/server.js (modificar arquivo existente)
+// backend/server.js
 
 const express = require("express");
 const mongoose = require("mongoose");
@@ -7,6 +7,8 @@ const dotenv = require("dotenv");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const admin = require("firebase-admin");
+const http = require("http");
+const socketIO = require("socket.io");
 
 // Configuração das variáveis de ambiente
 dotenv.config();
@@ -15,10 +17,23 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// Criar servidor HTTP
+const server = http.createServer(app);
+
+// Configurar Socket.io com path específico
+const io = socketIO(server, {
+  cors: {
+    origin: "*", // Em produção, especifique os domínios permitidos
+    methods: ["GET", "POST"],
+  },
+  path: "/socket", // Adicionar path específico para Socket.io
+  transports: ["websocket", "polling"], // Usar apenas WebSocket para comunicação
+});
+
 // Middleware
 app.use(
   cors({
-    origin: "*", // Em produção, especifique domínios permitidos //FIXME
+    origin: "*", // Em produção, especifique domínios permitidos
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -27,26 +42,23 @@ app.use(
 app.use(helmet());
 app.use(express.json());
 
-// Armazenar clientes SSE conectados
+// Armazenar clientes SSE conectados (mantido para compatibilidade)
 const clients = new Map();
 
-// Rota para eventos SSE
+// Rota para eventos SSE (mantida para compatibilidade)
 app.get("/api/events", (req, res) => {
-  // Obter o ID da loja (firebaseUid) do cabeçalho ou query
   const storeId = req.headers["x-store-id"] || req.query.storeId;
 
   if (!storeId) {
     return res.status(400).json({ message: "ID da loja não fornecido" });
   }
 
-  // Configurar cabeçalhos para SSE
   res.writeHead(200, {
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache",
     Connection: "keep-alive",
   });
 
-  // Enviar evento inicial para confirmar conexão
   res.write(
     `data: ${JSON.stringify({
       type: "connected",
@@ -54,21 +66,17 @@ app.get("/api/events", (req, res) => {
     })}\n\n`
   );
 
-  // Armazenar a conexão
   if (!clients.has(storeId)) {
     clients.set(storeId, []);
   }
   clients.get(storeId).push(res);
 
-  // Remover cliente quando a conexão for fechada
   req.on("close", () => {
     if (clients.has(storeId)) {
       const clientsArray = clients.get(storeId);
       const index = clientsArray.indexOf(res);
       if (index !== -1) {
         clientsArray.splice(index, 1);
-
-        // Se não há mais clientes para esta loja, remover entrada
         if (clientsArray.length === 0) {
           clients.delete(storeId);
         }
@@ -80,7 +88,7 @@ app.get("/api/events", (req, res) => {
   console.log(`Cliente SSE conectado: ${storeId}`);
 });
 
-// Função para enviar evento para uma loja específica
+// Função para enviar evento para uma loja específica (SSE)
 const sendEventToStore = (storeId, eventType, data) => {
   console.log(`Tentando enviar evento ${eventType} para loja ${storeId}`, data);
 
@@ -100,7 +108,6 @@ const sendEventToStore = (storeId, eventType, data) => {
     timestamp: new Date().toISOString(),
   };
 
-  // Enviar evento para todos os clientes da loja
   clientsArray.forEach((client) => {
     try {
       client.write(`data: ${JSON.stringify(event)}\n\n`);
@@ -163,6 +170,15 @@ app.get("/", (req, res) => {
   res.send("API está funcionando");
 });
 
+// Configurar Socket.io handlers
+require("./socket/socketHandler")(io);
+
+// Middleware para adicionar io às requisições
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
 // Importar rotas
 const storeRoutes = require("./routes/storeRoutes");
 const productRoutes = require("./routes/productRoutes");
@@ -177,12 +193,18 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/motoboys", authenticateToken, motoboyRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/travels", travelRoutes);
+
+// Middleware de logging
 app.use((req, res, next) => {
   console.log(`Request: ${req.method} ${req.url}`);
   next();
 });
 
-// Iniciar o servidor
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+// IMPORTANTE: Usar server.listen em vez de app.listen para Socket.io funcionar
+server.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT} com Socket.io`);
+});
+
+process.on("unhandledRejection", (err) => {
+  console.log(`Erro: ${err.message}`);
 });
