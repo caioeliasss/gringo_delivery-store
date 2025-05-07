@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 8080;
 // Middleware
 app.use(
   cors({
-    origin: "*", // Em produção, especifique domínios permitidos
+    origin: "*", // Em produção, especifique domínios permitidos //FIXME
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,

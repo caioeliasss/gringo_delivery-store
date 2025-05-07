@@ -128,6 +128,7 @@ const updateMotoboy = async (req, res) => {
       user.isApproved = req.body.isApproved;
     if (req.body.isAvailable !== undefined)
       user.isAvailable = req.body.isAvailable;
+    if (req.body.race !== undefined) user.race = req.body.race;
 
     // Campos numéricos
     if (req.body.score !== undefined) user.score = req.body.score;
