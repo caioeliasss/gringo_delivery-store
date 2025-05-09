@@ -27,13 +27,15 @@ class MotoboyService {
     this.apiBaseUrl = process.env.API_URL || "http://localhost:8080/api";
   }
 
-  async findBestMotoboys(coordinates, maxDistance = 5000, limit = 10) {
+  async findBestMotoboys(coordinates, maxDistance = 5000, limit = 15) {
     try {
       // First find all available and approved motoboys within the max distance
-      const nearbyMotoboys = await Motoboy.find({
-        isApproved: true,
-        isAvailable: true,
-      })
+
+      const nearbyMotoboys = await Motoboy.find({})
+        .where({
+          isApproved: true,
+          isAvailable: true,
+        })
         .sort({ score: -1 }) // First sort by availability and score
         .limit(parseInt(limit))
         .select(

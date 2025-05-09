@@ -30,7 +30,6 @@ const motoboySchema = new mongoose.Schema(
     },
     isApproved: {
       type: Boolean,
-      required: true,
       default: false,
     },
     coordinates: {
@@ -39,13 +38,11 @@ const motoboySchema = new mongoose.Schema(
     },
     score: {
       type: Number,
-      required: true,
       default: 4,
     },
     isAvailable: {
-      required: true,
-      default: true,
       type: Boolean,
+      default: true,
     },
     firebaseUid: {
       type: String,
@@ -53,8 +50,6 @@ const motoboySchema = new mongoose.Schema(
       unique: true,
     },
     race: {
-      type: Object,
-      required: false,
       active: {
         type: Boolean,
         default: false,

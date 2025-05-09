@@ -238,7 +238,7 @@ const geocodeAddress = async (address) => {
 
     // Em um ambiente real, você usaria algo como:
     /*
-    const googleMapsApiKey = process.env.GOOGLE_MAPS_API_KEY;
+    const googleMapsApiKey = process.env.GOOGLE_EXPO_PUBLIC_MAPS_API_KEY;
     const response = await axios.get(
       `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${googleMapsApiKey}`
     );
