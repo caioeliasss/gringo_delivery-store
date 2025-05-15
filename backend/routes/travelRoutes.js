@@ -21,6 +21,40 @@ const createTravel = async (req, res) => {
   }
 };
 
+const updateTravel = async (req, res) => {
+  const { id } = req.params;
+  const {
+    price,
+    rain,
+    distance,
+    coordinatesFrom,
+    coordinatesTo,
+    order,
+    arrival_customer,
+    arrival_store,
+  } = req.body;
+  try {
+    const travel = await Travel.findByIdAndUpdate(
+      id,
+      {
+        arrival_customer: arrival_customer,
+        arrival_store: arrival_store,
+        price: price,
+        rain: rain,
+        distance: distance,
+        coordinatesFrom: coordinatesFrom,
+        coordinatesTo: coordinatesTo,
+        order: order,
+      },
+      { new: true }
+    );
+    res.json(travel);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+router.put("/:id", updateTravel);
 router.post("/", createTravel);
 
 module.exports = router;

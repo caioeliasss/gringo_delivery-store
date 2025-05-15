@@ -104,10 +104,6 @@ const updateNotification = async (req, res) => {
     notification.status = status;
     await notification.save();
 
-    const order = await Order.findById(id);
-    if (!order) {
-      return res.status(404).json({ message: "Pedido não encontrado" });
-    }
     res.status(200).json({ message: "Atualizado com sucesso", notification });
   } catch (error) {
     res.status(500).json({ message: "Erro interno", error });

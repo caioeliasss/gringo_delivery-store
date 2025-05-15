@@ -25,6 +25,14 @@ const travelSchema = mongoose.Schema({
     type: [Number],
     required: false,
   },
+  arrival_store: {
+    type: Date,
+    required: false,
+  },
+  arrival_customer: {
+    type: Date,
+    required: false,
+  },
   order: {
     type: Object,
     default: {},

@@ -3,6 +3,7 @@ const Order = require("../models/Order");
 const express = require("express");
 const router = express.Router();
 const motoboyServices = require("../services/motoboyServices");
+const sendNotification = require("../services/fcmService");
 
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -111,41 +112,57 @@ const createMotoboy = async (req, res) => {
 // Update user
 const updateMotoboy = async (req, res) => {
   try {
+    const {
+      name,
+      email,
+      phoneNumber,
+      cpf,
+      cnh,
+      isApproved,
+      isAvailable,
+      race,
+      coordinates,
+      score,
+    } = req.body;
     const user = await Motoboy.findOne({ firebaseUid: req.user.uid });
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
-    // Campos básicos
-    if (req.body.name) user.name = req.body.name;
-    if (req.body.email) user.email = req.body.email;
-    if (req.body.phoneNumber) user.phoneNumber = req.body.phoneNumber;
-    if (req.body.cpf) user.cpf = req.body.cpf;
-    if (req.body.cnh) user.cnh = req.body.cnh;
 
-    // Campos booleanos - verificar se não são undefined antes de atualizar
-    if (req.body.isApproved !== undefined)
-      user.isApproved = req.body.isApproved;
-    if (req.body.isAvailable !== undefined)
-      user.isAvailable = req.body.isAvailable;
-    if (req.body.race !== undefined) user.race = req.body.race;
+    // Cria um objeto de atualização
+    const updateObj = {};
 
-    // Campos numéricos
-    if (req.body.score !== undefined) user.score = req.body.score;
+    // Só adiciona campos ao objeto de atualização se eles estiverem definidos
+    if (name !== undefined) updateObj.name = name;
+    if (email !== undefined) updateObj.email = email;
+    if (phoneNumber !== undefined) updateObj.phoneNumber = phoneNumber;
+    if (cpf !== undefined) updateObj.cpf = cpf;
+    if (cnh !== undefined) updateObj.cnh = cnh;
+    if (isApproved !== undefined) updateObj.isApproved = isApproved;
+    if (isAvailable !== undefined) updateObj.isAvailable = isAvailable;
+    if (score !== undefined) updateObj.score = score;
+    if (coordinates !== undefined) updateObj.coordinates = coordinates;
 
-    // Array de coordenadas
-    if (
-      req.body.coordinates &&
-      Array.isArray(req.body.coordinates) &&
-      req.body.coordinates.length === 2
-    ) {
-      user.coordinates = req.body.coordinates;
+    // Verifica se race existe e tem as propriedades necessárias
+    if (race !== undefined) {
+      updateObj.race = {
+        active: race.active !== undefined ? race.active : user.race?.active,
+        orderId: race.orderId !== undefined ? race.orderId : user.race?.orderId,
+        travelId:
+          race.travelId !== undefined ? race.travelId : user.race?.travelId,
+      };
     }
 
-    // Atualizar o timestamp manualmente (embora o schema já faça isso automaticamente)
-    user.updatedAt = Date.now();
+    // Adiciona o timestamp
+    updateObj.updatedAt = Date.now();
 
-    const updatedMotoboy = await user.save();
-    res.json(updatedMotoboy);
+    // Atualiza o documento
+    const motoboy = await Motoboy.findByIdAndUpdate(user._id, updateObj, {
+      new: true,
+      runValidators: true,
+    });
+
+    res.json(motoboy);
   } catch (error) {
     // Tratamento específico para erros de validação do MongoDB
     if (error.name === "ValidationError") {
@@ -171,7 +188,6 @@ const updateMotoboy = async (req, res) => {
     });
   }
 };
-
 // Delete user
 const deleteMotoboy = async (req, res) => {
   try {
@@ -220,6 +236,7 @@ const findMotoboys = async (req, res) => {
     // console.log("storecoord:", storeCoordinates);
 
     const motoboys = await motoboyServices.findBestMotoboys(storeCoordinates);
+
     console.log("motoboys:", motoboys);
 
     const motoboyRequest = await motoboyServices.processMotoboyQueue(
@@ -242,10 +259,31 @@ const findMotoboys = async (req, res) => {
   }
 };
 
+const updateFCMToken = async (req, res) => {
+  try {
+    const user = await Motoboy.findOne({
+      firebaseUid: req.user.uid,
+    });
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+    // Atualiza o token FCM
+    user.fcmToken = req.body.token;
+    const updatedMotoboy = await user.save();
+    res.json(updatedMotoboy);
+  } catch (error) {
+    res.status(500).json({
+      message: "Erro ao atualizar token FCM",
+      error: error.message,
+    });
+  }
+};
+
 router.get("/find", findMotoboys);
 router.get("/", getMotoboys);
 router.get("/me", getMotoboyMe);
 router.post("/", createMotoboy);
 router.put("/", updateMotoboy);
+router.post("/updateFCMToken", updateFCMToken);
 
 module.exports = router;

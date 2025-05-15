@@ -58,6 +58,10 @@ const motoboySchema = new mongoose.Schema(
         type: String,
         default: "",
       },
+      travelId: {
+        type: String,
+        default: "",
+      },
     },
     createdAt: {
       type: Date,
