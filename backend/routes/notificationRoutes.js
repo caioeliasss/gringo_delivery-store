@@ -19,6 +19,18 @@ const getNotifications = async (req, res) => {
   }
 };
 
+const getNotificationsAll = async (req, res) => {
+  try {
+    const motoboyId = req.query.motoboyId; // Modificado de req.params para req.query
+    const notifications = await Notification.find({
+      motoboyId: motoboyId,
+    });
+    res.json(notifications);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 const createNotification = async (req, res) => {
   try {
     const { motoboyId, order } = req.body;
@@ -110,7 +122,45 @@ const updateNotification = async (req, res) => {
   }
 };
 
+const createNotificationGeneric = async (req, res) => {
+  try {
+    const { motoboyId, title, message, type } = req.body;
+
+    if (!motoboyId) {
+      return res.status(400).json({
+        message: "Dados incompletos. motoboyId são obrigatórios",
+      });
+    }
+
+    // Verificar se motoboy existe e está disponível
+    const motoboy = await Motoboy.findById(motoboyId);
+    if (!motoboy) {
+      return res.status(404).json({ message: "Motoboy não encontrado" });
+    }
+
+    // console.log(motoboy._id)
+
+    // Criar a notificação
+    const notification = new Notification({
+      motoboyId: motoboyId,
+      type: type || "SYSTEM",
+      title: title,
+      message: message,
+      status: "PENDING",
+      expiresAt: new Date(Date.now() + 60000 * 60 * 24 * 360), // 360 dias para expirar
+    });
+    await notification.save();
+
+    res.status(201).json(notification);
+  } catch (error) {
+    console.error("Erro ao criar notificação:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+router.post("/generic", createNotificationGeneric);
 router.get("/", getNotifications);
+router.get("/all", getNotificationsAll);
 router.post("/", createNotification);
 router.put("/", updateNotification);
 

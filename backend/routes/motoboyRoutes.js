@@ -4,6 +4,7 @@ const express = require("express");
 const router = express.Router();
 const motoboyServices = require("../services/motoboyServices");
 const sendNotification = require("../services/fcmService");
+const createNotificationGeneric = require("../routes/notificationRoutes");
 
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -103,6 +104,15 @@ const createMotoboy = async (req, res) => {
     });
 
     const newMotoboy = await user.save();
+
+    createNotificationGeneric({
+      motoboyId: newMotoboy._id,
+      type: "SYSTEM",
+      title: "Documentos pendentes",
+      message:
+        "Seu cadastro está pendente, precisamos de seus documentos (CNH, RG)",
+      status: "PENDING",
+    });
     res.status(201).json(newMotoboy);
   } catch (error) {
     res.status(400).json({ message: error.message });
