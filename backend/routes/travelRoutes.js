@@ -12,6 +12,7 @@ const createTravel = async (req, res) => {
       distance: distance,
       coordinatesFrom: coordinatesFrom,
       coordinatesTo: coordinatesTo,
+      motoboyId: order.motoboy.motoboyId,
       order: order,
     });
     travel.save();
@@ -54,7 +55,40 @@ const updateTravel = async (req, res) => {
   }
 };
 
+const getTravels = async (req, res) => {
+  try {
+    const { motoboyId } = req.params;
+    if (!motoboyId) {
+      return res.status(401).json({ message: "Não foi informado o motoboyId" });
+    }
+    const travels = await Travel.find({ motoboyId: motoboyId });
+
+    res.status(200).json(travels);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const updateTravelStatus = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  try {
+    const travel = await Travel.findByIdAndUpdate(
+      id,
+      {
+        status: status,
+      },
+      { new: true }
+    );
+    res.json(travel);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 router.put("/:id", updateTravel);
+router.put("/status/:id", updateTravelStatus);
 router.post("/", createTravel);
+router.get("/:motoboyId", getTravels);
 
 module.exports = router;

@@ -112,9 +112,21 @@ const createNotification = async (req, res) => {
 const updateNotification = async (req, res) => {
   try {
     const { id, status } = req.body;
+    if (!id || !status) {
+      return res.status(400).json({
+        message: "Dados incompletos. id e status são obrigatórios",
+      });
+    }
     const notification = await Notification.findById(id);
+    const motoboy = await Motoboy.findById(notification.motoboyId);
     notification.status = status;
     await notification.save();
+
+    req.app.locals.sendEventToStore(
+      motoboy.firebaseUid,
+      "notificationUpdateBell",
+      notification.status !== "READ"
+    );
 
     res.status(200).json({ message: "Atualizado com sucesso", notification });
   } catch (error) {

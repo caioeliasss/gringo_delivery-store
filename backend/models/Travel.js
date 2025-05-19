@@ -9,6 +9,15 @@ const travelSchema = mongoose.Schema({
     type: Boolean,
     required: false,
   },
+  motoboyId: {
+    type: String,
+    required: true,
+  },
+  status: {
+    type: String,
+    enum: ["em_entrega", "entregue", "cancelado", "pago"],
+    default: "em_entrega",
+  },
   distance: {
     type: Number,
     required: false,
