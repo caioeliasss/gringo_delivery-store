@@ -13,6 +13,8 @@ import Register from "./pages/Register/Register";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Produtos from "./pages/Produtos/Produtos";
 import Pedidos from "./pages/Pedidos/pedidos";
+import SuporteLogin from "./pages/Suporte/login";
+import SuporteDashboard from "./pages/Suporte/dashboard";
 import "./App.css";
 
 // Definir tema personalizado com a paleta de cores da Gringo Delivery
@@ -207,6 +209,22 @@ function App() {
               element={
                 <PrivateRoute>
                   <Pedidos />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/suporte/login"
+              element={
+                <PrivateRoute>
+                  <SuporteLogin />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/suporte/dashboard"
+              element={
+                <PrivateRoute>
+                  <SuporteDashboard />
                 </PrivateRoute>
               }
             />

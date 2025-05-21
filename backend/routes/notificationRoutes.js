@@ -136,7 +136,7 @@ const updateNotification = async (req, res) => {
 
 const createNotificationGeneric = async (req, res) => {
   try {
-    const { motoboyId, title, message, type } = req.body;
+    const { motoboyId, title, message, type, expiresAt } = req.body;
 
     if (!motoboyId) {
       return res.status(400).json({
@@ -159,7 +159,7 @@ const createNotificationGeneric = async (req, res) => {
       title: title,
       message: message,
       status: "PENDING",
-      expiresAt: new Date(Date.now() + 60000 * 60 * 24 * 360), // 360 dias para expirar
+      expiresAt: expiresAt || new Date(Date.now() + 60000 * 60 * 24 * 7), // 360 dias para expirar
     });
     await notification.save();
 

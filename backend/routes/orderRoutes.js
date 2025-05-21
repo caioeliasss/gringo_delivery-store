@@ -688,4 +688,32 @@ router.get("/stats/summary", authenticateToken, async (req, res) => {
   }
 });
 
+router.post("/:id/rated", authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Busca o pedido
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ message: "Pedido não encontrado" });
+    }
+
+    // Atualiza apenas o campo rated dentro de motoboy, mantendo os outros dados
+    order.motoboy = {
+      ...order.motoboy,
+      rated: true,
+    };
+
+    await order.save();
+
+    res.status(200).json({ message: "Avaliação enviada com sucesso" });
+  } catch (error) {
+    console.error("Erro ao enviar avaliação:", error);
+    res.status(500).json({
+      message: "Erro ao enviar avaliação",
+      error: error.message,
+    });
+  }
+});
+
 module.exports = router;

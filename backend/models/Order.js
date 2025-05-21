@@ -115,6 +115,10 @@ const orderSchema = new mongoose.Schema({
     },
   },
   motoboy: {
+    rated: {
+      type: Boolean,
+      default: false,
+    },
     price: {
       type: Number,
       required: false,

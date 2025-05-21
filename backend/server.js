@@ -186,6 +186,7 @@ const orderRoutes = require("./routes/orderRoutes");
 const motoboyRoutes = require("./routes/motoboyRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const travelRoutes = require("./routes/travelRoutes");
+const occurrenceRoutes = require("./routes/occurrenceRoutes");
 
 app.use("/api/stores", storeRoutes);
 app.use("/api/products", productRoutes);
@@ -193,6 +194,9 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/motoboys", authenticateToken, motoboyRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/travels", travelRoutes);
+app.use("/api/avaliates", require("./routes/avaliateRoute"));
+app.use("/api/files", authenticateToken, require("./routes/fileRoutes"));
+app.use("/api/occurrences", authenticateToken, occurrenceRoutes);
 
 // Middleware de logging
 app.use((req, res, next) => {

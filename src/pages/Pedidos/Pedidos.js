@@ -67,8 +67,11 @@ import {
   Phone as PhoneIcon,
   LocationOn as LocationIcon,
   AttachMoney as MoneyIcon,
+  Star as StarIcon,
+  Edit,
 } from "@mui/icons-material";
 import eventService from "../../services/eventService";
+import Avaliate from "../../components/Avaliate";
 
 const Pedidos = () => {
   const { currentUser, logout } = useAuth();
@@ -89,6 +92,7 @@ const Pedidos = () => {
   const [produtos, setProdutos] = useState([]);
   const [loadingProdutos, setLoadingProdutos] = useState(false);
   const [driverCode, setDriverCode] = useState(null);
+  const [avaliateOpen, setAvaliateOpen] = useState(false);
 
   // Estado para o formulário de novo pedido
   const [novoPedido, setNovoPedido] = useState({
@@ -644,6 +648,33 @@ const Pedidos = () => {
     }
   };
 
+  const handleOnSubmitAvaliation = async (avaliation) => {
+    try {
+      const response = await api.post(`/avaliates/`, avaliation);
+      const response2 = await api.post(`/orders/${avaliation.orderId}/rated`);
+      setPedidos((prev) =>
+        prev.map((pedido) =>
+          pedido._id === avaliation.orderId
+            ? { ...pedido, motoboy: { ...pedido.motoboy, rated: true } }
+            : pedido
+        )
+      );
+      setSnackbar({
+        open: true,
+        message: "Avaliação enviada com sucesso",
+        severity: "success",
+      });
+      setAvaliateOpen(false);
+    } catch (error) {
+      console.error("Erro ao enviar avaliação:", error);
+      setSnackbar({
+        open: true,
+        message: "Erro ao enviar avaliação",
+        severity: "error",
+      });
+    }
+  };
+
   // Fechar snackbar
   const handleCloseSnackbar = () => {
     setSnackbar((prev) => ({
@@ -1145,14 +1176,7 @@ const Pedidos = () => {
                       sx={{
                         "&:last-child td, &:last-child th": { border: 0 },
                         cursor: "pointer",
-                        bgcolor:
-                          pedido.status === "pendente"
-                            ? "warning.lightest"
-                            : pedido.status === "cancelado"
-                            ? "error.lightest"
-                            : pedido.status === "entregue"
-                            ? "success.lightest"
-                            : "inherit",
+                        bgcolor: "inherit",
                       }}
                       onClick={() => handleViewPedido(pedido)}
                     >
@@ -1178,6 +1202,21 @@ const Pedidos = () => {
                         >
                           <ViewIcon />
                         </IconButton>
+
+                        {pedido.status === "entregue" &&
+                          !pedido.motoboy.rated && (
+                            <IconButton
+                              size="small"
+                              color="warning"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAvaliateOpen(true);
+                                setCurrentPedido(pedido);
+                              }}
+                            >
+                              <StarIcon />
+                            </IconButton>
+                          )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1643,6 +1682,15 @@ const Pedidos = () => {
           </Dialog>
 
           {/* Dialog para criação de novo pedido */}
+          <Avaliate
+            open={avaliateOpen}
+            onSubmit={handleOnSubmitAvaliation}
+            order={currentPedido}
+            onClose={() => {
+              setAvaliateOpen(false);
+              setCurrentPedido(null);
+            }}
+          ></Avaliate>
           <Dialog
             open={openCreateDialog}
             onClose={handleCloseCreateDialog}
