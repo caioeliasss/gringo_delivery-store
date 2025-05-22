@@ -34,6 +34,8 @@ import {
   ShoppingBag,
 } from "@mui/icons-material";
 import { buscarCnpj } from "../../services/cnpj";
+import api from "../../services/api";
+import { buscarGenero } from "../../services/gender";
 
 const SuporteDashboard = () => {
   const { currentUser, logout } = useAuth();
@@ -44,17 +46,26 @@ const SuporteDashboard = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [cnpjInfo, setCnpjInfo] = useState({});
+  const [selectedAvatar, setSelectedAvatar] = useState(
+    "avatar-placeholder.png"
+  );
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const userResponse = await getUserProfile();
-        const cnpj = userResponse.data.cnpj;
+        const userResponse = await api.get(
+          `/support/firebase/${currentUser?.uid}`
+        );
         setUserProfile(userResponse.data);
 
-        const cnpjResponse = await buscarCnpj(cnpj);
-
-        setCnpjInfo(cnpjResponse.data);
+        try {
+          const response = await buscarGenero(userResponse.data.name);
+          if (response.data.gender === "female") {
+            setSelectedAvatar("https://avatar.iran.liara.run/public/girl");
+          } else {
+            setSelectedAvatar("https://avatar.iran.liara.run/public/boy");
+          }
+        } catch (error) {}
       } catch (error) {
         setCnpjInfo({ nome_fantasia: "Caro Cliente" });
       } finally {
@@ -250,34 +261,41 @@ const SuporteDashboard = () => {
           </Typography>
 
           <Paper elevation={3} sx={{ p: 4, mb: 4, borderRadius: 3 }}>
-            <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "start",
+                mb: 1,
+              }}
+            >
+              {/* Avatar principal */}
               {userProfile?.photoURL ? (
                 <Avatar
                   src={userProfile.photoURL}
                   alt={userProfile.displayName || currentUser?.email}
-                  sx={{ width: 80, height: 80, mr: 3 }}
+                  sx={{ width: 80, height: 80, mb: 1 }}
                 />
               ) : (
                 <Avatar
-                  sx={{ width: 80, height: 80, mr: 3, bgcolor: "primary.main" }}
+                  src={`${selectedAvatar}`}
+                  sx={{ width: 80, height: 80, mb: 1 }}
                 >
-                  {(userProfile?.displayName || currentUser?.email || "?")
-                    .charAt(0)
-                    .toUpperCase()}
+                  {!selectedAvatar &&
+                    (userProfile?.name || currentUser?.email || "?")
+                      .charAt(0)
+                      .toUpperCase()}
                 </Avatar>
               )}
-              <Box>
+
+              <Box sx={{ mt: 3, ml: 2, textAlign: "center" }}>
                 <Typography
                   variant="h5"
                   component="h2"
                   sx={{ fontWeight: "bold" }}
                 >
                   Bem-vindo,{" "}
-                  {/* {userProfile?.displayName || currentUser?.email.split("@")[0]} */}
-                  {cnpjInfo.nome_fantasia
-                    ? cnpjInfo.nome_fantasia
-                    : cnpjInfo.razao_social}
-                  !
+                  {userProfile?.name || currentUser?.email.split("@")[0]}!
                 </Typography>
               </Box>
             </Box>
@@ -291,22 +309,6 @@ const SuporteDashboard = () => {
                   <Typography variant="body1">{currentUser?.email}</Typography>
                 </Box>
               </Grid>
-
-              {userProfile?.cnpj && (
-                <Grid item xs={12} sm={6}>
-                  <Box sx={{ mb: 2, mr: 2 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
-                      CNPJ:
-                    </Typography>
-                    <Typography variant="body1">
-                      {String(userProfile.cnpj).replace(
-                        /(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,
-                        "$1.$2.$3/$4-$5"
-                      )}
-                    </Typography>
-                  </Box>
-                </Grid>
-              )}
               <Grid item xs={12} sm={6}>
                 <Box sx={{ mr: 2 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
@@ -314,9 +316,9 @@ const SuporteDashboard = () => {
                   </Typography>
                   <Typography
                     variant="body1"
-                    color={userProfile.cnpj_approved ? "success" : "error"}
+                    color={userProfile.active ? "success" : "error"}
                   >
-                    {userProfile.cnpj_approved ? "Aprovado" : "Pendente"}
+                    {userProfile.active ? "Aprovado" : "Pendente"}
                   </Typography>
                 </Box>
               </Grid>

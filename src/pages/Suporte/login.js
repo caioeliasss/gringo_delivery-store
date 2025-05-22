@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import {
@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import GoogleIcon from "@mui/icons-material/Google";
+import api from "../../services/api";
 
 const LoginSuporte = () => {
   const [email, setEmail] = useState("");
@@ -35,9 +36,19 @@ const LoginSuporte = () => {
     try {
       setError("");
       setLoading(true);
-      await login(email, password);
-      navigate("/suporte/index"); //FIXME
-      //FIXME ADD VERIFICATION
+      const responseUser = await login(email, password);
+      const user = responseUser.user;
+      const response = await api.get(`/support/firebase/${user.uid}`);
+      if (!response.data) {
+        setError("Email não encontrado");
+        return;
+      }
+      if (!response.data.active) {
+        setError("Usuário pendente");
+        return;
+      }
+
+      navigate("/suporte/dashboard");
     } catch (error) {
       console.error("Erro no login:", error.message);
       setError(
@@ -158,6 +169,20 @@ const LoginSuporte = () => {
                 "Entrar"
               )}
             </Button>
+          </Box>
+          <Box sx={{ mt: 2, textAlign: "center" }}>
+            <Typography variant="body2">
+              Não tem uma conta?{" "}
+              <MuiLink
+                component={Link}
+                to="/suporte/register"
+                variant="body2"
+                fontWeight="bold"
+                color="primary"
+              >
+                Registre-se
+              </MuiLink>
+            </Typography>
           </Box>
         </Paper>
       </Box>

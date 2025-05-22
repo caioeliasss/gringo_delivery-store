@@ -197,6 +197,7 @@ app.use("/api/travels", travelRoutes);
 app.use("/api/avaliates", require("./routes/avaliateRoute"));
 app.use("/api/files", authenticateToken, require("./routes/fileRoutes"));
 app.use("/api/occurrences", authenticateToken, occurrenceRoutes);
+app.use("/api/support", require("./routes/supportRoutes"));
 
 // Middleware de logging
 app.use((req, res, next) => {

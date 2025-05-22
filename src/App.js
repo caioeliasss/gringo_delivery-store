@@ -16,6 +16,8 @@ import Pedidos from "./pages/Pedidos/pedidos";
 import SuporteLogin from "./pages/Suporte/login";
 import SuporteDashboard from "./pages/Suporte/dashboard";
 import "./App.css";
+import RegisterSupport from "./pages/Suporte/register";
+import Occurrences from "./pages/Suporte/occurrences";
 
 // Definir tema personalizado com a paleta de cores da Gringo Delivery
 const theme = createTheme({
@@ -225,6 +227,22 @@ function App() {
               element={
                 <PrivateRoute>
                   <SuporteDashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/suporte/register"
+              element={
+                <PrivateRoute>
+                  <RegisterSupport />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/suporte/ocorrencias"
+              element={
+                <PrivateRoute>
+                  <Occurrences />
                 </PrivateRoute>
               }
             />
