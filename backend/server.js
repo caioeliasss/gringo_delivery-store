@@ -198,6 +198,7 @@ app.use("/api/avaliates", require("./routes/avaliateRoute"));
 app.use("/api/files", authenticateToken, require("./routes/fileRoutes"));
 app.use("/api/occurrences", authenticateToken, occurrenceRoutes);
 app.use("/api/support", require("./routes/supportRoutes"));
+app.use("/api/chat", authenticateToken, require("./routes/chatRoutes"));
 
 // Middleware de logging
 app.use((req, res, next) => {

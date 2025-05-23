@@ -289,6 +289,48 @@ const updateFCMToken = async (req, res) => {
   }
 };
 
+const removeMotoboyFromOrder = async (req, res) => {
+  try {
+    const { orderId, motoboyId } = req.params;
+
+    const motoboy = await Motoboy.findById(motoboyId);
+    if (!motoboy) {
+      return res.status(404).json({ message: "Motoboy não encontrado" });
+    }
+
+    motoboy.race = {
+      active: false,
+      orderId: null,
+      travelId: null,
+    };
+
+    await motoboy.save();
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: "Pedido não encontrado" });
+    }
+
+    order.motoboy.motoboyId = null;
+    order.motoboy.rated = false;
+    order.motoboy.name = null;
+
+    await order.save();
+    res.status(200).json({ message: "Motoboy removido do pedido com sucesso" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Erro ao remover motoboy do pedido",
+      error: error.message,
+    });
+  }
+};
+
+router.delete(
+  "/removeMotoboyFromOrder/:orderId/:motoboyId",
+  removeMotoboyFromOrder
+);
+router.get("/:id", getMotoboyById);
+router.get("/firebase/:firebaseUid", getMotoboyByFirebaseUid);
 router.get("/find", findMotoboys);
 router.get("/", getMotoboys);
 router.get("/me", getMotoboyMe);

@@ -28,7 +28,7 @@ const supportTeamSchema = new mongoose.Schema(
     },
     firebaseUid: {
       type: String,
-      required: false,
+      required: true,
     },
   },
   {

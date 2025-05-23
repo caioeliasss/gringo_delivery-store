@@ -16,7 +16,8 @@ const createSupportTeam = async (req, res) => {
     await supportTeam.save();
     res.json(supportTeam);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.log(error);
+    res.status(500).json({ message: error.response.data });
   }
 };
 const updateSupportTeam = async (req, res) => {
@@ -73,6 +74,16 @@ const getSupportTeamByFirebaseUid = async (req, res) => {
   }
 };
 
+const getSupportTeamByEmail = async (req, res) => {
+  const { email } = req.params;
+  try {
+    const supportTeam = await SupportTeam.findOne({ email: email });
+    res.json(supportTeam);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 const deleteSupportTeam = async (req, res) => {
   const { id } = req.params;
   try {
@@ -87,6 +98,7 @@ router.post("/", createSupportTeam);
 router.put("/:id", updateSupportTeam);
 router.get("/", getSupportTeam);
 router.get("/:id", getSupportTeamById);
+router.get("/email/:email", getSupportTeamByEmail);
 router.get("/firebase/:firebaseUid", getSupportTeamByFirebaseUid);
 router.delete("/:id", deleteSupportTeam);
 

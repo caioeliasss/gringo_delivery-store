@@ -39,6 +39,21 @@ router.get("/me", authenticateToken, async (req, res) => {
   }
 });
 
+router.get("/firebase/:id", async (req, res) => {
+  try {
+    const user = await Store.findOne({ firebaseUid: req.params.id });
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Erro ao buscar usuário", error: error.message });
+  }
+});
+
 // Rota para criar ou atualizar perfil após autenticação
 router.post("/profile", authenticateToken, async (req, res) => {
   try {
