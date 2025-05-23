@@ -12,9 +12,13 @@ import {
   Alert,
   CircularProgress,
   Divider,
+  Chip,
+  Badge,
 } from "@mui/material";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import GoogleIcon from "@mui/icons-material/Google";
+import SupportAgentIcon from "@mui/icons-material/SupportAgent";
+import HeadsetMicIcon from "@mui/icons-material/HeadsetMic";
 import api from "../../services/api";
 
 const LoginSuporte = () => {
@@ -61,20 +65,6 @@ const LoginSuporte = () => {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    try {
-      setError("");
-      setLoading(true);
-      await loginWithGoogle();
-      navigate("/dashboard");
-    } catch (error) {
-      console.error("Erro no login com Google:", error.message);
-      setError("Falha ao fazer login com Google");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <Container component="main" maxWidth="xs">
       <Box
@@ -86,13 +76,50 @@ const LoginSuporte = () => {
           minHeight: "100vh",
         }}
       >
-        {/* Logo */}
-        <Box sx={{ mb: 4 }}>
+        {/* Logo com badge de suporte */}
+        <Box sx={{ mb: 2, position: "relative" }}>
           <img
             src="https://i.imgur.com/8jOdfcO.png"
             alt="Gringo Delivery"
             style={{ height: 80 }}
           />
+          <Badge
+            overlap="circular"
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+            badgeContent={
+              <SupportAgentIcon
+                sx={{
+                  fontSize: 32,
+                  color: "#fff",
+                  bgcolor: "primary.main",
+                  borderRadius: "50%",
+                  p: 0.5,
+                  border: "2px solid #fff",
+                }}
+              />
+            }
+          ></Badge>
+        </Box>
+
+        {/* Área de Suporte - Banner */}
+        <Box
+          sx={{
+            bgcolor: "primary.main",
+            color: "white",
+            py: 1,
+            px: 3,
+            borderRadius: 2,
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            mb: 3,
+            boxShadow: 2,
+          }}
+        >
+          <HeadsetMicIcon />
+          <Typography variant="h6" fontWeight="bold">
+            Área de Suporte
+          </Typography>
         </Box>
 
         <Paper
@@ -105,6 +132,8 @@ const LoginSuporte = () => {
             width: "100%",
             maxWidth: 400,
             borderRadius: 3,
+            borderTop: "4px solid",
+            borderColor: "primary.main",
           }}
         >
           <Box
@@ -116,11 +145,20 @@ const LoginSuporte = () => {
               color: "white",
             }}
           >
-            <LockOutlinedIcon fontSize="large" style={{ marginTop: "4px" }} />
+            <SupportAgentIcon fontSize="large" style={{ marginTop: "4px" }} />
           </Box>
 
-          <Typography component="h1" variant="h5" fontWeight="bold" mb={3}>
-            Login
+          <Typography component="h1" variant="h5" fontWeight="bold" mb={1}>
+            Acesso ao Suporte
+          </Typography>
+
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            align="center"
+            mb={2}
+          >
+            Acesse o painel para gerenciar ocorrências e suporte ao cliente
           </Typography>
 
           {error && (
@@ -162,14 +200,26 @@ const LoginSuporte = () => {
               variant="contained"
               sx={{ mt: 3, mb: 2, py: 1.5 }}
               disabled={loading}
+              startIcon={!loading && <SupportAgentIcon />}
             >
               {loading ? (
                 <CircularProgress size={24} color="inherit" />
               ) : (
-                "Entrar"
+                "Entrar no Suporte"
               )}
             </Button>
           </Box>
+
+          <Box sx={{ mt: 2, mb: 1, width: "100%" }}>
+            <Divider>
+              <Chip
+                label="Exclusivo para equipe de suporte"
+                size="small"
+                sx={{ bgcolor: "#f8f9fa" }}
+              />
+            </Divider>
+          </Box>
+
           <Box sx={{ mt: 2, textAlign: "center" }}>
             <Typography variant="body2">
               Não tem uma conta?{" "}
@@ -185,6 +235,12 @@ const LoginSuporte = () => {
             </Typography>
           </Box>
         </Paper>
+
+        <Box sx={{ mt: 3, textAlign: "center" }}>
+          <Typography variant="caption" color="text.secondary">
+            Área restrita para membros da equipe de suporte do Gringo Delivery
+          </Typography>
+        </Box>
       </Box>
     </Container>
   );

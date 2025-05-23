@@ -18,6 +18,7 @@ import SuporteDashboard from "./pages/Suporte/dashboard";
 import "./App.css";
 import RegisterSupport from "./pages/Suporte/register";
 import Occurrences from "./pages/Suporte/occurrences";
+import ChatPage from "./pages/Suporte/chat";
 
 // Definir tema personalizado com a paleta de cores da Gringo Delivery
 const theme = createTheme({
@@ -243,6 +244,14 @@ function App() {
               element={
                 <PrivateRoute>
                   <Occurrences />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/suporte/chat"
+              element={
+                <PrivateRoute>
+                  <ChatPage />
                 </PrivateRoute>
               }
             />

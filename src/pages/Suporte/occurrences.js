@@ -115,6 +115,22 @@ const Occurrences = () => {
 
   // Fetch occurrences on component mount
   useEffect(() => {
+    const checkIfIsSupportTeam = async () => {
+      try {
+        const response = await api.get(`/support/firebase/${currentUser?.uid}`);
+        if (!response.data) {
+          navigate("/suporte/login");
+        }
+      } catch (error) {
+        console.error("Erro ao verificar o usuário:", error);
+        navigate("/suporte/login");
+      }
+    };
+
+    checkIfIsSupportTeam();
+  }, [currentUser, navigate]);
+
+  useEffect(() => {
     fetchOccurrences();
   }, []);
 
@@ -123,6 +139,76 @@ const Occurrences = () => {
       filterOccurrences();
     }
   }, [tabValue, searchQuery, occurrences]);
+
+  const handleRemoveMotoboy = async (occurrence) => {
+    try {
+      setStatusUpdateLoading(true);
+      const response = await api.delete(
+        `/motoboys/removeMotoboyFromOrder/${occurrence.orderId}/${occurrence.motoboyId}`
+      );
+      if (response.status === 200) {
+        setSnackbar({
+          open: true,
+          message: "Motoboy removido com sucesso",
+          severity: "success",
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message: "Erro ao remover motoboy",
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao remover motoboy:", error);
+      setSnackbar({
+        open: true,
+        message: "Erro ao remover motoboy",
+        severity: "error",
+      });
+    } finally {
+      setStatusUpdateLoading(false);
+      handleStatusMenuClose();
+    }
+  };
+
+  const handleFindMotoboys = async (occurrence) => {
+    try {
+      setStatusUpdateLoading(true);
+      setSnackbar({
+        open: true,
+        message: "Buscando motoboy...",
+        severity: "info",
+      });
+
+      const response = await api.get(
+        `/motoboys/find?order_id=${occurrence.orderId}`
+      );
+      if (response.data.status === 200) {
+        setSnackbar({
+          open: true,
+          message: "Motoboy encontrado com sucesso",
+          severity: "success",
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message: "Erro ao encontrar motoboy",
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao encontrar motoboys:", error);
+      setSnackbar({
+        open: true,
+        message: "Erro ao encontrar motoboys",
+        severity: "error",
+      });
+    } finally {
+      setStatusUpdateLoading(false);
+      handleStatusMenuClose();
+    }
+  };
 
   const fetchOccurrences = async () => {
     try {
@@ -283,16 +369,104 @@ const Occurrences = () => {
     }
   };
 
-  const handleStartChat = (occurrence) => {
-    // Navigate to chat page with the occurrence ID
-    navigate(`/suporte/chat`, {
-      state: {
-        occurrenceId: occurrence._id,
-        motoboyId: occurrence.motoboyId,
-        storeId: occurrence.storeId,
-        customerId: occurrence.customerId,
-      },
-    });
+  // Modificar a função handleStartChat no arquivo occurrences.js
+  const handleStartChat = async (occurrence) => {
+    try {
+      setLoading(true);
+
+      // Verificar se já existe um chat entre o suporte e o motoboy
+      let motoboyUid;
+      try {
+        const response = await api.get(`/motoboys/${occurrence.motoboyId}`);
+        motoboyUid = response.data.firebaseUid;
+      } catch (error) {
+        console.error("Erro ao buscar motoboy:", error);
+        setSnackbar({
+          open: true,
+          message: "Erro ao buscar motoboy. Tente novamente.",
+          severity: "error",
+        });
+        return;
+      }
+
+      const motoboyId = motoboyUid;
+      const supportId = currentUser.uid;
+
+      if (!motoboyId) {
+        setSnackbar({
+          open: true,
+          message: "Esta ocorrência não tem um motoboy associado",
+          severity: "warning",
+        });
+        return;
+      }
+
+      // Buscar chats existentes do usuário de suporte
+      const existingChatsResponse = await api.get(`/chat/user/${supportId}`);
+      const existingChats = existingChatsResponse.data;
+
+      // Verificar se já existe um chat com o motoboy
+      const existingChat = existingChats.find(
+        (chat) =>
+          chat.firebaseUid.includes(motoboyId) &&
+          chat.firebaseUid.includes(supportId)
+      );
+
+      let chatId;
+
+      if (existingChat) {
+        // Usar o chat existente
+        chatId = existingChat._id;
+      } else {
+        // Criar um novo chat
+        const newChatResponse = await api.post("/chat", {
+          firebaseUid: [supportId, motoboyId],
+        });
+
+        if (!newChatResponse.data || !newChatResponse.data._id) {
+          throw new Error("Erro ao criar chat");
+        }
+
+        chatId = newChatResponse.data._id;
+
+        // Criar uma mensagem inicial automaticamente
+        await api.post("/chat/message", {
+          chatId: chatId,
+          message: `Chat iniciado pelo suporte referente à ocorrência: ${
+            occurrence._id
+          }\n\nTipo: ${
+            TIPOS_OCORRENCIA[occurrence.type]?.label
+          }\n\nDescrição: ${occurrence.description}`,
+          sender: supportId,
+        });
+
+        setSnackbar({
+          open: true,
+          message: "Novo chat criado com sucesso!",
+          severity: "success",
+        });
+      }
+
+      // Navegar para a página de chat com os parâmetros necessários
+      navigate(`/suporte/chat`, {
+        state: {
+          chatId: chatId,
+          occurrenceId: occurrence._id,
+          motoboyId: occurrence.motoboyId,
+          storeId: occurrence.storeId,
+          customerId: occurrence.customerId,
+        },
+      });
+    } catch (error) {
+      console.error("Erro ao iniciar chat:", error);
+      setSnackbar({
+        open: true,
+        message: "Erro ao iniciar chat. Tente novamente.",
+        severity: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleMenuClick = (event, occurrence) => {
@@ -590,6 +764,20 @@ const Occurrences = () => {
                   Iniciar Chat
                 </Button>
                 <Button
+                  variant="outlined"
+                  startIcon={<MotoboyIcon />}
+                  onClick={() => handleRemoveMotoboy(selectedOccurrence)}
+                >
+                  Remover Motoboy
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<OrderIcon />}
+                  onClick={() => handleFindMotoboys(selectedOccurrence)}
+                >
+                  Reniciar fila
+                </Button>
+                <Button
                   variant="contained"
                   startIcon={<SendIcon />}
                   onClick={() => handleOpenResponseDialog(selectedOccurrence)}
@@ -826,8 +1014,9 @@ const Occurrences = () => {
                         sx={{
                           display: "flex",
                           flexWrap: "wrap",
+                          justifyContent: "space-between",
                           gap: 0.5,
-                          mt: 1,
+                          mt: 3,
                         }}
                       >
                         {occurrence.orderId && (
@@ -859,7 +1048,7 @@ const Occurrences = () => {
                       >
                         Ver Detalhes
                       </Button>
-                      {occurrence.status === "ABERTO" && (
+                      {occurrence.status === "TESTE" && (
                         <Button
                           size="small"
                           variant="contained"

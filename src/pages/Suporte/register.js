@@ -29,33 +29,10 @@ const RegisterSupport = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { signup } = useAuth();
+  const { signup, login } = useAuth();
   const [nome, setNome] = useState("");
   const [phone, setPhone] = useState("");
   const navigate = useNavigate();
-
-  const handleCnpjChange = (e) => {
-    // Aceita apenas números
-    const value = e.target.value.replace(/\D/g, "");
-    if (value.length <= 14) {
-      setCnpj(value);
-    }
-  };
-
-  const formatCnpj = (value) => {
-    if (!value) return "";
-
-    // Formata o CNPJ enquanto o usuário digita (XX.XXX.XXX/XXXX-XX)
-    const cnpjMask = value
-      .replace(/\D/g, "")
-      .replace(/(\d{2})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d)/, "$1/$2")
-      .replace(/(\d{4})(\d)/, "$1-$2")
-      .replace(/(-\d{2})\d+?$/, "$1");
-
-    return cnpjMask;
-  };
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -78,15 +55,18 @@ const RegisterSupport = () => {
     try {
       setError("");
       setLoading(true);
-      // Registrar no Firebase
-      const user = await signup(email, password);
+
+      let user = await login(email, password);
+      if (!user) {
+        user = await signup(email, password);
+      }
 
       try {
         await api.post("/support", {
           email: email,
           name: nome,
           phone: phone,
-          firebaseUid: user.uid,
+          firebaseUid: user.user.uid,
         });
         navigate("/suporte/login");
       } catch (profileError) {

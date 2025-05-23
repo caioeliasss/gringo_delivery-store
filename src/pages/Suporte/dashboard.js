@@ -50,6 +50,7 @@ const SuporteDashboard = () => {
     "avatar-placeholder.png"
   );
 
+  //FIXME add verification if user is logged in
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -73,6 +74,19 @@ const SuporteDashboard = () => {
       }
     };
 
+    const checkIfIsSupportTeam = async () => {
+      try {
+        const response = await api.get(`/support/firebase/${currentUser?.uid}`);
+        if (!response.data) {
+          navigate("/suporte/login");
+        }
+      } catch (error) {
+        console.error("Erro ao verificar o usuário:", error);
+        navigate("/suporte/login");
+      }
+    };
+
+    checkIfIsSupportTeam();
     fetchData();
   }, []);
 
