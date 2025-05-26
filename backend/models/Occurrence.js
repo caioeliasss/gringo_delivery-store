@@ -6,6 +6,11 @@ const occurrenceSchema = new mongoose.Schema({
     required: false,
     trim: true,
   },
+  firebaseUid: {
+    type: String,
+    required: true,
+    trim: true,
+  },
   description: {
     type: String,
     required: true,

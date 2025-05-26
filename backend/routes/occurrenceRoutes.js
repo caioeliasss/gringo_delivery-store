@@ -113,6 +113,7 @@ router.put("/:id", async (req, res) => {
       orderId,
       coordinates,
       answer,
+      firebaseUid,
     } = req.body;
 
     // Verificar se a ocorrência existe
@@ -132,6 +133,7 @@ router.put("/:id", async (req, res) => {
     if (orderId !== undefined) occurrence.orderId = orderId;
     if (coordinates) occurrence.coordinates = coordinates;
     if (answer) occurrence.answer = answer;
+    if (firebaseUid) occurrence.firebaseUid = firebaseUid;
 
     const updatedOccurrence = await occurrence.save();
 

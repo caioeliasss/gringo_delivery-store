@@ -5,11 +5,23 @@ const notificationSchema = new mongoose.Schema({
   motoboyId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Motoboy",
-    required: true,
+    required: false,
+  },
+  firebaseUid: {
+    type: String,
+    required: false,
   },
   type: {
     type: String,
-    enum: ["DELIVERY_REQUEST", "ORDER_CANCELED", "ORDER_UPDATED", "SYSTEM"],
+    enum: [
+      "DELIVERY_REQUEST",
+      "ORDER_CANCELED",
+      "ORDER_UPDATED",
+      "SYSTEM",
+      "SUPPORT_ALERT",
+      "MOTOBOY",
+      "SUPPORT",
+    ],
     required: true,
   },
   title: {

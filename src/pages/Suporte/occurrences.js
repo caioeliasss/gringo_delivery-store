@@ -55,6 +55,7 @@ import api from "../../services/api";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "../../contexts/AuthContext";
+import eventService from "../../services/eventService";
 
 const TIPOS_OCORRENCIA = {
   CLIENTE: {
@@ -139,6 +140,28 @@ const Occurrences = () => {
       filterOccurrences();
     }
   }, [tabValue, searchQuery, occurrences]);
+
+  useEffect(() => {
+    // Só conectar o SSE se o usuário estiver autenticado
+    if (currentUser) {
+      // Conectar com o UID do usuário atual como identificador da loja
+      eventService.connect(currentUser.uid);
+
+      // Configurar manipulador para atualizações de pedidos
+      const handleOrderUpdate = (orderData) => {
+        fetchOccurrences();
+      };
+
+      // Registrar o manipulador de eventos
+      eventService.on("supportNotification", handleOrderUpdate);
+
+      // Limpar na desmontagem
+      return () => {
+        eventService.off("supportNotification", handleOrderUpdate);
+        // Não desconectar, pois outros componentes podem precisar da conexão
+      };
+    }
+  }, [currentUser]);
 
   const handleRemoveMotoboy = async (occurrence) => {
     try {
@@ -356,6 +379,13 @@ const Occurrences = () => {
         message: "Resposta enviada com sucesso!",
         severity: "success",
       });
+
+      await api.post("/notifications/notifyOccurrence", {
+        ...selectedOccurrence,
+        title: "Nova resposta",
+        message: "Suporte respondeu uma ocorrência",
+      });
+
       handleCloseResponseDialog();
     } catch (error) {
       console.error("Error submitting response:", error);
@@ -377,7 +407,7 @@ const Occurrences = () => {
       // Verificar se já existe um chat entre o suporte e o motoboy
       let motoboyUid;
       try {
-        const response = await api.get(`/motoboys/${occurrence.motoboyId}`);
+        const response = await api.get(`/motoboys/id/${occurrence.motoboyId}`);
         motoboyUid = response.data.firebaseUid;
       } catch (error) {
         console.error("Erro ao buscar motoboy:", error);
@@ -941,9 +971,9 @@ const Occurrences = () => {
               </Typography>
             </Paper>
           ) : (
-            <Grid container spacing={2}>
+            <Grid container spacing={2} display={"table"}>
               {filteredOccurrences.map((occurrence) => (
-                <Grid item xs={12} sm={6} md={4} key={occurrence._id}>
+                <Grid item xs={12} sm={6} mb={2} md={4} key={occurrence._id}>
                   <Card
                     elevation={2}
                     sx={{

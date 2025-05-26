@@ -36,6 +36,10 @@ const getMotoboys = async (req, res) => {
 };
 const getMotoboyMe = async (req, res) => {
   try {
+    if (!req.user || !req.user.uid) {
+      return res.status(401).json({ message: "Usuário não autenticado" });
+    }
+
     const user = await Motoboy.findOne({ firebaseUid: req.user.uid });
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
@@ -325,11 +329,37 @@ const removeMotoboyFromOrder = async (req, res) => {
   }
 };
 
+const updatePushToken = async (req, res) => {
+  try {
+    const { firebaseUid, pushToken } = req.body;
+
+    if (!firebaseUid || !pushToken) {
+      return res.status(400).json({ message: "Dados inválidos" });
+    }
+
+    const motoboy = await Motoboy.findOne({ firebaseUid: firebaseUid });
+    if (!motoboy) {
+      return res.status(404).json({ message: "Motoboy não encontrado" });
+    }
+
+    motoboy.pushToken = pushToken;
+    await motoboy.save();
+
+    res.status(200).json({ message: "Push token atualizado com sucesso" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Erro ao atualizar push token",
+      error: error.message,
+    });
+  }
+};
+
 router.delete(
   "/removeMotoboyFromOrder/:orderId/:motoboyId",
   removeMotoboyFromOrder
 );
-router.get("/:id", getMotoboyById);
+router.put("/update-push-token", updatePushToken);
+router.get("/id/:id", getMotoboyById);
 router.get("/firebase/:firebaseUid", getMotoboyByFirebaseUid);
 router.get("/find", findMotoboys);
 router.get("/", getMotoboys);

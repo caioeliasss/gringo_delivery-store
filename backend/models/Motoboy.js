@@ -15,6 +15,11 @@ const motoboySchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
     },
+    pushToken: {
+      type: String,
+      required: false,
+      trim: true,
+    },
     phoneNumber: {
       type: String,
       required: true,

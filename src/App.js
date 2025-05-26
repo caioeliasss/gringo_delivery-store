@@ -216,6 +216,14 @@ function App() {
               }
             />
             <Route
+              path="/suporte"
+              element={
+                <PrivateRoute>
+                  <SuporteLogin />
+                </PrivateRoute>
+              }
+            />
+            <Route
               path="/suporte/login"
               element={
                 <PrivateRoute>
