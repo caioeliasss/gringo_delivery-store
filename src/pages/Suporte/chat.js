@@ -132,12 +132,12 @@ const ChatPage = () => {
     scrollToBottom();
   }, [messages]);
 
-  // Marca as mensagens como lidas quando o chat está ativo
+  //Marca as mensagens como lidas quando o chat está ativo
   useEffect(() => {
     if (activeChat) {
       markMessagesAsRead();
     }
-  }, [activeChat, messages]);
+  }, [activeChat]); // Remova messages das dependências
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -152,18 +152,17 @@ const ChatPage = () => {
       const response = await api.get(`/chat/user/${currentUser.uid}`);
       const chatData = response.data;
 
-      // Buscar contagens de mensagens não lidas
-      const unreadResponse = await api.get(
-        `/chat/message/unread/${currentUser.uid}`
-      );
-      const unreadData = unreadResponse.data;
-
-      // Adicionar contagem de não lidas aos chats
+      // Não precisamos mais buscar contagens em separado
+      // Os chats já vêm com os participantes e suas contagens
       const chatsWithUnread = chatData.map((chat) => {
-        const chatUnread = unreadData.chats.find((c) => c.chatId === chat._id);
+        // Encontrar este usuário na lista de participantes
+        const userParticipant = chat.participants?.find(
+          (p) => p.firebaseUid === currentUser.uid
+        );
+
         return {
           ...chat,
-          unreadCount: chatUnread ? chatUnread.count : 0,
+          unreadCount: userParticipant?.unreadCount || 0,
         };
       });
 
@@ -307,15 +306,70 @@ const ChatPage = () => {
   const markMessagesAsRead = async () => {
     if (!activeChat || !currentUser) return;
 
+    // Verificar primeiro se há mensagens não lidas
+    const hasUnread =
+      activeChat.unreadCount > 0 ||
+      messages.some(
+        (msg) =>
+          msg.sender !== currentUser.uid &&
+          !msg.readBy?.some((read) => read.firebaseUid === currentUser.uid)
+      );
+
+    // Se não houver mensagens não lidas, não faz nada
+    if (!hasUnread) return;
+
     try {
       await api.put(`/chat/message/${activeChat._id}/read/${currentUser.uid}`);
 
-      // Atualizar contagem de não lidas no estado
+      // Atualizar contagem de não lidas no estado local
       setChats((prevChats) =>
         prevChats.map((chat) =>
-          chat._id === activeChat._id ? { ...chat, unreadCount: 0 } : chat
+          chat._id === activeChat._id
+            ? {
+                ...chat,
+                unreadCount: 0,
+                participants: chat.participants?.map((p) =>
+                  p.firebaseUid === currentUser.uid
+                    ? { ...p, unreadCount: 0 }
+                    : p
+                ),
+              }
+            : chat
         )
       );
+
+      // Atualizar as mensagens localmente também
+      setMessages((prev) => {
+        // Verificar se há alguma alteração a ser feita
+        const needsUpdate = prev.some(
+          (msg) =>
+            msg.sender !== currentUser.uid &&
+            !msg.readBy?.some((read) => read.firebaseUid === currentUser.uid)
+        );
+
+        // Se não houver alterações necessárias, retorna o array original
+        if (!needsUpdate) return prev;
+
+        // Caso contrário, atualiza as mensagens
+        return prev.map((msg) => {
+          if (
+            msg.sender !== currentUser.uid &&
+            !msg.readBy?.some((read) => read.firebaseUid === currentUser.uid)
+          ) {
+            return {
+              ...msg,
+              readBy: [
+                ...(msg.readBy || []),
+                {
+                  firebaseUid: currentUser.uid,
+                  readAt: new Date(),
+                },
+              ],
+            };
+          }
+          return msg;
+        });
+      });
     } catch (error) {
       console.error("Erro ao marcar mensagens como lidas:", error);
     }
@@ -334,9 +388,21 @@ const ChatPage = () => {
         chatId: activeChat._id,
         message: newMessage.trim(),
         sender: currentUser.uid,
+        messageType: "TEXT", // Adicionar o tipo de mensagem
       };
 
       const response = await api.post("/chat/message", messageData);
+      await api.post(`/notifications/generic`, {
+        title:
+          activeChat.chatType === "SUPPORT"
+            ? "Gringo Suporte"
+            : "Nova mensagem recebida",
+        message: newMessage.trim(),
+        firebaseUid: activeChat.firebaseUid.filter(
+          (uid) => uid !== currentUser.uid
+        ),
+        type: "CHAT_MESSAGE",
+      });
 
       // Adicionar mensagem à lista local
       setMessages((prev) => [...prev, response.data]);
@@ -344,12 +410,24 @@ const ChatPage = () => {
       // Limpar campo de mensagem
       setNewMessage("");
 
-      // Atualizar o chat na lista (para ficar no topo)
+      // Atualizar o chat na lista com a nova última mensagem
       setChats((prevChats) => {
         const updatedChats = prevChats.filter(
           (chat) => chat._id !== activeChat._id
         );
-        return [{ ...activeChat, updatedAt: new Date() }, ...updatedChats];
+
+        // Atualizar o chat ativo com a última mensagem
+        const updatedChat = {
+          ...activeChat,
+          lastMessage: {
+            text: newMessage.trim(),
+            sender: currentUser.uid,
+            timestamp: new Date(),
+          },
+          updatedAt: new Date(),
+        };
+
+        return [updatedChat, ...updatedChats];
       });
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
@@ -561,7 +639,21 @@ const ChatPage = () => {
                           fontWeight: chat.unreadCount > 0 ? "bold" : "normal",
                         }}
                       >
-                        {format(new Date(chat.updatedAt), "dd/MM HH:mm")}
+                        {chat.lastMessage?.text ? (
+                          <>
+                            {chat.lastMessage.text.substring(0, 30)}
+                            {chat.lastMessage.text.length > 30 ? "..." : ""}
+                          </>
+                        ) : (
+                          "Sem mensagens"
+                        )}
+                        {" · "}
+                        {chat.lastMessage?.timestamp
+                          ? format(
+                              new Date(chat.lastMessage.timestamp),
+                              "HH:mm"
+                            )
+                          : format(new Date(chat.updatedAt), "dd/MM HH:mm")}
                       </Typography>
                     }
                   />
@@ -756,11 +848,14 @@ const ChatPage = () => {
                             borderRadius: 2,
                             ml: !isCurrentUser && !showSenderInfo ? 3.5 : 0,
                             bgcolor: isCurrentUser
-                              ? USER_TYPES.SUPPORT.color // Vermelho do Gringo para mensagens do suporte (usuário atual)
-                              : USER_TYPES.MOTOBOY.color, // Branco para mensagens de outros usuários
-                            color: "#fff",
+                              ? USER_TYPES.SUPPORT.color // Vermelho do Gringo para mensagens do suporte
+                              : "#fff", // Branco para mensagens de outros usuários (não USER_TYPES.MOTOBOY.color)
+                            color: isCurrentUser ? "#fff" : "text.primary", // Cor do texto apropriada
                             borderTopRightRadius: isCurrentUser ? 4 : 20,
                             borderTopLeftRadius: !isCurrentUser ? 4 : 20,
+                            boxShadow: !isCurrentUser
+                              ? "0px 1px 3px rgba(0,0,0,0.1)"
+                              : "none", // Sombra sutil
                           }}
                         >
                           <Typography
@@ -779,14 +874,22 @@ const ChatPage = () => {
                               display: "block",
                               textAlign: "right",
                               opacity: 0.8,
+                              color: isCurrentUser
+                                ? "rgba(255, 255, 255, 0.7)"
+                                : "text.secondary",
                             }}
                           >
                             {formatTime(msg.createdAt)}
-                            {msg.read && isCurrentUser && (
-                              <CheckCircleOutlineIcon
-                                sx={{ ml: 0.5, fontSize: 12 }}
-                              />
-                            )}
+                            {/* Verificar se o usuário atual está nos readBy */}
+                            {msg.readBy &&
+                              msg.readBy.some(
+                                (read) => read.firebaseUid !== currentUser?.uid
+                              ) &&
+                              isCurrentUser && (
+                                <CheckCircleOutlineIcon
+                                  sx={{ ml: 0.5, fontSize: 12 }}
+                                />
+                              )}
                           </Typography>
                         </Paper>
                       </Box>

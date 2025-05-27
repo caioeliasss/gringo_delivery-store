@@ -157,25 +157,18 @@ const updateNotification = async (req, res) => {
 
 const createNotificationGeneric = async (req, res) => {
   try {
-    const { motoboyId, title, message, type, expiresAt } = req.body;
-
-    if (!motoboyId) {
-      return res.status(400).json({
-        message: "Dados incompletos. motoboyId são obrigatórios",
-      });
-    }
-
+    const { motoboyId, title, message, type, expiresAt, firebaseUid } =
+      req.body;
     // Verificar se motoboy existe e está disponível
-    const motoboy = await Motoboy.findById(motoboyId);
+    let motoboy = await Motoboy.findById(motoboyId);
     if (!motoboy) {
-      return res.status(404).json({ message: "Motoboy não encontrado" });
+      motoboy = await Motoboy.findOne({ firebaseUid: firebaseUid });
     }
-
     // console.log(motoboy._id)
 
     // Criar a notificação
     const notification = new Notification({
-      motoboyId: motoboyId,
+      motoboyId: motoboy._id || null,
       type: type || "SYSTEM",
       title: title,
       message: message,
@@ -184,7 +177,7 @@ const createNotificationGeneric = async (req, res) => {
     });
     await notification.save();
 
-    if (motoboy.pushToken) {
+    if (motoboy.pushToken || motoboy.pushToken === undefined) {
       try {
         await pushNotificationService.sendPushNotification(
           motoboy.pushToken,
@@ -193,7 +186,7 @@ const createNotificationGeneric = async (req, res) => {
           {
             notificationId: notification._id,
             type: notification.type,
-            screen: "DeliveryRequest",
+            screen: "notifications",
           }
         );
       } catch (pushError) {

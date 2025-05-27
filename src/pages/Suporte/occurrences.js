@@ -451,6 +451,7 @@ const Occurrences = () => {
         // Criar um novo chat
         const newChatResponse = await api.post("/chat", {
           firebaseUid: [supportId, motoboyId],
+          chatType: "SUPPORT",
         });
 
         if (!newChatResponse.data || !newChatResponse.data._id) {

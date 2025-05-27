@@ -6,27 +6,58 @@ const mongoose = require("mongoose");
 
 // Criar um novo chat
 const createChat = async (req, res) => {
-  const { firebaseUid } = req.body;
-
   try {
-    if (
-      !firebaseUid ||
-      !Array.isArray(firebaseUid) ||
-      firebaseUid.length === 0
-    ) {
-      return res
-        .status(400)
-        .json({ message: "Pelo menos um ID de usuário é necessário" });
+    const { firebaseUid, chatType, title, metadata } = req.body;
+
+    if (!firebaseUid || !Array.isArray(firebaseUid) || firebaseUid.length < 1) {
+      return res.status(400).json({
+        message: "É necessário fornecer pelo menos um firebaseUid",
+      });
     }
 
+    // Criar participantes com informações iniciais
+    const participants = firebaseUid.map((uid) => ({
+      firebaseUid: uid,
+      unreadCount: 0,
+    }));
+
     const chat = new Chat({
-      firebaseUid: firebaseUid,
-      messages: [],
+      firebaseUid,
+      chatType: chatType || "GENERAL",
+      status: "ACTIVE",
+      participants,
+      metadata: metadata || {},
     });
+
+    if (title) {
+      chat.metadata.title = title;
+    }
 
     await chat.save();
     res.status(201).json(chat);
   } catch (error) {
+    console.error("Erro ao criar chat:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Obter chats de um usuário com contagem de não lidos
+const getUserChats = async (req, res) => {
+  try {
+    const { firebaseUid } = req.params;
+
+    // Consulta eficiente usando índices
+    const chats = await Chat.find({
+      "participants.firebaseUid": firebaseUid,
+      status: "ACTIVE",
+    }).sort({ updatedAt: -1 });
+
+    // Não precisamos de consulta separada para mensagens não lidas
+    // pois isso já está no documento do chat
+
+    res.json(chats);
+  } catch (error) {
+    console.error("Erro ao buscar chats:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -180,6 +211,51 @@ const deleteChat = async (req, res) => {
   }
 };
 
+// Enviar mensagem
+const sendMessage = async (req, res) => {
+  try {
+    const { chatId, message, sender, messageType, metadata, attachments } =
+      req.body;
+
+    if (!chatId || !message || !sender) {
+      return res.status(400).json({
+        message: "chatId, message e sender são obrigatórios",
+      });
+    }
+
+    const chat = await Chat.findById(chatId);
+    if (!chat) {
+      return res.status(404).json({ message: "Chat não encontrado" });
+    }
+
+    // Verificar se o remetente faz parte do chat
+    if (!chat.participants.some((p) => p.firebaseUid === sender)) {
+      return res
+        .status(403)
+        .json({ message: "Remetente não faz parte deste chat" });
+    }
+
+    // Criar nova mensagem
+    const newMessage = new ChatMessage({
+      chatId,
+      message,
+      sender,
+      messageType: messageType || "TEXT",
+      readBy: [{ firebaseUid: sender }], // Já marcada como lida pelo remetente
+      metadata: metadata || {},
+      attachments: attachments || [],
+    });
+
+    await newMessage.save();
+    // O hook post-save já atualiza o chat com a última mensagem
+
+    res.status(201).json(newMessage);
+  } catch (error) {
+    console.error("Erro ao enviar mensagem:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Criar mensagem de chat
 const createChatMessage = async (req, res) => {
   const { chatId, message, sender } = req.body;
@@ -242,22 +318,36 @@ const getChatMessagesByChatId = async (req, res) => {
 
 // Marcar mensagens como lidas
 const markMessagesAsRead = async (req, res) => {
-  const { chatId, userId } = req.params;
-
   try {
-    const result = await ChatMessage.updateMany(
+    const { chatId, firebaseUid } = req.params;
+
+    const chat = await Chat.findById(chatId);
+    if (!chat) {
+      return res.status(404).json({ message: "Chat não encontrado" });
+    }
+
+    // Usar o método definido no esquema
+    await chat.markAsRead(firebaseUid);
+
+    // Também marcar todas as mensagens individuais como lidas
+    await ChatMessage.updateMany(
       {
         chatId,
-        sender: { $ne: userId },
-        read: false,
+        "readBy.firebaseUid": { $ne: firebaseUid },
       },
-      { read: true }
+      {
+        $push: {
+          readBy: {
+            firebaseUid: firebaseUid,
+            readAt: new Date(),
+          },
+        },
+      }
     );
 
-    res.json({
-      message: `${result.modifiedCount} mensagens marcadas como lidas`,
-    });
+    res.json({ success: true });
   } catch (error) {
+    console.error("Erro ao marcar mensagens como lidas:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -298,7 +388,7 @@ const getUnreadMessageCount = async (req, res) => {
 
 // Definir rotas
 router.post("/", createChat);
-router.get("/", getChats);
+router.get("/", getUserChats);
 router.get("/:id", getChatById);
 router.get("/user/:userId", getChatsByUserId);
 router.put("/:id", updateChat);
@@ -306,7 +396,7 @@ router.put("/:id/add-user", addUserToChat);
 router.put("/:id/remove-user/:userId", removeUserFromChat);
 router.delete("/:id", deleteChat);
 
-router.post("/message", createChatMessage);
+router.post("/message", sendMessage);
 router.get("/message/all", getAllChatMessages);
 router.get("/message/:chatId", getChatMessagesByChatId);
 router.put("/message/:chatId/read/:userId", markMessagesAsRead);
