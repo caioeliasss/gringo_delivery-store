@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, use } from "react";
 import {
   Box,
   Typography,
@@ -49,6 +49,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import api from "../../services/api";
 import { useLocation, useNavigate } from "react-router-dom";
+import eventService from "../../services/eventService";
 
 // Definições de cores baseadas no tipo de usuário
 const USER_TYPES = {
@@ -138,6 +139,114 @@ const ChatPage = () => {
       markMessagesAsRead();
     }
   }, [activeChat]); // Remova messages das dependências
+
+  // Substitua o useEffect do SSE (linhas 142-202) por esta versão:
+
+  useEffect(() => {
+    if (!currentUser?.uid) {
+      console.log("❌ Usuário não encontrado, não conectando SSE");
+      return;
+    }
+
+    console.log("🔌 Conectando SSE para usuário:", currentUser.uid);
+    eventService.connect(currentUser?.uid);
+
+    eventService.on("CHAT_MESSAGE", (data) => {
+      console.log("📩 Dados SSE recebidos:", data);
+      console.log("📩 Texto da mensagem:", data.message);
+      console.log("📩 Chat ativo atual:", activeChat?._id);
+      console.log("📩 Chat da mensagem:", data.chatId);
+
+      // Verificar se temos os dados necessários
+      if (!data.message || !data.chatId) {
+        console.error("❌ Dados SSE incompletos:", data);
+        return;
+      }
+
+      // Construir o objeto da mensagem baseado no que temos
+      const newMessage = {
+        _id: `sse-${Date.now()}-${Math.random()}`, // ID temporário único
+        message: data.message, // O texto da mensagem
+        sender: data.sender || "unknown", // Remetente
+        createdAt: new Date().toISOString(), // Timestamp atual
+        messageType: "TEXT",
+        readBy: [], // Array vazio inicialmente
+      };
+
+      console.log("📝 Mensagem construída:", newMessage);
+
+      if (data.chatId === activeChat?._id) {
+        // console.log("✅ Mensagem para o chat ativo - adicionando diretamente");
+
+        // Se a mensagem é do chat ativo, adiciona diretamente
+        setMessages((prevMessages) => {
+          // Verificar se a mensagem já existe para evitar duplicatas
+          const messageExists = prevMessages.some(
+            (msg) =>
+              msg.message === data.message &&
+              msg.sender === (data.sender || "unknown") &&
+              Math.abs(new Date(msg.createdAt) - new Date()) < 5000 // Dentro de 5 segundos
+          );
+
+          if (messageExists) {
+            console.log("⚠️ Mensagem já existe - não duplicando");
+            return prevMessages;
+          }
+
+          console.log("✅ Adicionando nova mensagem ao chat ativo");
+          return [...prevMessages, newMessage];
+        });
+
+        // Atualizar também o chat na lista
+        setChats((prevChats) =>
+          prevChats.map((chat) =>
+            chat._id === data.chatId
+              ? {
+                  ...chat,
+                  lastMessage: {
+                    text: data.message,
+                    sender: data.sender || "unknown",
+                    timestamp: new Date(),
+                  },
+                  updatedAt: new Date(),
+                }
+              : chat
+          )
+        );
+
+        // Rolar para o final
+        setTimeout(() => {
+          scrollToBottom();
+        }, 100);
+      } else {
+        console.log("📝 Mensagem para outro chat - atualizando lista");
+
+        // Se não é do chat ativo, atualiza a lista de chats
+        setChats((prevChats) =>
+          prevChats.map((chat) =>
+            chat._id === data.chatId
+              ? {
+                  ...chat,
+                  unreadCount: (chat.unreadCount || 0) + 1,
+                  lastMessage: {
+                    text: data.message,
+                    sender: data.sender || "unknown",
+                    timestamp: new Date(),
+                  },
+                  updatedAt: new Date(),
+                }
+              : chat
+          )
+        );
+      }
+    });
+
+    // Limpar listeners ao desmontar
+    return () => {
+      console.log("🧹 Limpando listeners SSE");
+      eventService.off("CHAT_MESSAGE");
+    };
+  }, [currentUser, activeChat]); // Manter activeChat nas dependências
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -449,6 +558,7 @@ const ChatPage = () => {
           firebaseUid: otherParticipants,
           screen: "/(tabs)/chat",
           type: "CHAT_MESSAGE",
+          chatId: activeChat._id,
           expiresAt: new Date(Date.now() + 16 * 60 * 60 * 1000), // Expira em 16 hrs
         });
       }

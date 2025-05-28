@@ -157,8 +157,16 @@ const updateNotification = async (req, res) => {
 
 const createNotificationGeneric = async (req, res) => {
   try {
-    const { motoboyId, title, message, type, expiresAt, firebaseUid, screen } =
-      req.body;
+    const {
+      motoboyId,
+      title,
+      message,
+      type,
+      expiresAt,
+      firebaseUid,
+      screen,
+      chatId,
+    } = req.body;
     // Verificar se motoboy existe e está disponível
     let motoboy = await Motoboy.findById(motoboyId);
     if (!motoboy) {
@@ -168,7 +176,7 @@ const createNotificationGeneric = async (req, res) => {
 
     // Criar a notificação
     const notification = new Notification({
-      motoboyId: motoboy._id || null,
+      motoboyId: motoboy ? motoboy._id : null,
       type: type || "SYSTEM",
       title: title,
       message: message,
@@ -177,7 +185,7 @@ const createNotificationGeneric = async (req, res) => {
     });
     await notification.save();
 
-    if (motoboy.pushToken || motoboy.pushToken === undefined) {
+    if (!motoboy || motoboy.pushToken || motoboy.pushToken === null) {
       try {
         await pushNotificationService.sendPushNotification(
           motoboy.pushToken,
@@ -192,6 +200,26 @@ const createNotificationGeneric = async (req, res) => {
       } catch (pushError) {
         console.error("Erro ao enviar notificação push:", pushError);
         // Não falhar o request se a notificação push falhar
+      }
+    }
+
+    if (req.app.locals.sendEventToStore) {
+      try {
+        const notifyData = {
+          notificationId: notification._id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          chatId: chatId || null,
+        };
+
+        req.app.locals.sendEventToStore(
+          firebaseUid,
+          notification.type || "genericNotification",
+          notifyData
+        );
+      } catch (notifyError) {
+        console.error(`Erro ao enviar notificação SSE para:`, notifyError);
       }
     }
 
@@ -347,7 +375,7 @@ const notifyOccurrence = async (req, res) => {
             notificationId: notification._id,
             type: notification.type,
             orderId: user._id,
-            screen: "occurrences",
+            screen: "/occurrences",
           }
         );
       } catch (pushError) {

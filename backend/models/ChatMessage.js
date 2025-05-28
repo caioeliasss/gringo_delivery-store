@@ -87,7 +87,7 @@ chatMessageSchema.post("save", async function (doc) {
     const chat = await Chat.findById(doc.chatId);
 
     if (chat) {
-      await chat.updateLastMessage(doc.message, doc.sender);
+      // await chat.updateLastMessage(doc.message, doc.sender);
     }
   } catch (error) {
     console.error("Erro ao atualizar última mensagem do chat:", error);

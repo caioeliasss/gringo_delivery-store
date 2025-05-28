@@ -91,8 +91,13 @@ app.get("/api/events", (req, res) => {
 // Função para enviar evento para uma loja específica (SSE)
 const sendEventToStore = (storeId, eventType, data) => {
   // console.log(`Tentando enviar evento ${eventType} para loja ${storeId}`, data);
+  storeId = storeId.toString();
 
   if (!clients.has(storeId)) {
+    for (let i = 0; i < clients.size; i++) {
+      console.log(`Clientes SSE conectados: ${Array.from(clients.keys())[i]}`);
+      console.log(`é igual?: ${Array.from(clients.keys())[i] === storeId}`);
+    }
     console.log(`Nenhum cliente SSE encontrado para loja ${storeId}`);
     return false;
   }
