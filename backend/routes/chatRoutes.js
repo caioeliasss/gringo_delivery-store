@@ -15,17 +15,48 @@ const createChat = async (req, res) => {
       });
     }
 
-    // Criar participantes com informações iniciais
-    const participants = firebaseUid.map((uid) => ({
-      firebaseUid: uid,
-      unreadCount: 0,
-    }));
+    // Buscar nomes de todos os participantes
+    const participantNames = {};
+    const participantsData = [];
+
+    for (const uid of firebaseUid) {
+      const userName = await getUserName(uid);
+      participantNames[uid] = userName;
+
+      // Determinar o tipo de usuário
+      let userType = "CUSTOMER"; // Padrão
+      if (uid === "support") {
+        userType = "SUPPORT";
+      } else {
+        // Verificar se é motoboy ou loja
+        const Store = require("../models/Store");
+        const Motoboy = require("../models/Motoboy");
+        const SupportTeam = require("../models/SupportTeam");
+
+        const store = await Store.findOne({ firebaseUid: uid });
+        const motoboy = await Motoboy.findOne({ firebaseUid: uid });
+        const supportTeam = await SupportTeam.findOne({ firebaseUid: uid });
+
+        if (store) userType = "STORE";
+        if (motoboy) userType = "MOTOBOY";
+        if (supportTeam) userType = "SUPPORT";
+      }
+
+      participantsData.push({
+        firebaseUid: uid,
+        name: userName,
+        userType: userType,
+        unreadCount: 0,
+        lastRead: new Date(),
+      });
+    }
 
     const chat = new Chat({
       firebaseUid,
       chatType: chatType || "GENERAL",
       status: "ACTIVE",
-      participants,
+      participants: participantsData,
+      participantNames: participantNames,
       metadata: metadata || {},
     });
 
@@ -34,10 +65,53 @@ const createChat = async (req, res) => {
     }
 
     await chat.save();
+
+    console.log("Chat criado com participantes:", participantNames);
     res.status(201).json(chat);
   } catch (error) {
     console.error("Erro ao criar chat:", error);
     res.status(500).json({ message: error.message });
+  }
+};
+
+const getUserName = async (firebaseUid) => {
+  try {
+    if (firebaseUid === "support") {
+      return "Suporte Gringo";
+    }
+
+    // Buscar no modelo de Store primeiro
+    const SupportTeam = require("../models/SupportTeam");
+    const supportTeam = await SupportTeam.findOne({ firebaseUid });
+    if (supportTeam) {
+      return (
+        `${supportTeam.name} - Suporte` ||
+        `Suporte ${firebaseUid.substring(0, 6)}`
+      );
+    }
+
+    const Store = require("../models/Store");
+    const store = await Store.findOne({ firebaseUid });
+    if (store) {
+      return (
+        store.businessName ||
+        store.name ||
+        `Loja ${firebaseUid.substring(0, 6)}`
+      );
+    }
+
+    // Buscar no modelo de Motoboy
+    const Motoboy = require("../models/Motoboy");
+    const motoboy = await Motoboy.findOne({ firebaseUid });
+    if (motoboy) {
+      return motoboy.name || `Motoboy ${firebaseUid.substring(0, 6)}`;
+    }
+
+    // Se não encontrar, retornar um nome padrão
+    return `Usuário ${firebaseUid.substring(0, 6)}`;
+  } catch (error) {
+    console.error(`Erro ao buscar nome do usuário ${firebaseUid}:`, error);
+    return `Usuário ${firebaseUid.substring(0, 6)}`;
   }
 };
 
@@ -207,6 +281,28 @@ const deleteChat = async (req, res) => {
 
     res.json({ message: "Chat e mensagens excluídos com sucesso" });
   } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const updateParticipantNames = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const { participantData } = req.body; // { firebaseUid: nome }
+
+    const chat = await Chat.findById(chatId);
+    if (!chat) {
+      return res.status(404).json({ message: "Chat não encontrado" });
+    }
+
+    await chat.updateParticipantNames(participantData);
+
+    res.json({
+      message: "Nomes dos participantes atualizados com sucesso",
+      chat,
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar nomes dos participantes:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -394,6 +490,7 @@ router.get("/user/:userId", getChatsByUserId);
 router.put("/:id", updateChat);
 router.put("/:id/add-user", addUserToChat);
 router.put("/:id/remove-user/:userId", removeUserFromChat);
+// router.put("/:chatId/participants/names", updateParticipantNames);
 router.delete("/:id", deleteChat);
 
 router.post("/message", sendMessage);

@@ -157,7 +157,7 @@ const updateNotification = async (req, res) => {
 
 const createNotificationGeneric = async (req, res) => {
   try {
-    const { motoboyId, title, message, type, expiresAt, firebaseUid } =
+    const { motoboyId, title, message, type, expiresAt, firebaseUid, screen } =
       req.body;
     // Verificar se motoboy existe e está disponível
     let motoboy = await Motoboy.findById(motoboyId);
@@ -186,7 +186,7 @@ const createNotificationGeneric = async (req, res) => {
           {
             notificationId: notification._id,
             type: notification.type,
-            screen: "notifications",
+            screen: screen || "notifications",
           }
         );
       } catch (pushError) {

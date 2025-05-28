@@ -152,10 +152,7 @@ const ChatPage = () => {
       const response = await api.get(`/chat/user/${currentUser.uid}`);
       const chatData = response.data;
 
-      // Não precisamos mais buscar contagens em separado
-      // Os chats já vêm com os participantes e suas contagens
       const chatsWithUnread = chatData.map((chat) => {
-        // Encontrar este usuário na lista de participantes
         const userParticipant = chat.participants?.find(
           (p) => p.firebaseUid === currentUser.uid
         );
@@ -168,12 +165,32 @@ const ChatPage = () => {
 
       setChats(chatsWithUnread);
 
-      // Carregar perfis dos usuários em todos os chats
-      await Promise.all(
-        chatData.flatMap((chat) =>
-          chat.firebaseUid.map((uid) => loadUserProfile(uid))
-        )
-      );
+      // Agora usar os nomes já gravados no banco
+      const profiles = {};
+      chatData.forEach((chat) => {
+        if (chat.participantNames) {
+          // Converter Map para objeto se necessário
+          const names =
+            chat.participantNames instanceof Map
+              ? Object.fromEntries(chat.participantNames)
+              : chat.participantNames;
+
+          Object.entries(names).forEach(([uid, name]) => {
+            if (!profiles[uid]) {
+              profiles[uid] = { name: name };
+            }
+          });
+        }
+
+        // Também usar dados dos participants
+        chat.participants?.forEach((participant) => {
+          if (participant.name && !profiles[participant.firebaseUid]) {
+            profiles[participant.firebaseUid] = { name: participant.name };
+          }
+        });
+      });
+
+      setUserProfiles(profiles);
 
       // Se temos uma chatId da navegação e não temos activeChat, selecionamos automaticamente
       if (location.state?.chatId && !activeChat) {
@@ -289,6 +306,30 @@ const ChatPage = () => {
     }
   };
 
+  // Função para obter o nome do participante
+  const getParticipantName = (chat, uid) => {
+    // Primeiro tentar nos nomes gravados
+    if (chat.participantNames && chat.participantNames[uid]) {
+      return chat.participantNames[uid];
+    }
+
+    // Depois tentar nos participants
+    const participant = chat.participants?.find((p) => p.firebaseUid === uid);
+    if (participant && participant.name) {
+      return participant.name;
+    }
+
+    // Fallback para userProfiles
+    if (userProfiles[uid]) {
+      return userProfiles[uid].name || userProfiles[uid].businessName;
+    }
+
+    // Nome padrão
+    return uid === "support"
+      ? "Suporte Gringo"
+      : `Usuário ${uid.substring(0, 6)}`;
+  };
+
   // Buscar mensagens de um chat
   const fetchMessages = async (chatId) => {
     try {
@@ -388,21 +429,29 @@ const ChatPage = () => {
         chatId: activeChat._id,
         message: newMessage.trim(),
         sender: currentUser.uid,
-        messageType: "TEXT", // Adicionar o tipo de mensagem
+        messageType: "TEXT",
       };
 
       const response = await api.post("/chat/message", messageData);
-      await api.post(`/notifications/generic`, {
-        title:
-          activeChat.chatType === "SUPPORT"
-            ? "Gringo Suporte"
-            : "Nova mensagem recebida",
-        message: newMessage.trim(),
-        firebaseUid: activeChat.firebaseUid.filter(
-          (uid) => uid !== currentUser.uid
-        ),
-        type: "CHAT_MESSAGE",
-      });
+
+      // Obter o nome do remetente para usar como título da notificação
+      const senderName = getParticipantName(activeChat, currentUser.uid);
+
+      // Enviar notificação para os outros participantes
+      const otherParticipants = activeChat.firebaseUid.filter(
+        (uid) => uid !== currentUser.uid
+      );
+
+      if (otherParticipants.length > 0) {
+        await api.post(`/notifications/generic`, {
+          title: senderName, // Nome do participante como título
+          message: newMessage.trim(),
+          firebaseUid: otherParticipants,
+          screen: "/(tabs)/chat",
+          type: "CHAT_MESSAGE",
+          expiresAt: new Date(Date.now() + 16 * 60 * 60 * 1000), // Expira em 16 hrs
+        });
+      }
 
       // Adicionar mensagem à lista local
       setMessages((prev) => [...prev, response.data]);

@@ -1,3 +1,4 @@
+// backend/models/Chat.js
 const mongoose = require("mongoose");
 
 const chatSchema = new mongoose.Schema(
@@ -5,7 +6,7 @@ const chatSchema = new mongoose.Schema(
     firebaseUid: {
       type: [String],
       required: true,
-      index: true, // Adicionar índice para melhorar consultas
+      index: true,
     },
     chatType: {
       type: String,
@@ -16,7 +17,7 @@ const chatSchema = new mongoose.Schema(
       type: String,
       enum: ["ACTIVE", "ARCHIVED", "CLOSED"],
       default: "ACTIVE",
-      index: true, // Facilita consultas por status
+      index: true,
     },
     lastMessage: {
       text: String,
@@ -26,6 +27,7 @@ const chatSchema = new mongoose.Schema(
     participants: [
       {
         firebaseUid: String,
+        name: String, // ADICIONAR NOME
         userType: {
           type: String,
           enum: ["SUPPORT", "MOTOBOY", "STORE", "CUSTOMER"],
@@ -37,8 +39,13 @@ const chatSchema = new mongoose.Schema(
         lastRead: Date,
       },
     ],
+    // ADICIONAR CAMPO PARA NOMES DOS PARTICIPANTES
+    participantNames: {
+      type: Map,
+      of: String,
+      default: {},
+    },
     metadata: {
-      // Campos opcionais relacionados ao chat
       occurrenceId: mongoose.Schema.Types.ObjectId,
       deliveryId: mongoose.Schema.Types.ObjectId,
       title: String,
@@ -54,41 +61,18 @@ const chatSchema = new mongoose.Schema(
 chatSchema.index({ firebaseUid: 1, status: 1 });
 chatSchema.index({ "participants.firebaseUid": 1, status: 1 });
 
-// Atualizar timestamp e últimas informações de mensagens
-chatSchema.pre("save", function (next) {
-  this.updatedAt = Date.now();
-  next();
-});
+// Método para atualizar nomes dos participantes
+chatSchema.methods.updateParticipantNames = async function (participantData) {
+  // participantData é um objeto { firebaseUid: nome }
+  for (const [uid, name] of Object.entries(participantData)) {
+    this.participantNames.set(uid, name);
 
-// Método para marcar mensagens como lidas para um usuário
-chatSchema.methods.markAsRead = async function (firebaseUid) {
-  const participant = this.participants.find(
-    (p) => p.firebaseUid === firebaseUid
-  );
-  if (participant) {
-    participant.unreadCount = 0;
-    participant.lastRead = new Date();
-    await this.save();
-    return true;
-  }
-  return false;
-};
-
-// Método para atualizar a última mensagem
-chatSchema.methods.updateLastMessage = async function (messageText, sender) {
-  this.lastMessage = {
-    text: messageText,
-    sender: sender,
-    timestamp: new Date(),
-  };
-
-  // Incrementar contadores de não lidos para todos exceto o remetente
-  this.participants.forEach((participant) => {
-    if (participant.firebaseUid !== sender) {
-      participant.unreadCount += 1;
+    // Também atualizar no array de participants
+    const participant = this.participants.find((p) => p.firebaseUid === uid);
+    if (participant) {
+      participant.name = name;
     }
-  });
-
+  }
   await this.save();
 };
 

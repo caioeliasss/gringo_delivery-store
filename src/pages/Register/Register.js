@@ -120,9 +120,11 @@ const Register = () => {
       }
 
       let storeAddress;
+      let businessName;
       try {
         const response = await buscarCnpj(cnpjNumbers);
         const data = response.data;
+        businessName = data.nomeFantasia || data.razaoSocial;
         storeAddress = {
           cep: data.cep,
           address: data.logradouro,
@@ -140,6 +142,7 @@ const Register = () => {
           cnpj: cnpjNumbers,
           location: geolocation,
           address: storeAddress,
+          businessName: businessName,
         });
         navigate("/dashboard");
       } catch (profileError) {
