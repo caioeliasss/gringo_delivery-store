@@ -86,6 +86,24 @@ const updateTravelStatus = async (req, res) => {
   }
 };
 
+// Adicione esta rota para buscar detalhes de uma travel específica:
+const getTravelById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const travel = await Travel.findById(id);
+
+    if (!travel) {
+      return res.status(404).json({ message: "Corrida não encontrada" });
+    }
+
+    res.status(200).json(travel);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Adicione a rota
+router.get("/details/:id", getTravelById);
 router.put("/:id", updateTravel);
 router.put("/status/:id", updateTravelStatus);
 router.post("/", createTravel);

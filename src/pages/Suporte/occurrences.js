@@ -113,6 +113,11 @@ const Occurrences = () => {
   const [detailMode, setDetailMode] = useState(false);
   const [statusMenuAnchorEl, setStatusMenuAnchorEl] = useState(null);
   const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
+  const [motoboyDetails, setMotoboyDetails] = useState(null);
+  const [orderDetails, setOrderDetails] = useState(null);
+  const [travelDetails, setTravelDetails] = useState(null);
+  const [storeDetails, setStoreDetails] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   // Fetch occurrences on component mount
   useEffect(() => {
@@ -513,6 +518,9 @@ const Occurrences = () => {
     setSelectedOccurrence(occurrence);
     setDetailMode(true);
     handleMenuClose();
+
+    // Carregar detalhes relacionados
+    loadRelatedDetails(occurrence);
   };
 
   const handleCloseDetails = () => {
@@ -599,7 +607,75 @@ const Occurrences = () => {
     );
   };
 
-  // Renderiza o modo de detalhes de uma ocorrência
+  // Função para buscar detalhes do motoboy
+  const fetchMotoboyDetails = async (motoboyId) => {
+    try {
+      const response = await api.get(`/motoboys/id/${motoboyId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar detalhes do motoboy:", error);
+      return null;
+    }
+  };
+
+  const fetchOrderDetails = async (orderId) => {
+    try {
+      const response = await api.get(`/orders/${orderId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar detalhes do pedido:", error);
+      return null;
+    }
+  };
+
+  const fetchTravelDetails = async (travelId) => {
+    try {
+      const response = await api.get(`/travels/details/${travelId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar detalhes da corrida:", error);
+      return null;
+    }
+  };
+
+  const fetchStoreDetails = async (storeId) => {
+    try {
+      const response = await api.get(`/stores/id/${storeId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar detalhes da loja:", error);
+      return null;
+    }
+  };
+
+  // Função para carregar todos os detalhes relacionados
+  const loadRelatedDetails = async (occurrence) => {
+    setLoadingDetails(true);
+
+    const details = await Promise.allSettled([
+      occurrence.motoboyId ? fetchMotoboyDetails(occurrence.motoboyId) : null,
+      occurrence.orderId ? fetchOrderDetails(occurrence.orderId) : null,
+      occurrence.travelId ? fetchTravelDetails(occurrence.travelId) : null,
+      occurrence.storeId ? fetchStoreDetails(occurrence.storeId) : null,
+    ]);
+
+    setMotoboyDetails(
+      details[0].status === "fulfilled" ? details[0].value : null
+    );
+    setOrderDetails(
+      details[1].status === "fulfilled" ? details[1].value : null
+    );
+    setTravelDetails(
+      details[2].status === "fulfilled" ? details[2].value : null
+    );
+    setStoreDetails(
+      details[3].status === "fulfilled" ? details[3].value : null
+    );
+
+    setLoadingDetails(false);
+  };
+
+  // Substitua a função renderOccurrenceDetails() por esta versão expandida:
   const renderOccurrenceDetails = () => {
     if (!selectedOccurrence) return null;
 
@@ -618,6 +694,7 @@ const Occurrences = () => {
           </Typography>
         </Box>
 
+        {/* Card Principal da Ocorrência */}
         <Paper elevation={2} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
           <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
             <Typography variant="h6" fontWeight="bold">
@@ -719,6 +796,22 @@ const Occurrences = () => {
               </Grid>
             )}
 
+            {selectedOccurrence.travelId && (
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <SendIcon color="primary" sx={{ mr: 1 }} />
+                  <Box>
+                    <Typography variant="caption" color="textSecondary">
+                      Travel ID:
+                    </Typography>
+                    <Typography variant="body2">
+                      {selectedOccurrence.travelId}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+            )}
+
             {selectedOccurrence.coordinates &&
               selectedOccurrence.coordinates.length === 2 && (
                 <Grid item xs={12} sm={6}>
@@ -806,7 +899,7 @@ const Occurrences = () => {
                   startIcon={<OrderIcon />}
                   onClick={() => handleFindMotoboys(selectedOccurrence)}
                 >
-                  Reniciar fila
+                  Reiniciar fila
                 </Button>
                 <Button
                   variant="contained"
@@ -819,6 +912,479 @@ const Occurrences = () => {
             )}
           </Box>
         </Paper>
+
+        {/* Loading de detalhes relacionados */}
+        {loadingDetails && (
+          <Box sx={{ display: "flex", justifyContent: "center", my: 3 }}>
+            <CircularProgress />
+            <Typography sx={{ ml: 2 }}>
+              Carregando detalhes relacionados...
+            </Typography>
+          </Box>
+        )}
+
+        {/* Detalhes do Motoboy */}
+        {motoboyDetails && (
+          <Paper elevation={2} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+            <Typography
+              variant="h6"
+              sx={{ mb: 2, display: "flex", alignItems: "center" }}
+            >
+              <MotoboyIcon sx={{ mr: 1 }} color="primary" />
+              Detalhes do Motoboy
+            </Typography>
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="textSecondary">
+                    Nome:
+                  </Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {motoboyDetails.name}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="textSecondary">
+                    Telefone:
+                  </Typography>
+                  <Typography variant="body1">
+                    {motoboyDetails.phoneNumber || "Não informado"}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="textSecondary">
+                    Email:
+                  </Typography>
+                  <Typography variant="body1">
+                    {motoboyDetails.email || "Não informado"}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="textSecondary">
+                    CPF:
+                  </Typography>
+                  <Typography variant="body1">
+                    {motoboyDetails.cpf || "Não informado"}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="textSecondary">
+                    Avaliação:
+                  </Typography>
+                  <Typography variant="body1">
+                    ⭐ {motoboyDetails.score?.toFixed(1) || "Sem avaliação"}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="textSecondary">
+                    Status / Cadastro:
+                  </Typography>
+                  <Box sx={{ display: "flex", gap: 1, mt: 0.5 }}>
+                    <Chip
+                      label={
+                        motoboyDetails.isAvailable
+                          ? "Disponível"
+                          : "Indisponível"
+                      }
+                      color={motoboyDetails.isAvailable ? "success" : "default"}
+                      size="small"
+                    />
+                    <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+                    <Chip
+                      label={
+                        motoboyDetails.isApproved ? "Aprovado" : "Pendente"
+                      }
+                      color={motoboyDetails.isApproved ? "success" : "warning"}
+                      size="small"
+                    />
+                  </Box>
+                </Box>
+              </Grid>
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              {motoboyDetails.race?.active && (
+                <Grid item xs={12}>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="caption" color="textSecondary">
+                      Corrida Ativa:
+                    </Typography>
+                    <Typography variant="body1">
+                      Sim - Pedido: {motoboyDetails.race.orderId}
+                    </Typography>
+                  </Box>
+                </Grid>
+              )}
+            </Grid>
+          </Paper>
+        )}
+
+        {/* Detalhes do Pedido */}
+        {orderDetails && (
+          <Paper elevation={2} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+            <Typography
+              variant="h6"
+              sx={{ mb: 2, display: "flex", alignItems: "center" }}
+            >
+              <OrderIcon sx={{ mr: 1 }} color="primary" />
+              Detalhes do Pedido
+            </Typography>
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="textSecondary">
+                    Número do Pedido:
+                  </Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {orderDetails.orderNumber}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="textSecondary">
+                    Status:
+                  </Typography>
+                  <Chip
+                    label={orderDetails.status}
+                    color={
+                      orderDetails.status === "entregue"
+                        ? "success"
+                        : orderDetails.status === "cancelado"
+                        ? "error"
+                        : orderDetails.status === "em_entrega"
+                        ? "info"
+                        : "warning"
+                    }
+                    size="small"
+                    sx={{ ml: 1 }}
+                  />
+                </Box>
+              </Grid>
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="textSecondary">
+                    Valor Total:
+                  </Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    R$ {orderDetails.total?.toFixed(2)}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="textSecondary">
+                    Data do Pedido:
+                  </Typography>
+                  <Typography variant="body1">
+                    {formatDate(orderDetails.orderDate)}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              {orderDetails.customer && (
+                <Grid item xs={12}>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="caption" color="textSecondary">
+                      Cliente:
+                    </Typography>
+                    <Typography variant="body1">
+                      {orderDetails.customer.name} -{" "}
+                      {orderDetails.customer.phone}
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary">
+                      {orderDetails.customer.customerAddress?.street},{" "}
+                      {orderDetails.customer.customerAddress?.number}
+                      {orderDetails.customer.customerAddress?.neighborhood &&
+                        ` - ${orderDetails.customer.customerAddress.neighborhood}`}
+                    </Typography>
+                  </Box>
+                </Grid>
+              )}
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              {orderDetails.payment && (
+                <Grid item xs={12} sm={6}>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="caption" color="textSecondary">
+                      Forma de Pagamento:
+                    </Typography>
+                    <Typography variant="body1">
+                      {orderDetails.payment.method}
+                      {orderDetails.payment.needsChange &&
+                        ` - Troco para R$ ${orderDetails.payment.changeFor}`}
+                    </Typography>
+                  </Box>
+                </Grid>
+              )}
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              {orderDetails.delivery?.distance && (
+                <Grid item xs={12} sm={6}>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="caption" color="textSecondary">
+                      Distância da Entrega:
+                    </Typography>
+                    <Typography variant="body1">
+                      {orderDetails.delivery.distance.toFixed(2)} km
+                    </Typography>
+                  </Box>
+                </Grid>
+              )}
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              {orderDetails.notes && (
+                <Grid item xs={12}>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="caption" color="textSecondary">
+                      Observações:
+                    </Typography>
+                    <Typography variant="body1">
+                      {orderDetails.notes}
+                    </Typography>
+                  </Box>
+                </Grid>
+              )}
+            </Grid>
+          </Paper>
+        )}
+
+        {/* Detalhes da Corrida/Travel */}
+        {travelDetails && (
+          <Paper elevation={2} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+            <Typography
+              variant="h6"
+              sx={{ mb: 2, display: "flex", alignItems: "center" }}
+            >
+              <SendIcon sx={{ mr: 1 }} color="primary" />
+              Detalhes da Corrida
+            </Typography>
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="textSecondary">
+                    Preço da Corrida:
+                  </Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    R$ {travelDetails.price?.toFixed(2)}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="textSecondary">
+                    Distância:
+                  </Typography>
+                  <Typography variant="body1">
+                    {travelDetails.distance?.toFixed(2)} km
+                  </Typography>
+                </Box>
+              </Grid>
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="textSecondary">
+                    Status:
+                  </Typography>
+                  <Chip
+                    label={travelDetails.status || "Em andamento"}
+                    color={
+                      travelDetails.status === "COMPLETED"
+                        ? "success"
+                        : travelDetails.status === "CANCELLED"
+                        ? "error"
+                        : "info"
+                    }
+                    size="small"
+                    sx={{ ml: 1 }}
+                  />
+                </Box>
+              </Grid>
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="textSecondary">
+                    Condições Especiais:
+                  </Typography>
+                  <Box sx={{ display: "flex", gap: 1, mt: 0.5 }}>
+                    {travelDetails.rain && (
+                      <Chip
+                        icon={<PlaceIcon />}
+                        label="Chuva"
+                        size="small"
+                        color="info"
+                      />
+                    )}
+                  </Box>
+                </Box>
+              </Grid>
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="textSecondary">
+                    Início da Corrida:
+                  </Typography>
+                  <Typography variant="body1">
+                    {formatDate(travelDetails.createdAt)}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              {travelDetails.arrival_store && (
+                <Grid item xs={12} sm={6}>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="caption" color="textSecondary">
+                      Chegada na Loja:
+                    </Typography>
+                    <Typography variant="body1">
+                      {formatDate(travelDetails.arrival_store)}
+                    </Typography>
+                  </Box>
+                </Grid>
+              )}
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              {travelDetails.arrival_customer && (
+                <Grid item xs={12} sm={6}>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="caption" color="textSecondary">
+                      Chegada no Cliente:
+                    </Typography>
+                    <Typography variant="body1">
+                      {formatDate(travelDetails.arrival_customer)}
+                    </Typography>
+                  </Box>
+                </Grid>
+              )}
+            </Grid>
+          </Paper>
+        )}
+
+        {/* Detalhes da Loja */}
+        {storeDetails && (
+          <Paper elevation={2} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+            <Typography
+              variant="h6"
+              sx={{ mb: 2, display: "flex", alignItems: "center" }}
+            >
+              <StoreIcon sx={{ mr: 1 }} color="primary" />
+              Detalhes do Estabelecimento
+            </Typography>
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="textSecondary">
+                    Nome do Estabelecimento:
+                  </Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {storeDetails.businessName || storeDetails.displayName}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="textSecondary">
+                    CNPJ:
+                  </Typography>
+                  <Typography variant="body1">
+                    {storeDetails.cnpj || "Não informado"}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="textSecondary">
+                    Email:
+                  </Typography>
+                  <Typography variant="body1">{storeDetails.email}</Typography>
+                </Box>
+              </Grid>
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="textSecondary">
+                    Telefone:
+                  </Typography>
+                  <Typography variant="body1">
+                    {storeDetails.phone || "Não informado"}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              {storeDetails.address && (
+                <Grid item xs={12}>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="caption" color="textSecondary">
+                      Endereço:
+                    </Typography>
+                    <Typography variant="body1">
+                      {storeDetails.address}
+                    </Typography>
+                  </Box>
+                </Grid>
+              )}
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="textSecondary">
+                    Status:
+                  </Typography>
+                  <Box sx={{ display: "flex", gap: 1, mt: 0.5 }}>
+                    <Chip
+                      label={storeDetails.isAvailable ? "Aberto" : "Fechado"}
+                      color={storeDetails.isAvailable ? "success" : "default"}
+                      size="small"
+                    />
+                    <Chip
+                      label={
+                        storeDetails.cnpj_approved
+                          ? "CNPJ Aprovado"
+                          : "CNPJ Pendente"
+                      }
+                      color={storeDetails.cnpj_approved ? "success" : "warning"}
+                      size="small"
+                    />
+                  </Box>
+                </Box>
+              </Grid>
+              <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
+              {storeDetails.businessHours && (
+                <Grid item xs={12} sm={6}>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="caption" color="textSecondary">
+                      Horário de Funcionamento:
+                    </Typography>
+                    <Typography variant="body1">
+                      {storeDetails.businessHours.open} -{" "}
+                      {storeDetails.businessHours.close}
+                    </Typography>
+                  </Box>
+                </Grid>
+              )}
+            </Grid>
+          </Paper>
+        )}
       </Box>
     );
   };

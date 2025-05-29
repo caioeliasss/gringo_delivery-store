@@ -39,6 +39,22 @@ router.get("/me", authenticateToken, async (req, res) => {
   }
 });
 
+router.get("/id/:id", async (req, res) => {
+  try {
+    console.log("Buscando usuário com ID:", req.params.id);
+    const user = await Store.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Erro ao buscar usuário", error: error.message });
+  }
+});
+
 router.get("/firebase/:id", async (req, res) => {
   try {
     const user = await Store.findOne({ firebaseUid: req.params.id });

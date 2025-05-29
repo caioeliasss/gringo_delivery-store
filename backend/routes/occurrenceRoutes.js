@@ -63,6 +63,7 @@ router.post("/", async (req, res) => {
   try {
     const {
       name,
+      firebaseUid,
       description,
       type,
       motoboyId,
@@ -85,6 +86,7 @@ router.post("/", async (req, res) => {
       status: "ABERTO",
       date: new Date(),
       coordinates: coordinates || null,
+      firebaseUid: firebaseUid || null,
     });
 
     const savedOccurrence = await newOccurrence.save();
