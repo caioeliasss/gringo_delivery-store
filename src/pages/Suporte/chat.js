@@ -452,6 +452,37 @@ const ChatPage = () => {
     }
   };
 
+  const handleChatStatus = async (status) => {
+    if (!activeChat || !currentUser) return;
+
+    try {
+      await api.put(`/chat/${activeChat._id}/status`, {
+        status,
+        updatedBy: currentUser.uid,
+      });
+      // Atualizar o chat na lista localmente
+      setChats((prevChats) =>
+        prevChats.map((chat) =>
+          chat._id === activeChat._id
+            ? {
+                ...chat,
+                status,
+                updatedAt: new Date(),
+              }
+            : chat
+        )
+      );
+      // Atualizar o chat ativo
+      setActiveChat((prev) => ({
+        ...prev,
+        status,
+        updatedAt: new Date(),
+      }));
+    } catch (error) {
+      console.error("Erro ao atualizar status do chat:", error);
+    }
+  };
+
   // Marcar mensagens como lidas
   const markMessagesAsRead = async () => {
     if (!activeChat || !currentUser) return;
@@ -782,12 +813,30 @@ const ChatPage = () => {
                   </ListItemAvatar>
                   <ListItemText
                     primary={
-                      <Typography
-                        noWrap
-                        fontWeight={chat.unreadCount > 0 ? "bold" : "normal"}
+                      <Box
+                        display={"flex"}
+                        flexDirection="row"
+                        gap={1}
+                        justifyContent={"space-between"}
+                        marginBottom={0.5}
                       >
-                        {chatName}
-                      </Typography>
+                        <Typography
+                          noWrap
+                          fontWeight={chat.unreadCount > 0 ? "bold" : "normal"}
+                        >
+                          {chatName}
+                        </Typography>
+                        <Typography
+                          noWrap
+                          color="#AAA"
+                          paddingLeft={1}
+                          paddingRight={1}
+                          borderRadius={"4px"}
+                          sx={{ background: "#ccc" }}
+                        >
+                          {chat.status === "CLOSED" ? "Encerrado" : ""}
+                        </Typography>
+                      </Box>
                     }
                     secondary={
                       <Typography
@@ -1077,34 +1126,62 @@ const ChatPage = () => {
             alignItems="center"
             justifyContent="space-between"
           >
-            <Grid item xs width={"90%"}>
-              <TextField
-                fullWidth
-                placeholder="Digite sua mensagem..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                variant="outlined"
-                multiline
-                maxRows={4}
-                disabled={sendingMessage}
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: 4,
-                  },
-                }}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton color="primary" disabled>
-                        <EmojiIcon />
-                      </IconButton>
-                      <IconButton color="primary" disabled>
-                        <AttachFileIcon />
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
+            <Grid item xs width={"80%"}>
+              <Box sx={{ display: "flex", alignItems: "center" }}>
+                <TextField
+                  fullWidth
+                  placeholder="Digite sua mensagem..."
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  variant="outlined"
+                  multiline
+                  maxRows={4}
+                  disabled={sendingMessage}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: 4,
+                    },
+                  }}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton color="primary" disabled>
+                          <EmojiIcon />
+                        </IconButton>
+                        <IconButton color="primary" disabled>
+                          <AttachFileIcon />
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                <Box
+                  padding={1}
+                  marginLeft={2}
+                  width={"150px"}
+                  sx={{
+                    textAlign: "center",
+                    backgroundColor:
+                      activeChat?.status === "ACTIVE" ? "#4caf50" : "#f44336",
+                    borderRadius: 2,
+                  }}
+                >
+                  <Button
+                    onClick={() =>
+                      handleChatStatus(
+                        activeChat?.status === "ACTIVE" ? "CLOSED" : "ACTIVE"
+                      )
+                    }
+                    style={{ cursor: "pointer" }}
+                  >
+                    <Typography variant="caption" color="#fff">
+                      {activeChat?.status === "ACTIVE"
+                        ? "Atendimento ativo"
+                        : "Atendimento encerrado"}
+                    </Typography>
+                  </Button>
+                </Box>
+              </Box>
             </Grid>
             <Grid item>
               <Button

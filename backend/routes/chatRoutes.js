@@ -307,6 +307,30 @@ const updateParticipantNames = async (req, res) => {
   }
 };
 
+const updateStatus = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  try {
+    if (!status || !["ACTIVE", "CLOSED", "DELETED"].includes(status)) {
+      return res.status(400).json({
+        message: "Status inválido. Use ACTIVE, CLOSED ou DELETED.",
+      });
+    }
+    const chat = await Chat.findByIdAndUpdate(
+      id,
+      { status: status },
+      { new: true }
+    );
+    if (!chat) {
+      return res.status(404).json({ message: "Chat não encontrado" });
+    }
+    res.json(chat);
+  } catch (error) {
+    console.error("Erro ao atualizar status do chat:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Enviar mensagem
 const sendMessage = async (req, res) => {
   try {
@@ -490,6 +514,7 @@ router.get("/user/:userId", getChatsByUserId);
 router.put("/:id", updateChat);
 router.put("/:id/add-user", addUserToChat);
 router.put("/:id/remove-user/:userId", removeUserFromChat);
+router.put("/:id/status", updateStatus);
 // router.put("/:chatId/participants/names", updateParticipantNames);
 router.delete("/:id", deleteChat);
 
