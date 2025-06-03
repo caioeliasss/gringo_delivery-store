@@ -32,6 +32,8 @@ import {
   Person as ProfileIcon,
   Logout as LogoutIcon,
   ShoppingBag,
+  ReportProblem as OcorrenciasIcon,
+  Chat as ChatIcon,
 } from "@mui/icons-material";
 import { buscarCnpj } from "../../services/cnpj";
 
@@ -148,6 +150,46 @@ const Dashboard = () => {
             <OrdersIcon />
           </ListItemIcon>
           <ListItemText primary="Pedidos" />
+        </ListItem>
+        <ListItem
+          button
+          component={Link}
+          to="/ocorrencias"
+          selected={true}
+          sx={{
+            color: "text.primary",
+            "&.Mui-selected": {
+              bgcolor: "primary.main",
+              color: "white",
+              "&:hover": { bgcolor: "primary.dark" },
+            },
+            "&:hover": { bgcolor: "primary.light", color: "white" },
+          }}
+        >
+          <ListItemIcon sx={{ color: "inherit" }}>
+            <OcorrenciasIcon />
+          </ListItemIcon>
+          <ListItemText primary="Ocorrências" />
+        </ListItem>
+        <ListItem
+          button
+          component={Link}
+          to="/chat"
+          selected={true}
+          sx={{
+            color: "text.primary",
+            "&.Mui-selected": {
+              bgcolor: "primary.main",
+              color: "white",
+              "&:hover": { bgcolor: "primary.dark" },
+            },
+            "&:hover": { bgcolor: "primary.light", color: "white" },
+          }}
+        >
+          <ListItemIcon sx={{ color: "inherit" }}>
+            <ChatIcon />
+          </ListItemIcon>
+          <ListItemText primary="Chat" />
         </ListItem>
       </List>
       <Divider />

@@ -19,8 +19,10 @@ import "./App.css";
 import RegisterSupport from "./pages/Suporte/register";
 import Occurrences from "./pages/Suporte/occurrences";
 import ChatPage from "./pages/Suporte/chat";
+import OcorrenciasPage from "./pages/Ocorrencias/ocorrencias";
+import ChatStore from "./pages/Chat/chat";
 
-// Definir tema personalizado com a paleta de cores da Gringo Delivery
+// Definir tema personalizado com a paleta de cores da Gringo Deli  very
 const theme = createTheme({
   typography: {
     fontFamily: ["Poppins", "Roboto", "Arial", "sans-serif"].join(","),
@@ -212,6 +214,22 @@ function App() {
               element={
                 <PrivateRoute>
                   <Pedidos />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/ocorrencias"
+              element={
+                <PrivateRoute>
+                  <OcorrenciasPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/chat"
+              element={
+                <PrivateRoute>
+                  <ChatStore />
                 </PrivateRoute>
               }
             />
