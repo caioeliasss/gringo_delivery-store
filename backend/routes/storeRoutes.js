@@ -39,6 +39,16 @@ router.get("/me", authenticateToken, async (req, res) => {
   }
 });
 
+// routes/motoboyRoutes.js - adicionar se não existir
+router.get("/", async (req, res) => {
+  try {
+    const motoboys = await Store.find({});
+    res.json(motoboys);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.get("/id/:id", async (req, res) => {
   try {
     console.log("Buscando usuário com ID:", req.params.id);

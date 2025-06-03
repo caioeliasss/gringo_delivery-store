@@ -21,7 +21,7 @@ import Occurrences from "./pages/Suporte/occurrences";
 import ChatPage from "./pages/Suporte/chat";
 import OcorrenciasPage from "./pages/Ocorrencias/ocorrencias";
 import ChatStore from "./pages/Chat/chat";
-
+import SupportMapPage from "./pages/Suporte/map";
 // Definir tema personalizado com a paleta de cores da Gringo Deli  very
 const theme = createTheme({
   typography: {
@@ -278,6 +278,14 @@ function App() {
               element={
                 <PrivateRoute>
                   <ChatPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/suporte/mapa"
+              element={
+                <PrivateRoute>
+                  <SupportMapPage />
                 </PrivateRoute>
               }
             />

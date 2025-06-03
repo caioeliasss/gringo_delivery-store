@@ -34,6 +34,7 @@ import {
   ShoppingBag,
   ReportProblem as OcorrenciasIcon,
   Chat as ChatIcon,
+  Map as MapIcon,
 } from "@mui/icons-material";
 import { buscarCnpj } from "../../services/cnpj";
 

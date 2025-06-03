@@ -32,6 +32,7 @@ import {
   Person as ProfileIcon,
   Logout as LogoutIcon,
   ShoppingBag,
+  Map as MapIcon,
 } from "@mui/icons-material";
 import { buscarCnpj } from "../../services/cnpj";
 import api from "../../services/api";
@@ -173,6 +174,20 @@ const SuporteDashboard = () => {
             <OrdersIcon />
           </ListItemIcon>
           <ListItemText primary="Chat" />
+        </ListItem>
+        <ListItem
+          button
+          component={Link}
+          to="/suporte/mapa"
+          sx={{
+            color: "text.primary",
+            "&:hover": { bgcolor: "primary.light", color: "white" },
+          }}
+        >
+          <ListItemIcon sx={{ color: "inherit" }}>
+            <MapIcon />
+          </ListItemIcon>
+          <ListItemText primary="Mapa" />
         </ListItem>
       </List>
       <Divider />

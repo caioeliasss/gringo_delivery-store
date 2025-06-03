@@ -354,6 +354,19 @@ const updatePushToken = async (req, res) => {
   }
 };
 
+router.get("/", async (req, res) => {
+  try {
+    const motoboys = await Motoboy.find({}).select(
+      "name email phoneNumber cpf isApproved isAvailable coordinates score race firebaseUid pushToken"
+    );
+    if (!motoboys || motoboys.length === 0) {
+      return res.status(404).json({ message: "Nenhum motoboy encontrado" });
+    }
+    res.json(motoboys);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 router.delete(
   "/removeMotoboyFromOrder/:orderId/:motoboyId",
   removeMotoboyFromOrder
@@ -362,7 +375,7 @@ router.put("/update-push-token", updatePushToken);
 router.get("/id/:id", getMotoboyById);
 router.get("/firebase/:firebaseUid", getMotoboyByFirebaseUid);
 router.get("/find", findMotoboys);
-router.get("/", getMotoboys);
+// router.get("/", getMotoboys);
 router.get("/me", getMotoboyMe);
 router.post("/", createMotoboy);
 router.put("/", updateMotoboy);

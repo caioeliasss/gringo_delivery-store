@@ -19,6 +19,8 @@ const createChat = async (req, res) => {
     const participantNames = {};
     const participantsData = [];
 
+    console.log("Criando chat com participantes:", firebaseUid);
+
     for (const uid of firebaseUid) {
       const userName = await getUserName(uid);
       participantNames[uid] = userName;
