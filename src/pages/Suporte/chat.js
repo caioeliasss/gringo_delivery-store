@@ -152,11 +152,6 @@ const ChatPage = () => {
     eventService.connect(currentUser?.uid);
 
     eventService.on("CHAT_MESSAGE", (data) => {
-      console.log("📩 Dados SSE recebidos:", data);
-      console.log("📩 Texto da mensagem:", data.message);
-      console.log("📩 Chat ativo atual:", activeChat?._id);
-      console.log("📩 Chat da mensagem:", data.chatId);
-
       // Verificar se temos os dados necessários
       if (!data.message || !data.chatId) {
         console.error("❌ Dados SSE incompletos:", data);
@@ -219,8 +214,6 @@ const ChatPage = () => {
           scrollToBottom();
         }, 100);
       } else {
-        console.log("📝 Mensagem para outro chat - atualizando lista");
-
         // Se não é do chat ativo, atualiza a lista de chats
         setChats((prevChats) =>
           prevChats.map((chat) =>

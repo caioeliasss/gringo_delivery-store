@@ -76,6 +76,36 @@ const motoboySchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    pixData: {
+      pixKey: {
+        type: String,
+        required: false,
+      },
+      pixKeyType: {
+        type: String,
+        enum: ["EMAIL", "CPF", "CNPJ", "PHONE", "EVP"],
+        required: false,
+      },
+    },
+    withdrawalSettings: {
+      minAmount: {
+        type: Number,
+        default: 10.0, // Valor mínimo para saque
+      },
+      autoWithdrawal: {
+        type: Boolean,
+        default: false, // Saque automático ativado?
+      },
+      autoWithdrawalAmount: {
+        type: Number,
+        default: 100.0, // Valor para saque automático
+      },
+      withdrawalDay: {
+        type: String,
+        enum: ["daily", "weekly", "monthly"],
+        default: "weekly",
+      },
+    },
   },
   {
     timestamps: true,

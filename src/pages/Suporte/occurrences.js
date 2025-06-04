@@ -174,6 +174,9 @@ const Occurrences = () => {
       const response = await api.delete(
         `/motoboys/removeMotoboyFromOrder/${occurrence.orderId}/${occurrence.motoboyId}`
       );
+      await api.put(`/travels/status/${occurrence.travelId}`, {
+        status: "cancelado",
+      });
       if (response.status === 200) {
         setSnackbar({
           open: true,
