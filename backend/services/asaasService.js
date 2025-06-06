@@ -19,6 +19,71 @@ class AsaasService {
     });
   }
 
+  async createInvoice(data) {
+    try {
+      const response = await this.api.post("/invoices", {
+        customer: data.customerId,
+        value: data.amount,
+        dueDate: data.dueDate,
+        description: data.description || "Fatura mensal",
+        paymentMethod: data.paymentMethod || "PIX",
+        // Adicione outros campos conforme necessário
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao criar fatura:", error.response?.data);
+      throw new Error(
+        error.response?.data?.errors?.[0]?.description ||
+          "Erro ao processar fatura"
+      );
+    }
+  }
+
+  // Consultar fatura
+  async getInvoice(invoiceId) {
+    try {
+      const response = await this.api.get(`/invoices/${invoiceId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao consultar fatura:", error.response?.data);
+      throw error;
+    }
+  }
+
+  // Listar faturas
+  async listInvoices(filters = {}) {
+    try {
+      const response = await this.api.get("/invoices", { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao listar faturas:", error.response?.data);
+      throw error;
+    }
+  }
+
+  // Cancelar fatura
+  async cancelInvoice(invoiceId) {
+    try {
+      const response = await this.api.delete(`/invoices/${invoiceId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao cancelar fatura:", error.response?.data);
+      throw error;
+    }
+  }
+
+  // Consultar saldo da conta
+  async getBalance() {
+    try {
+      const response = await this.api.get("/finance/balance");
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao consultar saldo:", error.response?.data);
+      throw error;
+    }
+  }
+
   // Criar transferência PIX
   async createPixTransfer(data) {
     try {

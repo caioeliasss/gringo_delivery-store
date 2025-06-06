@@ -81,7 +81,7 @@ const requestWithdrawal = async (req, res) => {
 
     // ADICIONAR: Processar automaticamente
     try {
-      console.log("🚀 Processando saque automaticamente...");
+      // console.log("🚀 Processando saque automaticamente...");
 
       // Atualizar status para processando
       withdrawal.status = "processing";
@@ -96,9 +96,9 @@ const requestWithdrawal = async (req, res) => {
         description: `Saque ${withdrawal._id} - Gringo Delivery`,
       };
 
-      console.log("📤 Enviando dados para Asaas:", transferData);
+      // console.log("📤 Enviando dados para Asaas:", transferData);
       const asaasTransfer = await asaasService.createPixTransfer(transferData);
-      console.log("✅ Resposta do Asaas:", asaasTransfer);
+      // console.log("✅ Resposta do Asaas:", asaasTransfer);
 
       // Atualizar com ID da transferência
       withdrawal.asaasTransferId = asaasTransfer.id;
@@ -153,7 +153,7 @@ const Travel = require("../models/Travel");
 const calculateAvailableBalance = async (motoboyId) => {
   const travels = await Travel.find({
     motoboyId,
-    "finance.status": "liberado", // Apenas viagens liberadas para saque
+    "finance.status": "liberado", // Apenas iagens liberadas para saque
   });
 
   return travels.reduce((total, travel) => {

@@ -1,0 +1,60 @@
+const mongoose = require("mongoose");
+const billingSchema = new mongoose.Schema(
+  {
+    customerId: {
+      type: String,
+      required: false,
+    },
+    firebaseUid: {
+      type: String,
+      required: true,
+    },
+    storeId: {
+      type: String,
+      required: true,
+    },
+    amount: {
+      type: Number,
+      required: true,
+    },
+    dueDate: {
+      type: Date,
+      default: function () {
+        return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      },
+    },
+    period: {
+      type: String,
+      enum: ["MONTHLY", "WEEKLY", "YEARLY"],
+      default: "MONTHLY",
+    },
+    type: {
+      type: String,
+      enum: ["SUBSCRIPTION", "MOTOBOY_FEE", "MOTOBOY_COMMISSION"],
+      default: "SUBSCRIPTION",
+    },
+    description: {
+      type: String,
+      required: false,
+    },
+    paymentMethod: {
+      type: String,
+      enum: ["PIX", "BOLETO", "CREDIT_CARD"],
+      default: "PIX",
+    },
+    status: {
+      type: String,
+      enum: ["PENDING", "PAID", "OVERDUE"],
+      default: "PENDING",
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+billingSchema.pre("save", function (next) {
+  this.updatedAt = Date.now();
+  next();
+});
+module.exports = mongoose.model("Billing", billingSchema);

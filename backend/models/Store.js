@@ -92,6 +92,23 @@ const storeSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  billingOptions: {
+    period: {
+      type: String,
+      enum: ["MONTHLY", "WEEKLY", "YEARLY"],
+      default: "MONTHLY",
+    },
+    monthlyFee: {
+      type: Number,
+      required: false,
+      default: 0,
+    },
+    motoBoyFee: {
+      type: Number,
+      required: false,
+      default: 0,
+    },
+  },
   createdAt: {
     type: Date,
     default: Date.now,
