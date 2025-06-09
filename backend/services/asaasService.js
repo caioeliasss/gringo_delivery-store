@@ -10,23 +10,129 @@ class AsaasService {
 
     this.apiKey = process.env.ASAAS_API_KEY;
 
+    // CORRIGIR: Asaas usa $aact_ diretamente, NÃO Bearer!
     this.api = axios.create({
       baseURL: this.baseURL,
       headers: {
-        access_token: this.apiKey,
+        access_token: this.apiKey, // MUDANÇA: Volta para access_token!
         "Content-Type": "application/json",
       },
+      timeout: 30000, // 30 segundos timeout
     });
+
+    // Log para debug
+    console.log("🔑 Asaas configurado:");
+    console.log("  - Environment:", process.env.ASAAS_ENVIRONMENT || "sandbox");
+    console.log("  - BaseURL:", this.baseURL);
+    console.log("  - API Key presente:", !!this.apiKey);
+    console.log(
+      "  - API Key (primeiros 10 chars):",
+      this.apiKey ? this.apiKey.substring(0, 10) + "..." : "AUSENTE"
+    );
+  }
+
+  async createCustomer(data) {
+    try {
+      // CORRIGIR: Verificar campos obrigatórios
+      if (!data.name || !data.email || !data.cpfCnpj) {
+        throw new Error("Campos obrigatórios: name, email, cpfCnpj");
+      }
+
+      // CORRIGIR: Limpar CNPJ (apenas números)
+      const cleanCnpj = data.cpfCnpj.replace(/\D/g, "");
+
+      const payload = {
+        name: data.name,
+        email: data.email,
+        cpfCnpj: cleanCnpj, // IMPORTANTE: apenas números
+        mobilePhone: data.phone?.toString().replace(/\D/g, ""), // Limpar telefone também
+      };
+
+      const response = await this.api.post("/customers", payload);
+
+      console.log("✅ Cliente criado com sucesso:", response.data);
+      const customerId = response.data.id;
+
+      const Store = require("../models/Store");
+      Store.findOneAndUpdate(
+        { cnpj: Number(cleanCnpj) },
+        { asaasCustomerId: customerId },
+        { new: true, upsert: true } // Atualiza ou cria se não existir
+      ).catch((error) => {
+        console.error("Erro ao atualizar Store com asaasCustomerId:", error);
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error("❌ Erro detalhado ao criar cliente:", {
+        message: error.message,
+      });
+
+      // Se for erro de rede/timeout
+      if (error.code === "ENOTFOUND" || error.code === "ETIMEDOUT") {
+        throw new Error(`Erro de conexão com Asaas: ${error.message}`);
+      }
+
+      throw new Error(
+        error.response?.data?.errors?.[0]?.description ||
+          error.response?.data?.message ||
+          `Erro HTTP ${error.response?.status}: ${error.response?.statusText}` ||
+          `Erro de rede: ${error.message}`
+      );
+    }
+  }
+
+  // CORRIGIR: Método para testar a conexão
+  async testConnection() {
+    try {
+      console.log("🧪 Testando conexão com Asaas...");
+      console.log("🔗 URL:", `${this.baseURL}/customers?limit=1`);
+      console.log("🔑 Headers:", {
+        access_token: this.apiKey
+          ? this.apiKey.substring(0, 15) + "..."
+          : "AUSENTE",
+        "Content-Type": "application/json",
+      });
+
+      const response = await this.api.get("/customers?limit=1");
+
+      console.log("✅ Conexão com Asaas OK - Resposta:", {
+        status: response.status,
+        hasCustomers: response.data.data?.length > 0,
+        totalCount: response.data.totalCount,
+      });
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error("❌ Erro na conexão com Asaas:", {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url,
+        code: error.code,
+      });
+
+      return {
+        success: false,
+        error: {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data,
+          code: error.code,
+        },
+      };
+    }
   }
 
   async createInvoice(data) {
     try {
-      const response = await this.api.post("/invoices", {
+      const response = await this.api.post("/payments", {
         customer: data.customerId,
+        billingType: "BOLETO",
         value: data.amount,
         dueDate: data.dueDate,
         description: data.description || "Fatura mensal",
-        paymentMethod: data.paymentMethod || "PIX",
         // Adicione outros campos conforme necessário
       });
 
@@ -43,7 +149,7 @@ class AsaasService {
   // Consultar fatura
   async getInvoice(invoiceId) {
     try {
-      const response = await this.api.get(`/invoices/${invoiceId}`);
+      const response = await this.api.get(`/payments/${invoiceId}`);
       return response.data;
     } catch (error) {
       console.error("Erro ao consultar fatura:", error.response?.data);
@@ -54,7 +160,7 @@ class AsaasService {
   // Listar faturas
   async listInvoices(filters = {}) {
     try {
-      const response = await this.api.get("/invoices", { params: filters });
+      const response = await this.api.get("/payments", { params: filters });
       return response.data;
     } catch (error) {
       console.error("Erro ao listar faturas:", error.response?.data);
@@ -65,7 +171,7 @@ class AsaasService {
   // Cancelar fatura
   async cancelInvoice(invoiceId) {
     try {
-      const response = await this.api.delete(`/invoices/${invoiceId}`);
+      const response = await this.api.delete(`/payments/${invoiceId}`);
       return response.data;
     } catch (error) {
       console.error("Erro ao cancelar fatura:", error.response?.data);

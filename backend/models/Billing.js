@@ -17,6 +17,10 @@ const billingSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    asaasInvoiceId: {
+      type: String,
+      required: false,
+    },
     dueDate: {
       type: Date,
       default: function () {
@@ -44,7 +48,7 @@ const billingSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["PENDING", "PAID", "OVERDUE"],
+      enum: ["PENDING", "PAID", "OVERDUE", "ERROR", "CANCELED"],
       default: "PENDING",
     },
   },

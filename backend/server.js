@@ -192,6 +192,7 @@ const motoboyRoutes = require("./routes/motoboyRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const travelRoutes = require("./routes/travelRoutes");
 const occurrenceRoutes = require("./routes/occurrenceRoutes");
+const cronService = require("./services/cronService");
 
 app.use("/api/stores", storeRoutes);
 app.use("/api/products", productRoutes);

@@ -4,14 +4,19 @@ npm-debug.log
 yarn-debug.log
 yarn-error.log
 
-# Arquivos de ambiente e configuração
+# Arquivos de ambiente e configuração - MELHORAR ESSAS REGRAS
 .env
+.env.*
+!.env.example
+!.env.template
+*.env
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env.production
 .env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
 
 # Arquivos de segurança do Firebase
 serviceAccountKey.json
@@ -55,3 +60,9 @@ coverage/
 config.js
 secrets.json
 credentials.json
+
+# ADICIONAR: Arquivos específicos do projeto
+uploads/
+temp/
+*.tmp
+.cache/

@@ -95,7 +95,41 @@ const updateBilling = async (req, res) => {
   }
   // };
 };
+// ...existing code...
 
+// Verificar status da fatura no Asaas
+const checkBillingStatus = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const billing = await Billing.findById(id);
+    if (!billing) {
+      return res.status(404).json({ message: "Fatura não encontrada" });
+    }
+
+    if (billing.asaasInvoiceId) {
+      const asaasInvoice = await asaasService.getInvoice(
+        billing.asaasInvoiceId
+      );
+
+      // Atualizar status local se necessário
+      if (asaasInvoice.status !== billing.status) {
+        billing.status =
+          asaasInvoice.status === "RECEIVED" ? "PAID" : billing.status;
+        await billing.save();
+      }
+
+      res.status(200).json({ billing, asaasInvoice });
+    } else {
+      res.status(200).json({ billing });
+    }
+  } catch (error) {
+    console.error("Erro ao verificar status da fatura:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+router.get("/:id/status", checkBillingStatus);
 router.post("/", createBilling);
 router.get("/", listBillings);
 router.get("/:id", getBilling);

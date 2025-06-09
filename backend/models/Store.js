@@ -43,6 +43,11 @@ const storeSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
+  asaasCustomerId: {
+    type: String,
+    required: false,
+    unique: true,
+  },
   email: {
     type: String,
     required: true,
@@ -93,11 +98,6 @@ const storeSchema = new mongoose.Schema({
     default: true,
   },
   billingOptions: {
-    period: {
-      type: String,
-      enum: ["MONTHLY", "WEEKLY", "YEARLY"],
-      default: "MONTHLY",
-    },
     monthlyFee: {
       type: Number,
       required: false,

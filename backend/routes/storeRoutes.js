@@ -186,6 +186,36 @@ router.put("/location", authenticateToken, async (req, res) => {
   }
 });
 
+const updateCustomerId = async (req, res) => {
+  try {
+    const { firebaseUid, asaasCustomerId } = req.body;
+    if (!firebaseUid || !asaasCustomerId) {
+      return res.status(400).json({
+        message: "firebaseUid e cusId são obrigatórios",
+      });
+    }
+    const user = await Store.findOne({ firebaseUid });
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+    // Atualizar o customerId do usuário
+    user.asaasCustomerId = asaasCustomerId;
+    await user.save();
+    res.status(200).json({
+      message: "customerId atualizado com sucesso",
+      asaasCustomerId: user.asaasCustomerId,
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar customerId:", error);
+    res.status(500).json({
+      message: "Erro ao atualizar customerId",
+      error: error.message,
+    });
+  }
+};
+
+router.put("/customerId", updateCustomerId);
+
 // Buscar estabelecimentos próximos por geolocalização
 router.get("/nearby", authenticateToken, async (req, res) => {
   try {
