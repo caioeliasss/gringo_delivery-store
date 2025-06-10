@@ -193,6 +193,9 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const travelRoutes = require("./routes/travelRoutes");
 const occurrenceRoutes = require("./routes/occurrenceRoutes");
 const cronService = require("./services/cronService");
+cronService.startAll(); // Iniciar serviço de cron
+
+app.use("/api/webhooks", express.raw({ type: "application/json" }));
 
 app.use("/api/stores", storeRoutes);
 app.use("/api/products", productRoutes);
@@ -210,6 +213,8 @@ app.use(
   authenticateToken,
   require("./routes/withdrawalRoutes")
 );
+app.use("/api/billing", require("./routes/billingRoutes"));
+app.use("/api/webhooks", require("./routes/webhookRoutes"));
 
 // Middleware de logging
 app.use((req, res, next) => {

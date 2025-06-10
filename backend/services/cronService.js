@@ -11,9 +11,8 @@ class CronService {
 
   // Agendar criação automática de faturas no dia 01 de cada mês
   scheduleMonthlyBilling() {
-    // Executa todo dia 01 às 09:00
     const job = new cron.CronJob(
-      "0 9 1 * *", // segundo minuto hora dia mês ano
+      "0 9 1 * *", // Executa todo dia 01 às 09:00
       this.createMonthlyBillings.bind(this),
       null,
       true,
@@ -304,15 +303,15 @@ class CronService {
         },
       }).sort({ "delivery.endTime": 1 });
 
-      console.log(
-        `📦 Encontradas ${deliveredOrders.length} entregas para ${store.businessName} na semana passada`
-      );
+      // console.log(
+      //   `📦 Encontradas ${deliveredOrders.length} entregas para ${store.businessName} na semana passada`
+      // );
 
       // Se não há entregas, não criar fatura
       if (deliveredOrders.length === 0) {
-        console.log(
-          `⏭️ Nenhuma entrega encontrada para ${store.businessName} na semana anterior`
-        );
+        // console.log(
+        //   `⏭️ Nenhuma entrega encontrada para ${store.businessName} na semana anterior`
+        // );
         return null;
       }
 
@@ -340,7 +339,7 @@ class CronService {
 
       // Data de vencimento (5 dias após criação)
       const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + 5);
+      dueDate.setDate(dueDate.getDate() + 2);
 
       // Criar descrição detalhada
       const description = this.generateMotoboyFeeDescription(
@@ -419,6 +418,209 @@ class CronService {
     }
   }
 
+  async createTravelsBilling() {
+    try {
+      console.log("🏍️ Iniciando cobrança de taxa de motoboy...");
+
+      // Buscar todas as lojas ativas
+      const stores = await this.getActiveStores();
+
+      const results = {
+        success: [],
+        errors: [],
+        type: "BILLING_MOTOBOY",
+        noDeliveries: [],
+        totalAmount: 0,
+      };
+
+      for (const store of stores) {
+        try {
+          const billing = await this.createTravelsBillingForStore(store);
+
+          if (billing) {
+            results.success.push({
+              storeId: store._id,
+              storeName: store.businessName,
+              deliveries: billing.deliveryCount,
+              amount: billing.amount,
+            });
+            results.totalAmount += billing.amount;
+          } else {
+            results.noDeliveries.push({
+              storeId: store._id,
+              storeName: store.businessName,
+            });
+          }
+        } catch (error) {
+          console.error(
+            `❌ Erro ao criar taxa de motoboy para loja ${store.businessName}:`,
+            error
+          );
+          results.errors.push({
+            storeId: store._id,
+            storeName: store.businessName,
+            error: error.message,
+          });
+        }
+      }
+
+      // Enviar relatório
+      await this.sendBillingReport(results);
+    } catch (error) {
+      console.error("❌ Erro crítico na cobrança de taxa de motoboy:", error);
+    }
+  }
+
+  async createTravelsBillingForStore(store) {
+    try {
+      // Calcular período da semana anterior (segunda a domingo)
+      const now = new Date();
+
+      // Encontrar o último domingo (fim da semana anterior)
+      const lastSunday = new Date(now);
+      lastSunday.setDate(now.getDate() - now.getDay());
+      lastSunday.setHours(23, 59, 59, 999);
+
+      // Encontrar a segunda-feira da semana anterior (início da semana anterior)
+      const lastMonday = new Date(lastSunday);
+      lastMonday.setDate(lastSunday.getDate() - 6);
+      lastMonday.setHours(0, 0, 0, 0);
+
+      // console.log(
+      //   `📅 Buscando entregas de ${lastMonday.toLocaleDateString()} até ${lastSunday.toLocaleDateString()} para ${
+      //     store.businessName
+      //   }`
+      // );
+
+      // Buscar entregas da semana anterior com status "entregue"
+      const Travel = require("../models/Travel");
+      const deliveredOrders = await Travel.find({
+        "order.store.cnpj": String(store.cnpj),
+        status: "entregue",
+        createdAt: {
+          $gte: lastMonday,
+          $lte: lastSunday,
+        },
+      }).sort({ createdAt: 1 });
+
+      // console.log(
+      //   `📦 Encontradas ${deliveredOrders.length} entregas para ${store.businessName} na semana passada`
+      // );
+
+      // Se não há entregas, não criar fatura
+      if (deliveredOrders.length === 0) {
+        // console.log(
+        //   `⏭️ Nenhuma entrega encontrada para ${store.businessName} na semana anterior`
+        // );
+        return null;
+      }
+
+      // Verificar se já existe fatura de taxa de motoboy para esta semana
+      const existingBilling = await Billing.findOne({
+        storeId: store._id,
+        type: "MOTOBOY_BILLING",
+        period: "WEEKLY",
+        "metadata.periodStart": {
+          $gte: lastMonday,
+          $lte: lastSunday,
+        },
+      });
+
+      if (existingBilling) {
+        console.log(
+          `⏭️ Taxa de motoboy já existe para ${store.businessName} desta semana`
+        );
+        return null;
+      }
+
+      // Calcular valor total
+
+      const totalAmount = deliveredOrders.reduce((sum, order) => {
+        const amount = order.price || 0; // Supondo que cada entrega tem um preço
+        return sum + amount;
+      }, 0);
+
+      // Data de vencimento (5 dias após criação)
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 2);
+
+      // Criar descrição detalhada
+      const description = this.generateMotoboyBillDescription(
+        store,
+        deliveredOrders.length,
+        totalAmount,
+        lastMonday,
+        lastSunday
+      );
+
+      // Criar registro no banco
+      const billing = new Billing({
+        customerId: store.asaasCustomerId,
+        firebaseUid: store.firebaseUid,
+        storeId: store._id,
+        amount: totalAmount,
+        dueDate: dueDate,
+        period: "WEEKLY", // ALTERADO: de MONTHLY para WEEKLY
+        type: "MOTOBOY_BILLING",
+        description: description,
+        paymentMethod: store.preferredPaymentMethod || "PIX",
+        status: "PENDING",
+        metadata: {
+          deliveryCount: deliveredOrders.length,
+          totalAmount: totalAmount,
+          periodStart: lastMonday, // ALTERADO: início da semana
+          periodEnd: lastSunday, // ALTERADO: fim da semana
+          orderIds: deliveredOrders.map((order) => order._id),
+        },
+      });
+
+      await billing.save();
+
+      // Criar fatura no Asaas se configurado
+      if (store.asaasCustomerId && totalAmount > 0) {
+        try {
+          const asaasInvoice = await asaasService.createInvoice({
+            customerId: store.asaasCustomerId,
+            amount: billing.amount,
+            dueDate: billing.dueDate.toISOString().split("T")[0],
+            description: billing.description,
+            paymentMethod: billing.paymentMethod,
+          });
+
+          // Salvar ID do Asaas
+          billing.asaasInvoiceId = asaasInvoice.id;
+          await billing.save();
+
+          // console.log(
+          //   `✅ Taxa de motoboy semanal criada: ${store.businessName} - ${
+          //     deliveredOrders.length
+          //   } entregas - R$ ${totalAmount.toFixed(2)}`
+          // );
+        } catch (asaasError) {
+          console.error(
+            `❌ Erro no Asaas para taxa de motoboy ${store.businessName}:`,
+            asaasError.message
+          );
+          billing.status = "ERROR";
+          billing.errorMessage = asaasError.message;
+          await billing.save();
+        }
+      }
+
+      return {
+        billing,
+        deliveryCount: deliveredOrders.length,
+        amount: totalAmount,
+      };
+    } catch (error) {
+      console.error(
+        `❌ Erro ao processar taxa de motoboy para ${store.businessName}:`,
+        error
+      );
+      throw error;
+    }
+  }
+
   // ADICIONAR: Gerar descrição da taxa de motoboy (SEMANAL)
   generateMotoboyFeeDescription(
     store,
@@ -437,6 +639,24 @@ Período: Semana de ${weekText}
 Entregas realizadas: ${deliveryCount}
 Taxa por entrega: R$ ${feePerDelivery.toFixed(2)}
 Total: R$ ${(deliveryCount * feePerDelivery).toFixed(2)}`;
+  }
+
+  generateMotoboyBillDescription(
+    store,
+    deliveryCount,
+    feePerDelivery,
+    startDate,
+    endDate
+  ) {
+    // Formatar datas da semana
+    const weekText = `${startDate.toLocaleDateString(
+      "pt-BR"
+    )} a ${endDate.toLocaleDateString("pt-BR")}`;
+
+    return `Entregas de Motoboy - ${store.businessName}
+Período: Semana de ${weekText}
+Entregas realizadas: ${deliveryCount}
+Total: R$ ${feePerDelivery.toFixed(2)}`;
   }
 
   // OPCIONAL: Atualizar agendamento para executar semanalmente

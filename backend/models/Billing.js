@@ -34,7 +34,7 @@ const billingSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["SUBSCRIPTION", "MOTOBOY_FEE", "MOTOBOY_COMMISSION"],
+      enum: ["SUBSCRIPTION", "MOTOBOY_FEE", "MOTOBOY_BILLING"],
       default: "SUBSCRIPTION",
     },
     description: {
@@ -48,8 +48,24 @@ const billingSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["PENDING", "PAID", "OVERDUE", "ERROR", "CANCELED"],
+      enum: ["PENDING", "PAID", "CONFIRMED", "OVERDUE", "CANCELLED", "ERROR"],
       default: "PENDING",
+    },
+    paidAt: {
+      type: Date,
+      required: false,
+    },
+    confirmedAt: {
+      type: Date,
+      required: false,
+    },
+    overdueAt: {
+      type: Date,
+      required: false,
+    },
+    asaasData: {
+      type: Object,
+      required: false, // Dados completos do webhook
     },
   },
   {
