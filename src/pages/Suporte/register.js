@@ -68,7 +68,7 @@ const RegisterSupport = () => {
           phone: phone,
           firebaseUid: user.user.uid,
         });
-        navigate("/suporte/login");
+        navigate("/login");
       } catch (profileError) {
         console.error("Erro ao criar perfil:", profileError);
         setError(
@@ -266,7 +266,7 @@ const RegisterSupport = () => {
                 Já possui uma conta?{" "}
                 <MuiLink
                   component={Link}
-                  to="/suporte/login"
+                  to="/login"
                   variant="body2"
                   fontWeight="bold"
                   color="primary"

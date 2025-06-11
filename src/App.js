@@ -265,45 +265,57 @@ function SuporteApp() {
   return (
     <ThemeProvider theme={theme}>
       <AuthProvider>
-        <SuporteAuthProvider>
-          <Routes>
-            <Route path="/login" element={<SuporteLogin />} />
-            <Route path="/register" element={<RegisterSupport />} />
-            <Route
-              path="/dashboard"
-              element={
+        <Routes>
+          {/* ✅ Login público - SEM SuporteAuthProvider */}
+          <Route path="/login" element={<SuporteLogin />} />
+          <Route path="/register" element={<RegisterSupport />} />
+
+          {/* ✅ Rotas protegidas - COM SuporteAuthProvider */}
+          <Route
+            path="/dashboard"
+            element={
+              <SuporteAuthProvider>
                 <PrivateRoute>
                   <SuporteDashboard />
                 </PrivateRoute>
-              }
-            />
-            <Route
-              path="/ocorrencias"
-              element={
+              </SuporteAuthProvider>
+            }
+          />
+          <Route
+            path="/ocorrencias"
+            element={
+              <SuporteAuthProvider>
                 <PrivateRoute>
                   <Occurrences />
                 </PrivateRoute>
-              }
-            />
-            <Route
-              path="/chat"
-              element={
+              </SuporteAuthProvider>
+            }
+          />
+          <Route
+            path="/chat"
+            element={
+              <SuporteAuthProvider>
                 <PrivateRoute>
                   <ChatPage />
                 </PrivateRoute>
-              }
-            />
-            <Route
-              path="/mapa"
-              element={
+              </SuporteAuthProvider>
+            }
+          />
+          <Route
+            path="/mapa"
+            element={
+              <SuporteAuthProvider>
                 <PrivateRoute>
                   <SupportMapPage />
                 </PrivateRoute>
-              }
-            />
-            <Route path="/" element={<Navigate to="/login" />} />
-          </Routes>
-        </SuporteAuthProvider>
+              </SuporteAuthProvider>
+            }
+          />
+
+          {/* Redirecionamentos */}
+          <Route path="/" element={<Navigate to="/login" />} />
+          <Route path="*" element={<Navigate to="/login" />} />
+        </Routes>
       </AuthProvider>
     </ThemeProvider>
   );
@@ -314,10 +326,8 @@ function AdminApp() {
     <ThemeProvider theme={theme}>
       <AuthProvider>
         <Routes>
-          {/* ✅ CORREÇÃO: Login FORA do AdminAuthProvider */}
           <Route path="/login" element={<LoginAdmin />} />
 
-          {/* ✅ Todas as outras rotas DENTRO do AdminAuthProvider */}
           <Route
             path="/*"
             element={

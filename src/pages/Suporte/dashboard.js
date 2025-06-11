@@ -79,11 +79,11 @@ const SuporteDashboard = () => {
       try {
         const response = await api.get(`/support/firebase/${currentUser?.uid}`);
         if (!response.data) {
-          navigate("/suporte/login");
+          navigate("/login");
         }
       } catch (error) {
         console.error("Erro ao verificar o usuário:", error);
-        navigate("/suporte/login");
+        navigate("/login");
       }
     };
 
@@ -94,7 +94,7 @@ const SuporteDashboard = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate("/suporte/login");
+      navigate("/login");
     } catch (error) {
       console.error("Erro ao fazer logout:", error);
     }
@@ -124,7 +124,7 @@ const SuporteDashboard = () => {
         <ListItem
           button
           component={Link}
-          to="/suporte/dashboard"
+          to="/dashboard"
           selected={true}
           sx={{
             color: "text.primary",
@@ -144,7 +144,7 @@ const SuporteDashboard = () => {
         <ListItem
           button
           component={Link}
-          to="/suporte/ocorrencias"
+          to="/ocorrencias"
           sx={{
             color: "text.primary",
             "&:hover": { bgcolor: "primary.light", color: "white" },
@@ -158,7 +158,7 @@ const SuporteDashboard = () => {
         <ListItem
           button
           component={Link}
-          to="/suporte/chat"
+          to="/chat"
           selected={true}
           sx={{
             color: "text.primary",
@@ -178,7 +178,7 @@ const SuporteDashboard = () => {
         <ListItem
           button
           component={Link}
-          to="/suporte/mapa"
+          to="/mapa"
           sx={{
             color: "text.primary",
             "&:hover": { bgcolor: "primary.light", color: "white" },
@@ -367,7 +367,7 @@ const SuporteDashboard = () => {
                 <Button
                   variant="outlined"
                   component={Link}
-                  to="/suporte/ocorrencias"
+                  to="/ocorrencias"
                   startIcon={<ProductsIcon />}
                   fullWidth
                   sx={{
@@ -384,7 +384,7 @@ const SuporteDashboard = () => {
                 <Button
                   variant="outlined"
                   component={Link}
-                  to="/suporte/chat"
+                  to="/chat"
                   startIcon={<OrdersIcon />}
                   fullWidth
                   sx={{

@@ -125,11 +125,11 @@ const Occurrences = () => {
       try {
         const response = await api.get(`/support/firebase/${currentUser?.uid}`);
         if (!response.data) {
-          navigate("/suporte/login");
+          navigate("/login");
         }
       } catch (error) {
         console.error("Erro ao verificar o usuário:", error);
-        navigate("/suporte/login");
+        navigate("/login");
       }
     };
 
@@ -487,7 +487,7 @@ const Occurrences = () => {
       }
 
       // Navegar para a página de chat com os parâmetros necessários
-      navigate(`/suporte/chat`, {
+      navigate(`/chat`, {
         state: {
           chatId: chatId,
           occurrenceId: occurrence._id,

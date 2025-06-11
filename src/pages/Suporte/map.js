@@ -177,7 +177,7 @@ export default function SupportMapPage() {
     console.log("user: ", currentUser);
     if (!currentUser) {
       console.error("Usuário não autenticado, redirecionando...");
-      navigate("/suporte/login");
+      navigate("/login");
     }
   }, [currentUser, navigate]);
 
@@ -282,7 +282,7 @@ export default function SupportMapPage() {
       setDetailDialog(false);
 
       // Navegar para a página de chat
-      navigate(`/suporte/chat`, {
+      navigate(`/chat`, {
         state: {
           chatId: chatId,
           targetUserId: targetFirebaseUid,
