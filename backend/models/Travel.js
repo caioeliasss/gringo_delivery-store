@@ -1,5 +1,23 @@
 const mongoose = require("mongoose");
 
+function getNextWeekThursday() {
+  const today = new Date();
+  const currentDay = today.getDay();
+
+  // Calcular dias até próxima semana + quinta-feira
+  const daysToNextWeek = 7 - currentDay; // Dias até domingo da próxima semana
+  const daysToThursday = daysToNextWeek + 4; // Mais 4 dias para quinta
+
+  // Se hoje é domingo (0), ajustar cálculo
+  const daysToAdd = currentDay === 0 ? 4 : daysToThursday;
+
+  const nextThursday = new Date(today);
+  nextThursday.setDate(today.getDate() + daysToAdd);
+  nextThursday.setHours(0o1, 59, 59, 999);
+
+  return nextThursday;
+}
+
 const travelSchema = mongoose.Schema({
   price: {
     type: Number,
@@ -54,7 +72,7 @@ const travelSchema = mongoose.Schema({
     dueDate: {
       type: Date,
       default: function () {
-        return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 dias a partir de agora
+        return getNextWeekThursday(); // 7 dias a partir de agora
       },
     },
     value: {

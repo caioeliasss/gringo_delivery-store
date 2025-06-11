@@ -21,14 +21,14 @@ class AsaasService {
     });
 
     // Log para debug
-    console.log("🔑 Asaas configurado:");
-    console.log("  - Environment:", process.env.ASAAS_ENVIRONMENT || "sandbox");
-    console.log("  - BaseURL:", this.baseURL);
-    console.log("  - API Key presente:", !!this.apiKey);
-    console.log(
-      "  - API Key (primeiros 10 chars):",
-      this.apiKey ? this.apiKey.substring(0, 10) + "..." : "AUSENTE"
-    );
+    // console.log("🔑 Asaas configurado:");
+    // console.log("  - Environment:", process.env.ASAAS_ENVIRONMENT || "sandbox");
+    // console.log("  - BaseURL:", this.baseURL);
+    // console.log("  - API Key presente:", !!this.apiKey);
+    // console.log(
+    //   "  - API Key (primeiros 10 chars):",
+    //   this.apiKey ? this.apiKey.substring(0, 10) + "..." : "AUSENTE"
+    // );
   }
 
   async createCustomer(data) {

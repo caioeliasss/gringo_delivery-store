@@ -215,6 +215,7 @@ app.use(
 );
 app.use("/api/billing", require("./routes/billingRoutes"));
 app.use("/api/webhooks", require("./routes/webhookRoutes"));
+app.use("/api/admin", require("./routes/adminRoutes"));
 
 // Middleware de logging
 app.use((req, res, next) => {

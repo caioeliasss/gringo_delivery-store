@@ -17,11 +17,11 @@ import {
 } from "@mui/material";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import GoogleIcon from "@mui/icons-material/Google";
-import SupportAgentIcon from "@mui/icons-material/SupportAgent";
+import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import HeadsetMicIcon from "@mui/icons-material/HeadsetMic";
 import api from "../../services/api";
 
-const LoginSuporte = () => {
+const LoginAdmin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -76,7 +76,7 @@ const LoginSuporte = () => {
           minHeight: "100vh",
         }}
       >
-        {/* Logo com badge de suporte */}
+        {/* Logo com badge de Admin */}
         <Box sx={{ mb: 2, position: "relative" }}>
           <img
             src="https://i.imgur.com/8jOdfcO.png"
@@ -87,7 +87,7 @@ const LoginSuporte = () => {
             overlap="circular"
             anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
             badgeContent={
-              <SupportAgentIcon
+              <AdminPanelSettingsIcon
                 sx={{
                   fontSize: 32,
                   color: "#fff",
@@ -101,7 +101,7 @@ const LoginSuporte = () => {
           ></Badge>
         </Box>
 
-        {/* Área de Suporte - Banner */}
+        {/* Área de Admin - Banner */}
         <Box
           sx={{
             bgcolor: "primary.main",
@@ -116,9 +116,9 @@ const LoginSuporte = () => {
             boxShadow: 2,
           }}
         >
-          <HeadsetMicIcon />
+          <AdminPanelSettingsIcon />
           <Typography variant="h6" fontWeight="bold">
-            Área de Suporte
+            Área de Administração
           </Typography>
         </Box>
 
@@ -145,11 +145,14 @@ const LoginSuporte = () => {
               color: "white",
             }}
           >
-            <SupportAgentIcon fontSize="large" style={{ marginTop: "4px" }} />
+            <AdminPanelSettingsIcon
+              fontSize="large"
+              style={{ marginTop: "4px" }}
+            />
           </Box>
 
           <Typography component="h1" variant="h5" fontWeight="bold" mb={1}>
-            Acesso ao Suporte
+            Acesso à Administração
           </Typography>
 
           <Typography
@@ -158,7 +161,7 @@ const LoginSuporte = () => {
             align="center"
             mb={2}
           >
-            Acesse o painel para gerenciar ocorrências e suporte ao cliente
+            Acesse o painel para administrar o Gringo Delivery
           </Typography>
 
           {error && (
@@ -200,12 +203,12 @@ const LoginSuporte = () => {
               variant="contained"
               sx={{ mt: 3, mb: 2, py: 1.5 }}
               disabled={loading}
-              startIcon={!loading && <SupportAgentIcon />}
+              startIcon={!loading && <AdminPanelSettingsIcon />}
             >
               {loading ? (
                 <CircularProgress size={24} color="inherit" />
               ) : (
-                "Entrar no Suporte"
+                "Entrar na Administração"
               )}
             </Button>
           </Box>
@@ -213,7 +216,7 @@ const LoginSuporte = () => {
           <Box sx={{ mt: 2, mb: 1, width: "100%" }}>
             <Divider>
               <Chip
-                label="Exclusivo para equipe de suporte"
+                label="Exclusivo para equipe de Administração"
                 size="small"
                 sx={{ bgcolor: "#f8f9fa" }}
               />
@@ -238,7 +241,8 @@ const LoginSuporte = () => {
 
         <Box sx={{ mt: 3, textAlign: "center" }}>
           <Typography variant="caption" color="text.secondary">
-            Área restrita para membros da equipe de suporte do Gringo Delivery
+            Área restrita para membros da equipe de administração do Gringo
+            Delivery
           </Typography>
         </Box>
       </Box>
@@ -246,4 +250,4 @@ const LoginSuporte = () => {
   );
 };
 
-export default LoginSuporte;
+export default LoginAdmin;

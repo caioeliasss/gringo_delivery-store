@@ -50,7 +50,7 @@ const requestWithdrawal = async (req, res) => {
         },
         {
           $set: {
-            "finance.status": "pendente",
+            "finance.status": "processando",
             "finance.transactionDate": new Date(),
           },
         }
@@ -154,6 +154,7 @@ const calculateAvailableBalance = async (motoboyId) => {
   const travels = await Travel.find({
     motoboyId,
     "finance.status": "liberado", // Apenas iagens liberadas para saque
+    "finance.dueDate": { $lte: new Date() }, // Viagens vencidas
   });
 
   return travels.reduce((total, travel) => {

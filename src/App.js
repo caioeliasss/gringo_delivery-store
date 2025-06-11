@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
 } from "react-router-dom";
+
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -22,6 +23,11 @@ import ChatPage from "./pages/Suporte/chat";
 import OcorrenciasPage from "./pages/Ocorrencias/ocorrencias";
 import ChatStore from "./pages/Chat/chat";
 import SupportMapPage from "./pages/Suporte/map";
+import { AdminAuthProvider } from "./contexts/AdminAuthContext";
+import AdminDashboard from "./pages/Admin/dashboard";
+import { SuporteAuthProvider } from "./contexts/SuporteAuthContext";
+import LoginAdmin from "./pages/Admin/login";
+
 // Definir tema personalizado com a paleta de cores da Gringo Deli  very
 const theme = createTheme({
   typography: {
@@ -184,73 +190,87 @@ const PrivateRoute = ({ children }) => {
   return children;
 };
 
-function App() {
+function useSubdomain() {
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuporte, setIsSuporte] = useState(false);
+
+  useEffect(() => {
+    const hostname = window.location.hostname;
+    const subdomain = hostname.split(".")[0];
+
+    // Verificar se é subdomínio admin
+    setIsAdmin(subdomain === "admin");
+
+    setIsSuporte(subdomain === "suporte");
+  }, []);
+
+  return { isAdmin, isSuporte };
+}
+
+function CustomerApp() {
   return (
     <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Router>
-        <AuthProvider>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route
+            path="/dashboard"
+            element={
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/produtos"
+            element={
+              <PrivateRoute>
+                <Produtos />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/pedidos"
+            element={
+              <PrivateRoute>
+                <Pedidos />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/ocorrencias"
+            element={
+              <PrivateRoute>
+                <OcorrenciasPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/chat"
+            element={
+              <PrivateRoute>
+                <ChatStore />
+              </PrivateRoute>
+            }
+          />
+          <Route path="/" element={<Navigate to="/login" />} />
+        </Routes>
+      </AuthProvider>
+    </ThemeProvider>
+  );
+}
+
+function SuporteApp() {
+  return (
+    <ThemeProvider theme={theme}>
+      <AuthProvider>
+        <SuporteAuthProvider>
           <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+            <Route path="/login" element={<SuporteLogin />} />
+            <Route path="/register" element={<RegisterSupport />} />
             <Route
               path="/dashboard"
-              element={
-                <PrivateRoute>
-                  <Dashboard />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/produtos"
-              element={
-                <PrivateRoute>
-                  <Produtos />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/pedidos"
-              element={
-                <PrivateRoute>
-                  <Pedidos />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/ocorrencias"
-              element={
-                <PrivateRoute>
-                  <OcorrenciasPage />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/chat"
-              element={
-                <PrivateRoute>
-                  <ChatStore />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/suporte"
-              element={
-                <PrivateRoute>
-                  <SuporteLogin />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/suporte/login"
-              element={
-                <PrivateRoute>
-                  <SuporteLogin />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/suporte/dashboard"
               element={
                 <PrivateRoute>
                   <SuporteDashboard />
@@ -258,15 +278,7 @@ function App() {
               }
             />
             <Route
-              path="/suporte/register"
-              element={
-                <PrivateRoute>
-                  <RegisterSupport />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/suporte/ocorrencias"
+              path="/ocorrencias"
               element={
                 <PrivateRoute>
                   <Occurrences />
@@ -274,7 +286,7 @@ function App() {
               }
             />
             <Route
-              path="/suporte/chat"
+              path="/chat"
               element={
                 <PrivateRoute>
                   <ChatPage />
@@ -282,7 +294,7 @@ function App() {
               }
             />
             <Route
-              path="/suporte/mapa"
+              path="/mapa"
               element={
                 <PrivateRoute>
                   <SupportMapPage />
@@ -291,7 +303,41 @@ function App() {
             />
             <Route path="/" element={<Navigate to="/login" />} />
           </Routes>
-        </AuthProvider>
+        </SuporteAuthProvider>
+      </AuthProvider>
+    </ThemeProvider>
+  );
+}
+
+function AdminApp() {
+  return (
+    <AuthProvider>
+      <AdminAuthProvider>
+        <Routes>
+          <Route path="/login" element={<LoginAdmin />} />
+          <Route
+            path="/*"
+            element={
+              <Routes>
+                <Route path="/" element={<AdminDashboard />} />
+                <Route path="/dashboard" element={<AdminDashboard />} />
+                <Route path="*" element={<Navigate to="/dashboard" />} />
+              </Routes>
+            }
+          />
+        </Routes>
+      </AdminAuthProvider>
+    </AuthProvider>
+  );
+}
+
+function App() {
+  const { isAdmin, isSuporte } = useSubdomain();
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Router>
+        {isAdmin ? <AdminApp /> : isSuporte ? <SuporteApp /> : <CustomerApp />}
       </Router>
     </ThemeProvider>
   );
