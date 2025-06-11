@@ -311,23 +311,34 @@ function SuporteApp() {
 
 function AdminApp() {
   return (
-    <AuthProvider>
-      <AdminAuthProvider>
+    <ThemeProvider theme={theme}>
+      <AuthProvider>
         <Routes>
+          {/* ✅ CORREÇÃO: Login FORA do AdminAuthProvider */}
           <Route path="/login" element={<LoginAdmin />} />
+
+          {/* ✅ Todas as outras rotas DENTRO do AdminAuthProvider */}
           <Route
             path="/*"
             element={
-              <Routes>
-                <Route path="/" element={<AdminDashboard />} />
-                <Route path="/dashboard" element={<AdminDashboard />} />
-                <Route path="*" element={<Navigate to="/dashboard" />} />
-              </Routes>
+              <AdminAuthProvider>
+                <Routes>
+                  <Route path="/" element={<AdminDashboard />} />
+                  <Route path="/dashboard" element={<AdminDashboard />} />
+                  <Route path="/stores" element={<AdminDashboard />} />
+                  <Route path="/orders" element={<AdminDashboard />} />
+                  <Route path="/drivers" element={<AdminDashboard />} />
+                  <Route path="/occurrences" element={<AdminDashboard />} />
+                  <Route path="/reports" element={<AdminDashboard />} />
+                  <Route path="/settings" element={<AdminDashboard />} />
+                  <Route path="*" element={<Navigate to="/dashboard" />} />
+                </Routes>
+              </AdminAuthProvider>
             }
           />
         </Routes>
-      </AdminAuthProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
