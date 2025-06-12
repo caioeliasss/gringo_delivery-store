@@ -24,9 +24,10 @@ import OcorrenciasPage from "./pages/Ocorrencias/ocorrencias";
 import ChatStore from "./pages/Chat/chat";
 import SupportMapPage from "./pages/Suporte/map";
 import { AdminAuthProvider } from "./contexts/AdminAuthContext";
-import AdminDashboard from "./pages/Admin/dashboard";
+import AdminDashboard from "./pages/Admin/Dashboard/dashboard";
+import AdminFinanceiro from "./pages/Admin/Financeiro/financeiro";
 import { SuporteAuthProvider } from "./contexts/SuporteAuthContext";
-import LoginAdmin from "./pages/Admin/login";
+import LoginAdmin from "./pages/Admin/Login/login";
 
 // Definir tema personalizado com a paleta de cores da Gringo Deli  very
 const theme = createTheme({
@@ -339,8 +340,9 @@ function AdminApp() {
                   <Route path="/orders" element={<AdminDashboard />} />
                   <Route path="/drivers" element={<AdminDashboard />} />
                   <Route path="/occurrences" element={<AdminDashboard />} />
-                  <Route path="/reports" element={<AdminDashboard />} />
+                  <Route path="/financeiro" element={<AdminFinanceiro />} />
                   <Route path="/settings" element={<AdminDashboard />} />
+                  <Route path="/mapa" element={<SupportMapPage />} />
                   <Route path="*" element={<Navigate to="/dashboard" />} />
                 </Routes>
               </AdminAuthProvider>

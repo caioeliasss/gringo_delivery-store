@@ -72,6 +72,21 @@ class AdminService {
     return response.data;
   }
 
+  async getFinancialStats(params = {}) {
+    const response = await this.api.get("/financial/stats", { params });
+    return response.data;
+  }
+
+  async getWithdrawals(params = {}) {
+    const response = await this.api.get("/financial/withdrawals", { params });
+    return response.data;
+  }
+
+  async getBillings(params = {}) {
+    const response = await this.api.get("/financial/billings", { params });
+    return response.data;
+  }
+
   // Pedidos
   async getOrders(params = {}) {
     const response = await this.api.get("/orders", { params });

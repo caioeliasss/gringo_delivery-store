@@ -8,6 +8,10 @@ const withdrawalSchema = mongoose.Schema(
       required: true,
       ref: "Motoboy",
     },
+    name: {
+      type: String,
+      required: true,
+    },
     amount: {
       type: Number,
       required: true,

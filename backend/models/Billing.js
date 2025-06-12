@@ -10,7 +10,8 @@ const billingSchema = new mongoose.Schema(
       required: true,
     },
     storeId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Store", // ← Referência ao modelo Store
       required: true,
     },
     amount: {

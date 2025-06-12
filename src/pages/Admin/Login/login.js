@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../../contexts/AuthContext";
 import {
   Container,
   Typography,
@@ -19,7 +19,7 @@ import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import GoogleIcon from "@mui/icons-material/Google";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import HeadsetMicIcon from "@mui/icons-material/HeadsetMic";
-import api from "../../services/api";
+import api from "../../../services/api";
 
 const LoginAdmin = () => {
   const [email, setEmail] = useState("");

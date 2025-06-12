@@ -137,7 +137,7 @@ const Register = () => {
       // Após registro no Firebase, criar perfil no backend com CNPJ
       try {
         await createUserProfile({
-          displayName: email.split("@")[0], // Nome baseado no email
+          displayName: businessName, // Nome baseado no email
           email: email,
           cnpj: cnpjNumbers,
           location: geolocation,

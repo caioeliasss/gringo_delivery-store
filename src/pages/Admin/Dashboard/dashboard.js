@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { UseAdminAuth } from "../../contexts/AdminAuthContext";
+import { UseAdminAuth } from "../../../contexts/AdminAuthContext";
 import {
   Box,
   Container,
@@ -38,9 +38,11 @@ import {
   Assessment as ReportIcon,
   Settings as SettingsIcon,
   AdminPanelSettings as AdminIcon,
+  Map as MapIcon,
 } from "@mui/icons-material";
-import { adminService } from "../../services/adminService";
-import { buscarGenero } from "../../services/gender";
+import { adminService } from "../../../services/adminService";
+import { buscarGenero } from "../../../services/gender";
+import DrawerAdmin from "../../../components/drawerAdmin";
 
 const AdminDashboard = () => {
   const { AdminUser, logoutAdmin } = UseAdminAuth();
@@ -231,7 +233,7 @@ const AdminDashboard = () => {
         <ListItem
           button
           component={Link}
-          to="/reports"
+          to="/financeiro"
           sx={{
             color: "text.primary",
             "&:hover": { bgcolor: "primary.light", color: "white" },
@@ -240,7 +242,7 @@ const AdminDashboard = () => {
           <ListItemIcon sx={{ color: "inherit" }}>
             <ReportIcon />
           </ListItemIcon>
-          <ListItemText primary="Relatórios" />
+          <ListItemText primary="Financeiro" />
         </ListItem>
 
         <ListItem
@@ -256,6 +258,20 @@ const AdminDashboard = () => {
             <SettingsIcon />
           </ListItemIcon>
           <ListItemText primary="Configurações" />
+        </ListItem>
+        <ListItem
+          button
+          component={Link}
+          to="/mapa"
+          sx={{
+            color: "text.primary",
+            "&:hover": { bgcolor: "primary.light", color: "white" },
+          }}
+        >
+          <ListItemIcon sx={{ color: "inherit" }}>
+            <MapIcon />
+          </ListItemIcon>
+          <ListItemText primary="Mapa" />
         </ListItem>
       </List>
       <Divider />
@@ -401,7 +417,7 @@ const AdminDashboard = () => {
           },
         }}
       >
-        {drawerItems}
+        <DrawerAdmin />
       </Drawer>
 
       {/* Main content */}
