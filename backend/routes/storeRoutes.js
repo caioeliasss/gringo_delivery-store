@@ -2,7 +2,8 @@ const express = require("express");
 const router = express.Router();
 const admin = require("firebase-admin");
 const Store = require("../models/Store");
-
+const { listInvoices } = require("../services/asaasService");
+const asaasService = require("../services/asaasService");
 // Middleware de autenticação
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;

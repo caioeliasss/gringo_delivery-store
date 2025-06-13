@@ -644,14 +644,14 @@ const AdminFinanceiro = () => {
                               </Avatar>
                               <Box>
                                 <Typography variant="body2" fontWeight="bold">
-                                  {withdrawal.motoboyId.name ||
+                                  {withdrawal.motoboyName ||
                                     "Motoboy Desconhecido"}
                                 </Typography>
                                 <Typography
                                   variant="caption"
                                   color="textSecondary"
                                 >
-                                  ID: {withdrawal.motoboyId._id}
+                                  ID: {withdrawal.motoboyId}
                                 </Typography>
                               </Box>
                             </Box>
@@ -797,7 +797,7 @@ const AdminFinanceiro = () => {
                                   variant="caption"
                                   color="textSecondary"
                                 >
-                                  ID: {billing.storeId._id}
+                                  ID: {billing.storeId}
                                 </Typography>
                               </Box>
                             </Box>
@@ -805,14 +805,24 @@ const AdminFinanceiro = () => {
                           <TableCell>
                             {formatCurrency(billing.amount)}
                           </TableCell>
-                          <TableCell>{billing.period}</TableCell>
+                          <TableCell>
+                            {billing.period === "MONTHLY"
+                              ? "Mensal"
+                              : "Semanal"}
+                          </TableCell>
                           <TableCell>{formatDate(billing.dueDate)}</TableCell>
                           <TableCell>
                             {getStatusChip(billing.status, "billing")}
                           </TableCell>
                           <TableCell>
                             <Chip
-                              label={billing.type}
+                              label={
+                                billing.type === "SUBSCRIPTION"
+                                  ? "Assinatura"
+                                  : billing.type === "MOTOBOY_FEE"
+                                  ? "Taxa Acionamento"
+                                  : "Viagens"
+                              }
                               size="small"
                               variant="outlined"
                             />

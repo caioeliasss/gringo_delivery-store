@@ -157,6 +157,19 @@ class AsaasService {
     }
   }
 
+  async getQRcodePayments(id) {
+    try {
+      const response = await this.api.get(`/payments/${id}/pixQrCode`);
+      return response.data;
+    } catch (error) {
+      console.error(
+        "Erro ao consultar QR Code de pagamento:",
+        error.response?.data
+      );
+      throw error;
+    }
+  }
+
   // Listar faturas
   async listInvoices(filters = {}) {
     try {

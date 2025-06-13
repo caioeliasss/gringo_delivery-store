@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 const withdrawalSchema = mongoose.Schema(
   {
     motoboyId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
       required: true,
       ref: "Motoboy",
     },

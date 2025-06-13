@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { getUserProfile } from "../../services/api";
 import OrderStats from "../../components/orderStats";
+import OverdueBillings from "../../components/OverdueBillings";
 import {
   Box,
   Container,
@@ -412,8 +413,14 @@ const Dashboard = () => {
               {/* Adicione outros botões de acesso rápido conforme necessário */}
             </Grid>
           </Paper>
+
+          {/* ✅ ADICIONAR: Componente de contas atrasadas */}
           <Paper elevation={3} sx={{ mt: 4, p: 4, borderRadius: 3 }}>
-            <OrderStats></OrderStats>
+            <OverdueBillings />
+          </Paper>
+
+          <Paper elevation={3} sx={{ mt: 4, p: 4, borderRadius: 3 }}>
+            <OrderStats />
           </Paper>
         </Container>
       </Box>
