@@ -98,6 +98,10 @@ const orderSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  ifoodId: {
+    type: String,
+    required: false,
+  },
   customer: {
     name: {
       type: String,

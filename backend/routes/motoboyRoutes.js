@@ -251,7 +251,7 @@ const findMotoboys = async (req, res) => {
 
     const motoboys = await motoboyServices.findBestMotoboys(storeCoordinates);
 
-    console.log("motoboys:", motoboys);
+    // console.log("motoboys:", motoboys);
 
     const motoboyRequest = await motoboyServices.processMotoboyQueue(
       motoboys,
