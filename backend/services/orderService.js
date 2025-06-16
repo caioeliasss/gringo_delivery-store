@@ -107,11 +107,23 @@ class OrderService {
   // Criar um novo pedido
   async create(orderData) {
     try {
-      // Se orderData já vem completo (do iFood), apenas salvar
       if (orderData.ifoodId || orderData.orderNumber) {
         const order = new Order(orderData);
         const savedOrder = await order.save();
         return savedOrder;
+      }
+      if (orderData.store.ifoodId) {
+        getMerchantDetails(orderData.store.ifoodId)
+          .then((merchantDetails) => {
+            orderData.store.coordinates = [
+              merchantDetails.address.longitude,
+              merchantDetails.address.latitude,
+            ];
+          })
+          .catch((error) => {
+            console.error("Erro ao buscar detalhes do merchant:", error);
+            throw new Error("Erro ao buscar detalhes do merchant");
+          });
       }
 
       // Caso contrário, processar como pedido do app (lógica original)

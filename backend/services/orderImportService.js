@@ -45,7 +45,8 @@ class OrderImportService {
       // Informações da loja (você pode definir valores padrão ou buscar do banco)
       store: {
         name: ifoodOrder.merchant?.name || "Loja Principal",
-        cnpj: ifoodOrder.merchant?.cnpj || "00000000000000", // Definir no .env
+        ifoodId: ifoodOrder.merchant?.id || "00000000000000",
+        cnpj: ifoodOrder.merchant?.cnpj || "00000000000191",
         // Você pode adicionar outras informações da loja se necessário
       },
 

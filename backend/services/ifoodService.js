@@ -43,6 +43,30 @@ class IfoodService {
     }
   }
 
+  async getMerchantDetails(merchantId) {
+    await this.ensureAuthenticated();
+
+    if (!this.accessToken) {
+      throw new Error("Access token não disponível. Autentique-se primeiro.");
+    }
+    try {
+      const response = await axios.get(
+        `${this.baseURL}/merchant/v1.0/merchants/${merchantId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar detalhes do merchant:", error.message);
+      throw error;
+    }
+  }
+
   async getOrders() {
     await this.ensureAuthenticated();
 

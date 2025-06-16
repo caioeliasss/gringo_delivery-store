@@ -67,6 +67,10 @@ const storeSchema = new mongoose.Schema({
     type: String,
     required: false,
   },
+  ifoodId: {
+    type: String,
+    required: false,
+  },
   cnpj: {
     type: String,
     required: true,
