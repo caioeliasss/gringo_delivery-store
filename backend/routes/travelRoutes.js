@@ -33,6 +33,7 @@ const updateTravel = async (req, res) => {
     order,
     arrival_customer,
     arrival_store,
+    arrival_store_manually,
   } = req.body;
   try {
     const travel = await Travel.findByIdAndUpdate(
@@ -40,6 +41,7 @@ const updateTravel = async (req, res) => {
       {
         arrival_customer: arrival_customer,
         arrival_store: arrival_store,
+        arrival_store_manually: arrival_store_manually,
         price: price,
         rain: rain,
         distance: distance,

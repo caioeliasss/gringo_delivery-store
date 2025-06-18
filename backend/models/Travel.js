@@ -56,6 +56,10 @@ const travelSchema = mongoose.Schema({
     type: Date,
     required: false,
   },
+  arrival_store_manually: {
+    type: Date,
+    required: false,
+  },
   arrival_customer: {
     type: Date,
     required: false,

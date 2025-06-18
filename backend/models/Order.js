@@ -194,6 +194,11 @@ const orderSchema = new mongoose.Schema({
       default: 0,
     },
   },
+  deliveryMode: {
+    type: String,
+    enum: ["entrega", "retirada"],
+    default: "entrega",
+  },
   delivery: {
     estimatedTime: {
       type: Number, // em minutos

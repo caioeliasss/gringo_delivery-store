@@ -95,17 +95,17 @@ const sendEventToStore = (storeId, eventType, data) => {
 
   if (!clients.has(storeId)) {
     for (let i = 0; i < clients.size; i++) {
-      console.log(`Clientes SSE conectados: ${Array.from(clients.keys())[i]}`);
-      console.log(`é igual?: ${Array.from(clients.keys())[i] === storeId}`);
+      // console.log(`Clientes SSE conectados: ${Array.from(clients.keys())[i]}`);
+      // console.log(`é igual?: ${Array.from(clients.keys())[i] === storeId}`);
     }
     console.log(`Nenhum cliente SSE encontrado para loja ${storeId}`);
     return false;
   }
 
   const clientsArray = clients.get(storeId);
-  console.log(
-    `Encontrados ${clientsArray.length} clientes para loja ${storeId}`
-  );
+  // console.log(
+  //   `Encontrados ${clientsArray.length} clientes para loja ${storeId}`
+  // );
 
   const event = {
     type: eventType,
@@ -116,7 +116,7 @@ const sendEventToStore = (storeId, eventType, data) => {
   clientsArray.forEach((client) => {
     try {
       client.write(`data: ${JSON.stringify(event)}\n\n`);
-      console.log(`Evento enviado com sucesso para cliente da loja ${storeId}`);
+      // console.log(`Evento enviado com sucesso para cliente da loja ${storeId}`);
     } catch (error) {
       console.error(
         `Erro ao enviar evento para cliente da loja ${storeId}:`,

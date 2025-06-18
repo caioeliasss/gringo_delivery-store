@@ -36,11 +36,23 @@ class OrderService {
 
     const api = axios.create({ baseURL: API_URL });
 
-    const formatar = (str) => str.replace(/ /g, "+");
+    const formatar = (str) => {
+      if (!str || typeof str !== "string") {
+        return "";
+      }
+      return str.replace(/ /g, "+");
+    };
 
-    const query = `${formatar(logradoro)},+${formatar(cidade)},+${formatar(
-      estado
-    )}`;
+    // Verificar se os parâmetros existem antes de usar
+    const logradoroFormatado = formatar(logradoro || "");
+    const cidadeFormatada = formatar(cidade || "");
+    const estadoFormatado = formatar(estado || "");
+
+    if (!logradoroFormatado && !cidadeFormatada) {
+      throw new Error("Endereço insuficiente para buscar coordenadas");
+    }
+
+    const query = `${logradoroFormatado},+${cidadeFormatada},+${estadoFormatado}`;
 
     return api.get(query);
   }
@@ -104,33 +116,73 @@ class OrderService {
     return { cost, distance, coordTo };
   }
 
+  // Adicionar método getMerchantDetails
+  async getMerchantDetails(merchantId) {
+    const IfoodService = require("./ifoodService");
+    const ifoodService = new IfoodService();
+
+    try {
+      const merchantDetails = await ifoodService.getMerchantDetails(merchantId);
+      return merchantDetails;
+    } catch (error) {
+      console.error("Erro ao buscar detalhes do merchant:", error);
+      throw error;
+    }
+  }
+
   // Criar um novo pedido
   async create(orderData) {
     try {
+      // Se orderData já vem completo (do iFood), apenas salvar
       if (orderData.ifoodId || orderData.orderNumber) {
-        const order = new Order(orderData);
-        const savedOrder = await order.save();
-        return savedOrder;
-      }
-      if (orderData.store.ifoodId) {
-        getMerchantDetails(orderData.store.ifoodId)
-          .then((merchantDetails) => {
-            orderData.store.coordinates = [
-              merchantDetails.address.longitude,
-              merchantDetails.address.latitude,
-            ];
-          })
-          .catch((error) => {
+        // Para pedidos do iFood, buscar coordenadas do merchant se necessário
+        if (
+          orderData.store?.ifoodId &&
+          (!orderData.store.coordinates || orderData.store.coordinates[0] === 0)
+        ) {
+          try {
+            const merchantDetails = await this.getMerchantDetails(
+              orderData.store.ifoodId
+            );
+
+            if (
+              merchantDetails?.address?.longitude &&
+              merchantDetails?.address?.latitude
+            ) {
+              orderData.store.coordinates = [
+                parseFloat(merchantDetails.address.longitude),
+                parseFloat(merchantDetails.address.latitude),
+              ];
+              console.log(
+                "Coordenadas do merchant atualizadas:",
+                orderData.store.coordinates
+              );
+            }
+          } catch (error) {
             console.error("Erro ao buscar detalhes do merchant:", error);
-            throw new Error("Erro ao buscar detalhes do merchant");
-          });
+            // Manter coordenadas padrão se houver erro
+          }
+        }
       }
 
-      // Caso contrário, processar como pedido do app (lógica original)
+      // Processar como pedido do app (lógica original)
       const { store, customer, items, total, payment, notes } = orderData;
 
-      if (!store.cnpj || !customer || !items || !total || !payment) {
-        throw new Error("Dados obrigatórios não fornecidos");
+      // Validações para pedidos do app
+      if (!store?.cnpj) {
+        throw new Error("CNPJ da loja é obrigatório para pedidos do app");
+      }
+      if (!customer?.phone) {
+        throw new Error("Telefone do cliente é obrigatório");
+      }
+      if (!customer?.customerAddress?.cep) {
+        throw new Error("CEP do cliente é obrigatório");
+      }
+      if (!total) {
+        throw new Error("Total do pedido é obrigatório");
+      }
+      if (!payment) {
+        throw new Error("Método de pagamento é obrigatório");
       }
 
       const cnpj = store.cnpj;
@@ -191,7 +243,7 @@ class OrderService {
       // Buscar motoboys próximos e processar fila
       try {
         const motoboys = await motoboyServices.findBestMotoboys(
-          order.store.coordinates || [-46.938369, -22.368552]
+          order.store.coordinates
         );
 
         const motoboyRequest = await motoboyServices.processMotoboyQueue(

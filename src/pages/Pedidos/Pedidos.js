@@ -636,7 +636,7 @@ const Pedidos = () => {
       setOpenCreateDialog(false);
       setLoading(false);
 
-      findMotoboys(orderId);
+      // findMotoboys(orderId);
     } catch (err) {
       console.error("Erro ao criar pedido:", err);
       setSnackbar({

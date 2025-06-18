@@ -294,20 +294,8 @@ router.post("/", async (req, res) => {
 
     const cnpj = store.cnpj;
 
-    // console.log(
-    //   "Dados recebidos:",
-    //   cnpj,
-    //   customer,
-    //   items,
-    //   total,
-    //   payment,
-    //   geolocation
-    // );
-
     // Gerar número do pedido (formato: PD + timestamp)
     const orderNumber = "PD" + Date.now().toString().substr(-6);
-
-    // Criar novo pedido sem geolocalização
 
     const getCep = async (cnpj) => {
       const response = await buscarCnpj(cnpj);
@@ -331,11 +319,11 @@ router.post("/", async (req, res) => {
         addressCustomer.uf
       );
 
-      const { lat, lon } = responseCoord.data[0]; // pega o primeiro resultado válido
+      const { lat, lon } = responseCoord.data[0];
       const coordTo = { latitude: parseFloat(lat), longitude: parseFloat(lon) };
 
       let distance = geolib.getDistance(
-        { latitude: coordFrom[1], longitude: coordFrom[0] }, // coordFrom no formato [lng, lat]
+        { latitude: coordFrom[1], longitude: coordFrom[0] },
         coordTo
       );
       distance = distance / 1000;
@@ -373,6 +361,7 @@ router.post("/", async (req, res) => {
       customer.customerAddress.cep
     );
     const { cep, storeName } = await getCep(cnpj);
+
     const newOrder = new Order({
       store: {
         name: storeName,
@@ -383,7 +372,7 @@ router.post("/", async (req, res) => {
       },
       orderNumber,
       customer: {
-        ...customer, //TODO add coordinates
+        ...customer,
         customerAddress: {
           ...customer.customerAddress,
           coordinates: [coordTo.longitude, coordTo.latitude],
@@ -410,8 +399,29 @@ router.post("/", async (req, res) => {
       },
     });
 
-    // console.log(newOrder.customer.customerAddress.coordinates);
     await newOrder.save();
+
+    // NOVO: Automaticamente iniciar busca por motoboys após criar o pedido
+    try {
+      // Importar o serviço de motoboys
+      const motoboyServices = require("../services/motoboyServices");
+
+      // Buscar motoboys próximos usando as coordenadas da loja
+      const motoboys = await motoboyServices.findBestMotoboys(
+        store.coordinates
+      );
+
+      // console.log(`Encontrados ${motoboys}`);
+
+      if (motoboys && motoboys.length > 0) {
+        // Processar a fila de motoboys para enviar notificações
+        await motoboyServices.processMotoboyQueue(motoboys, newOrder);
+      } else {
+      }
+    } catch (motoboyError) {
+      // Se houver erro na busca de motoboys, apenas logar mas não falhar a criação do pedido
+      console.error("Erro ao buscar motoboys:", motoboyError);
+    }
 
     res
       .status(201)
@@ -546,6 +556,59 @@ router.post("/:id/assign-motoboy", authenticateToken, async (req, res) => {
     }
 
     await order.save();
+
+    res.status(200).json({
+      message: "Motoboy atribuído ao pedido com sucesso",
+      order,
+    });
+  } catch (error) {
+    console.error("Erro ao atribuir motoboy ao pedido:", error);
+    res.status(500).json({
+      message: "Erro ao atribuir motoboy ao pedido",
+      error: error.message,
+    });
+  }
+});
+
+router.put("/:id/accept", authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { motoboyId } = req.body;
+    if (!motoboyId) {
+      return res.status(400).json({ message: "ID do motoboy não fornecido" });
+    }
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ message: "Pedido não encontrado" });
+    }
+    const motoboy = await Motoboy.findById(motoboyId);
+    if (!motoboy) {
+      return res.status(404).json({ message: "Motoboy não encontrado" });
+    }
+
+    // Verificar se o pedido já foi aceito por outro motoboy
+    if (order.motoboy.motoboyId) {
+      return res
+        .status(400)
+        .json({ message: "Este pedido já foi aceito por outro motoboy" });
+    }
+
+    // Atribuir motoboy ao pedido
+    order.motoboy = {
+      ...order.motoboy,
+      motoboyId: motoboy._id,
+      name: motoboy.name,
+      phone: motoboy.phone,
+      profileImage: motoboy.profileImage,
+    };
+    // Atualizar status do pedido para "em_preparo"
+    order.status = "em_preparo";
+
+    await order.save();
+
+    // Atualizar disponibilidade do motoboy
+    motoboy.isAvailable = false;
+    await motoboy.save();
 
     res.status(200).json({
       message: "Motoboy atribuído ao pedido com sucesso",

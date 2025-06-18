@@ -111,6 +111,69 @@ class IfoodService {
       throw error;
     }
   }
+
+  async confirmOrder(orderId) {
+    try {
+      const response = await axios.post(
+        `${this.baseURL}/order/v1.0/orders/${orderId}:confirm`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      // Atualizar status local
+      await this.updateStatus(orderId, "em_preparo");
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao confirmar pedido:", error);
+      throw error;
+    }
+  }
+
+  async dispatchOrder(orderId) {
+    try {
+      const response = await axios.post(
+        `${this.baseURL}/order/v1.0/orders/${orderId}:dispatch`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      await this.updateStatus(orderId, "em_entrega");
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao despachar pedido:", error);
+      throw error;
+    }
+  }
+
+  async readyForPickup(orderId) {
+    try {
+      const response = await axios.post(
+        `${this.baseURL}/order/v1.0/orders/${orderId}:readyForPickup`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao marcar como pronto:", error);
+      throw error;
+    }
+  }
 }
 
 module.exports = IfoodService;
