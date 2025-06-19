@@ -52,6 +52,18 @@ const travelSchema = mongoose.Schema({
     type: [Number],
     required: false,
   },
+  exit_store: {
+    type: Date,
+    required: false,
+  },
+  added_minutes: {
+    type: Number,
+    required: false,
+  },
+  added_value: {
+    type: Number,
+    required: false,
+  },
   arrival_store: {
     type: Date,
     required: false,
@@ -109,6 +121,25 @@ const travelSchema = mongoose.Schema({
     default: Date.now,
   },
 });
+
+travelSchema.methods.getCurrentPrice = function () {
+  const now = new Date();
+  const priceIncreaseStart = new Date(
+    this.arrival_store_manually.getTime() + 15 * 60 * 1000
+  );
+
+  if (now < priceIncreaseStart) {
+    return this.originalPrice || this.price;
+  }
+
+  // Calcular quantos minutos se passaram desde o início do aumento
+  const minutesPassed = Math.floor((now - priceIncreaseStart) / (60 * 1000));
+
+  // Aumento de R$ 0,006 por minuto (0,6 centavos)
+  const priceIncrease = minutesPassed * 0.002;
+
+  return this.price + priceIncrease;
+};
 
 travelSchema.pre("save", function (next) {
   // Definir finance.value como price
