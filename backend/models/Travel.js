@@ -135,8 +135,8 @@ travelSchema.methods.getCurrentPrice = function () {
   // Calcular quantos minutos se passaram desde o início do aumento
   const minutesPassed = Math.floor((now - priceIncreaseStart) / (60 * 1000));
 
-  // Aumento de R$ 0,006 por minuto (0,6 centavos)
-  const priceIncrease = minutesPassed * 0.002;
+  // Aumento de R$ 0,02 por minuto (2 centavos)
+  const priceIncrease = minutesPassed * 0.02;
 
   return this.price + priceIncrease;
 };

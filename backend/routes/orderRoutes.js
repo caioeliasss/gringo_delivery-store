@@ -284,7 +284,16 @@ const customerGeolocation = async (address) => {
 // Criar novo pedido (para uso do app do cliente)
 router.post("/", async (req, res) => {
   try {
-    const { store, customer, items, total, payment, notes } = req.body;
+    const {
+      store,
+      customer,
+      items,
+      total,
+      payment,
+      notes,
+      driveBack,
+      findDriverAuto,
+    } = req.body;
 
     if (!store.cnpj || !customer || !items || !total || !payment) {
       return res
@@ -309,7 +318,7 @@ router.post("/", async (req, res) => {
       return { cep, storeName };
     };
 
-    const calculatePrice = async (coordFrom, cep) => {
+    const calculatePrice = async (coordFrom, cep, driveBack) => {
       const response = await buscarCep(cep);
       const addressCustomer = response.data;
 
@@ -338,6 +347,18 @@ router.post("/", async (req, res) => {
       let cost;
       let valorFixo;
 
+      try {
+        const getWeather = require("../services/weatherService").getWeather;
+        const weatherResponse = getWeather(coordTo.latitude, coordTo.longitude);
+        const weatherData = await weatherResponse;
+        if (weatherData.current.weather_code > 60) {
+          priceList.isRain = true;
+        }
+      } catch (error) {
+        console.error("Erro ao obter dados do clima:", error.message);
+        priceList.isRain = false; // Definir como falso se houver erro na API de
+      }
+
       if (priceList.isRain) {
         valorFixo = priceList.priceRain;
       } else if (priceList.isHighDemand) {
@@ -353,12 +374,17 @@ router.post("/", async (req, res) => {
       } else {
         cost = valorFixo;
       }
-      return { cost, distance, coordTo };
+      if (driveBack) {
+        cost = distance * priceList.driveBack + cost;
+      }
+
+      return { cost, distance, coordTo, priceList };
     };
 
-    const { cost, distance, coordTo } = await calculatePrice(
+    const { cost, distance, coordTo, priceList } = await calculatePrice(
       store.coordinates,
-      customer.customerAddress.cep
+      customer.customerAddress.cep,
+      driveBack || false
     );
     const { cep, storeName } = await getCep(cnpj);
 
@@ -386,6 +412,7 @@ router.post("/", async (req, res) => {
       cliente_cod: customer.phone.replace(/\D/g, "").slice(-4),
       delivery: {
         distance: distance,
+        priceList: priceList || {},
       },
       motoboy: {
         price: cost,
@@ -402,25 +429,27 @@ router.post("/", async (req, res) => {
     await newOrder.save();
 
     // NOVO: Automaticamente iniciar busca por motoboys após criar o pedido
-    try {
-      // Importar o serviço de motoboys
-      const motoboyServices = require("../services/motoboyServices");
+    if (findDriverAuto || true) {
+      try {
+        // Importar o serviço de motoboys
+        const motoboyServices = require("../services/motoboyServices");
 
-      // Buscar motoboys próximos usando as coordenadas da loja
-      const motoboys = await motoboyServices.findBestMotoboys(
-        store.coordinates
-      );
+        // Buscar motoboys próximos usando as coordenadas da loja
+        const motoboys = await motoboyServices.findBestMotoboys(
+          store.coordinates
+        );
 
-      // console.log(`Encontrados ${motoboys}`);
+        // console.log(`Encontrados ${motoboys}`);
 
-      if (motoboys && motoboys.length > 0) {
-        // Processar a fila de motoboys para enviar notificações
-        await motoboyServices.processMotoboyQueue(motoboys, newOrder);
-      } else {
+        if (motoboys && motoboys.length > 0) {
+          // Processar a fila de motoboys para enviar notificações
+          await motoboyServices.processMotoboyQueue(motoboys, newOrder);
+        } else {
+        }
+      } catch (motoboyError) {
+        // Se houver erro na busca de motoboys, apenas logar mas não falhar a criação do pedido
+        console.error("Erro ao buscar motoboys:", motoboyError);
       }
-    } catch (motoboyError) {
-      // Se houver erro na busca de motoboys, apenas logar mas não falhar a criação do pedido
-      console.error("Erro ao buscar motoboys:", motoboyError);
     }
 
     res

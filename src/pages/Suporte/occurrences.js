@@ -86,6 +86,11 @@ const TIPOS_OCORRENCIA = {
     color: "#FF8A65",
     short: "Produto",
   },
+  MOTOBOY: {
+    label: "Problema de busca de Motoboy",
+    color: "#FF8A65",
+    short: "Acionamento",
+  },
 };
 
 const Occurrences = () => {
@@ -138,7 +143,19 @@ const Occurrences = () => {
 
   useEffect(() => {
     fetchOccurrences();
-  }, []);
+
+    // Configurar polling apenas se o usuário estiver autenticado
+    if (currentUser) {
+      const pollInterval = setInterval(() => {
+        fetchOccurrences();
+      }, 60000); // A cada 60 segundos
+
+      // Cleanup: limpar o interval quando o componente for desmontado ou currentUser mudar
+      return () => {
+        clearInterval(pollInterval);
+      };
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     if (occurrences.length > 0) {

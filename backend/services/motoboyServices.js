@@ -27,7 +27,8 @@ class MotoboyService {
     this.apiBaseUrl = process.env.API_URL || "http://localhost:8080/api";
   }
 
-  async findBestMotoboys(coordinates, maxDistance = 5000, limit = 15) {
+  async findBestMotoboys(coordinates, maxDistance = 5000, limit = 50) {
+    //TODO criar lista de motoboys que aceitaram mas nao fizeram a corrida
     try {
       // First find all available and approved motoboys within the max distance
 

@@ -186,7 +186,7 @@ const orderSchema = new mongoose.Schema({
   payment: {
     method: {
       type: String,
-      enum: ["dinheiro", "cartao", "pix"],
+      enum: ["dinheiro", "cartao", "pix", "maquina"],
       required: true,
     },
     change: {
@@ -203,6 +203,10 @@ const orderSchema = new mongoose.Schema({
     estimatedTime: {
       type: Number, // em minutos
       required: false,
+    },
+    priceList: {
+      type: Object,
+      default: false,
     },
     distance: {
       type: Number, // em metros

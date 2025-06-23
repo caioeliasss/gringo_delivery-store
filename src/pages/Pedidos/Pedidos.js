@@ -72,6 +72,7 @@ import {
 } from "@mui/icons-material";
 import eventService from "../../services/eventService";
 import Avaliate from "../../components/Avaliate";
+import BuscandoMotoboy from "../../components/BuscandoMotoboy/BuscandoMotoboy";
 
 const Pedidos = () => {
   const { currentUser, logout } = useAuth();
@@ -93,6 +94,8 @@ const Pedidos = () => {
   const [loadingProdutos, setLoadingProdutos] = useState(false);
   const [driverCode, setDriverCode] = useState(null);
   const [avaliateOpen, setAvaliateOpen] = useState(false);
+  const [buscandoMotoboy, setBuscandoMotoboy] = useState(false);
+  const [orderCreated, setOrderCreated] = useState(null); // Para armazenar dados do pedido criado
 
   // Estado para o formulário de novo pedido
   const [novoPedido, setNovoPedido] = useState({
@@ -304,6 +307,15 @@ const Pedidos = () => {
   // Ver detalhes do pedido
   const handleViewPedido = (pedido) => {
     setCurrentPedido(pedido);
+    if (pedido.status === "pendente") {
+      setBuscandoMotoboy(true);
+      setOrderCreated({
+        orderNumber: pedido.orderNumber,
+        customerName: pedido.customer.name,
+        createdAt: pedido.createdAt,
+      });
+    }
+
     setOpenDialog(true);
   };
 
@@ -607,16 +619,22 @@ const Pedidos = () => {
           address: storeAddress,
           coordinates: userGeolocation.coordinates,
         },
+        driveBack: novoPedido.payment.method === "maquina",
+        findDriverAuto: false,
         // geolocation: userGeolocation,
       };
 
       // console.log(orderData);
       // Chamar API para criar pedido
+      setOpenCreateDialog(false);
+      setBuscandoMotoboy(true);
+
       const response = await api.post("/orders", orderData);
 
       const orderId = response.data._id || response.data.order._id;
 
       if (!orderId) {
+        setBuscandoMotoboy(false);
         setSnackbar({
           open: true,
           message: "Erro ao criar pedido",
@@ -624,9 +642,15 @@ const Pedidos = () => {
         });
         return;
       }
+
+      setOrderCreated({
+        orderNumber: response.data.order.orderNumber,
+        customerName: response.data.order.customer.name,
+        createdAt: response.data.order.createdAt,
+      });
       // Adicionar novo pedido à lista
       setPedidos((prev) => [response.data.order, ...prev]);
-
+      setBuscandoMotoboy(true);
       setSnackbar({
         open: true,
         message: "Pedido criado com sucesso",
@@ -636,8 +660,9 @@ const Pedidos = () => {
       setOpenCreateDialog(false);
       setLoading(false);
 
-      // findMotoboys(orderId);
+      findMotoboys(orderId);
     } catch (err) {
+      setBuscandoMotoboy(false);
       console.error("Erro ao criar pedido:", err);
       setSnackbar({
         open: true,
@@ -646,6 +671,11 @@ const Pedidos = () => {
       });
       setLoading(false);
     }
+  };
+
+  const handleCloseBuscandoMotoboy = () => {
+    setBuscandoMotoboy(false);
+    setOrderCreated(null);
   };
 
   const handleOnSubmitAvaliation = async (avaliation) => {
@@ -1293,7 +1323,7 @@ const Pedidos = () => {
                             CEP:
                           </Typography>
                           <Typography variant="body2">
-                            {currentPedido.customer.customerAddress.cep.toString()}
+                            {currentPedido.customer.customerAddress.cep?.toString()}
                           </Typography>
                         </Box>
                         <Box>
@@ -1301,7 +1331,7 @@ const Pedidos = () => {
                             variant="subtitle2"
                             sx={{ fontWeight: "bold" }}
                           >
-                            Logradoro:
+                            Logradouro:
                           </Typography>
                           <Typography variant="body2">
                             {currentPedido.customer.customerAddress.address}
@@ -1312,7 +1342,7 @@ const Pedidos = () => {
                             variant="subtitle2"
                             sx={{ fontWeight: "bold" }}
                           >
-                            Numero:
+                            Número:
                           </Typography>
                           <Typography variant="body2">
                             {
@@ -1482,7 +1512,6 @@ const Pedidos = () => {
                         </Paper>
                       </Grid>
                     )}
-
                     {/* Atualizar Status */}
                     <Grid item xs={12}>
                       <Paper elevation={1} sx={{ p: 2 }}>
@@ -1496,7 +1525,7 @@ const Pedidos = () => {
                         >
                           Atualizar Status do Pedido
                         </Typography>
-                        {currentPedido.motoboy.phone !== "" ? (
+                        {currentPedido.motoboy?.phone !== null ? (
                           <Box display="flex">
                             <Typography
                               fontSize={"12px"}
@@ -1513,7 +1542,7 @@ const Pedidos = () => {
                                 fontWeight: "bold",
                               }}
                             >
-                              {currentPedido.motoboy.name}
+                              {currentPedido.motoboy?.name}
                             </Typography>
                           </Box>
                         ) : (
@@ -1522,7 +1551,7 @@ const Pedidos = () => {
                             sx={{
                               display: "flex",
                               flexWrap: "wrap",
-                              justifyContent: "space-between", // Distribui os elementos
+                              justifyContent: "space-between",
                               alignItems: "center",
                               mb: 2,
                             }}
@@ -1544,11 +1573,11 @@ const Pedidos = () => {
                               {loading ? (
                                 <CircularProgress
                                   sx={{ width: "14px", height: "14px" }}
-                                ></CircularProgress>
+                                />
                               ) : (
                                 <RefreshIcon
                                   sx={{ width: "20px", height: "20px" }}
-                                ></RefreshIcon>
+                                />
                               )}
                             </Button>
                           </Box>
@@ -1681,7 +1710,7 @@ const Pedidos = () => {
             )}
           </Dialog>
 
-          {/* Dialog para criação de novo pedido */}
+          {/* Avaliate Dialog - FORA do Dialog principal */}
           <Avaliate
             open={avaliateOpen}
             onSubmit={handleOnSubmitAvaliation}
@@ -1690,7 +1719,9 @@ const Pedidos = () => {
               setAvaliateOpen(false);
               setCurrentPedido(null);
             }}
-          ></Avaliate>
+          />
+
+          {/* Dialog para criação de novo pedido */}
           <Dialog
             open={openCreateDialog}
             onClose={handleCloseCreateDialog}
@@ -1966,6 +1997,7 @@ const Pedidos = () => {
                         <MenuItem value="dinheiro">Dinheiro</MenuItem>
                         <MenuItem value="cartao">Cartão</MenuItem>
                         <MenuItem value="pix">PIX</MenuItem>
+                        <MenuItem value="maquina">Maquina de Cartão</MenuItem>
                       </Select>
                     </FormControl>
 
@@ -1983,6 +2015,9 @@ const Pedidos = () => {
                           inputProps: { step: "0.01", min: "0" },
                         }}
                       />
+                    )}
+                    {novoPedido.payment.method === "maquina" && (
+                      <Typography>Taxa de retorno será aplicada</Typography>
                     )}
                   </Paper>
                 </Grid>
@@ -2052,6 +2087,15 @@ const Pedidos = () => {
               <AddIcon />
             </Fab>
           )}
+
+          {/* BuscandoMotoboy Dialog - FORA dos outros componentes */}
+          <BuscandoMotoboy
+            open={buscandoMotoboy}
+            onClose={handleCloseBuscandoMotoboy}
+            orderNumber={orderCreated?.orderNumber}
+            customerName={orderCreated?.customerName}
+            createdAt={orderCreated?.createdAt}
+          />
         </Container>
       </Box>
     </Box>

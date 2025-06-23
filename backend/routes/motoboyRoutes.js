@@ -5,6 +5,7 @@ const router = express.Router();
 const motoboyServices = require("../services/motoboyServices");
 const sendNotification = require("../services/fcmService");
 const createNotificationGeneric = require("../routes/notificationRoutes");
+const OccurrenceService = require("../services/OccurrenceService");
 
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -248,21 +249,34 @@ const findMotoboys = async (req, res) => {
 
     const storeCoordinates = order.store.coordinates;
     // console.log("storecoord:", storeCoordinates);
-
-    const motoboys = await motoboyServices.findBestMotoboys(storeCoordinates);
-
-    // console.log("motoboys:", motoboys);
-
-    const motoboyRequest = await motoboyServices.processMotoboyQueue(
-      motoboys,
-      order
-    );
     // console.log(order);
+    let count = 0;
+    do {
+      const motoboys = await motoboyServices.findBestMotoboys(storeCoordinates);
+
+      const motoboyRequest = await motoboyServices.processMotoboyQueue(
+        motoboys,
+        order
+      );
+      count++;
+      if (count === 1 && motoboyRequest.success === false) {
+        console.log(`ERRO Tentativa ${count}`);
+        OccurrenceService.createOccurrence({
+          orderId: order._id,
+          storeId: order.store._id,
+          type: "MOTOBOY",
+          amount: 0,
+          description: `Tentativa de encontrar motoboy falhou após ${count} tentativas
+          `,
+          firebaseUid: "system",
+        });
+      }
+    } while (motoboyRequest.success === true && count < 3);
 
     res.status(200).json({
       success: true,
-      motoboy: motoboys,
-      order: motoboyRequest,
+      motoboy: motoboyRequest.motoboy,
+      order_sucess: motoboyRequest.success,
     });
   } catch (error) {
     console.error("Test error:", error);

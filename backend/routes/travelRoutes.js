@@ -104,7 +104,48 @@ const getTravelById = async (req, res) => {
   }
 };
 
+const getCurrentTravelPrice = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const travel = await Travel.findById(id);
+
+    if (!travel) {
+      return res.status(404).json({ message: "Viagem não encontrada" });
+    }
+
+    const currentPrice = travel.getCurrentPrice();
+    const originalPrice = travel.originalPrice || travel.price;
+    const priceIncreaseStart =
+      travel.priceIncreaseStartTime ||
+      new Date(travel.createdAt.getTime() + 15 * 60 * 1000);
+    const now = new Date();
+
+    // Calcular tempo restante até o aumento começar
+    const timeUntilIncrease = Math.max(0, priceIncreaseStart - now);
+
+    // Calcular quantos minutos se passaram desde o início do aumento
+    const minutesSinceIncrease = Math.max(
+      0,
+      Math.floor((now - priceIncreaseStart) / (60 * 1000))
+    );
+
+    res.status(200).json({
+      travel: travel,
+      status: travel.status,
+      currentPrice: currentPrice,
+      originalPrice: originalPrice,
+      priceIncreaseStartTime: priceIncreaseStart,
+      timeUntilIncrease: timeUntilIncrease,
+      minutesSinceIncrease: minutesSinceIncrease,
+      isIncreasing: now >= priceIncreaseStart,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Adicione a rota
+router.get("/price/:id", getCurrentTravelPrice);
 router.get("/details/:id", getTravelById);
 router.put("/:id", updateTravel);
 router.put("/status/:id", updateTravelStatus);

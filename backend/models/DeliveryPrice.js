@@ -30,6 +30,10 @@ const deliveryPriceSchema = new mongoose.Schema(
       type: Boolean,
       required: false,
     },
+    driveBack: {
+      type: Number,
+      required: false,
+    },
     updatedAt: {
       type: Date,
       default: Date.now,
