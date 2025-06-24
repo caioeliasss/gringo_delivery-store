@@ -30,6 +30,13 @@ import {
   InputAdornment,
   Menu,
   MenuItem,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 import {
   Search as SearchIcon,
@@ -49,6 +56,15 @@ import {
   DirectionsBike as MotoboyIcon,
   DateRange as DateIcon,
   Place as PlaceIcon,
+  TableChart as TableChartIcon,
+  GridView as GridViewIcon,
+  Dashboard as DashboardIcon,
+  ShoppingBag as ProductsIcon,
+  Receipt as OrdersIcon,
+  Person as ProfileIcon,
+  Logout as LogoutIcon,
+  Map as MapIcon,
+  ReportProblem as OcorrenciasIcon,
 } from "@mui/icons-material";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../services/api";
@@ -56,6 +72,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "../../contexts/AuthContext";
 import eventService from "../../services/eventService";
+import SideDrawer from "../../components/SideDrawer/SideDrawer";
 
 const TIPOS_OCORRENCIA = {
   CLIENTE: {
@@ -97,7 +114,7 @@ const Occurrences = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { currentUser, logout } = useAuth();
 
   // Estados
   const [occurrences, setOccurrences] = useState([]);
@@ -123,8 +140,21 @@ const Occurrences = () => {
   const [travelDetails, setTravelDetails] = useState(null);
   const [storeDetails, setStoreDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [viewMode, setViewMode] = useState("table"); // Adicionar novo estado
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Fetch occurrences on component mount
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/login");
+    } catch (error) {
+      console.error("Erro ao fazer logout:", error);
+      alert("Erro ao fazer logout. Tente novamente.");
+    }
+  };
+
   useEffect(() => {
     const checkIfIsSupportTeam = async () => {
       try {
@@ -430,21 +460,7 @@ const Occurrences = () => {
       setLoading(true);
 
       // Verificar se já existe um chat entre o suporte e o motoboy
-      let motoboyUid;
-      try {
-        const response = await api.get(`/motoboys/id/${occurrence.motoboyId}`);
-        motoboyUid = response.data.firebaseUid;
-      } catch (error) {
-        console.error("Erro ao buscar motoboy:", error);
-        setSnackbar({
-          open: true,
-          message: "Erro ao buscar motoboy. Tente novamente.",
-          severity: "error",
-        });
-        return;
-      }
-
-      const motoboyId = motoboyUid;
+      const motoboyId = occurrence.firebaseUid;
       const supportId = currentUser.uid;
 
       if (!motoboyId) {
@@ -1409,6 +1425,252 @@ const Occurrences = () => {
     );
   };
 
+  const handleViewModeChange = (event, newViewMode) => {
+    if (newViewMode !== null) {
+      setViewMode(newViewMode);
+    }
+  };
+
+  // Função para renderizar vista em tabela
+  const renderTableView = () => (
+    <Paper elevation={2} sx={{ borderRadius: 2, overflow: "hidden" }}>
+      <Table>
+        <TableHead>
+          <TableRow sx={{ bgcolor: "primary.main" }}>
+            <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+              Tipo
+            </TableCell>
+            <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+              Descrição
+            </TableCell>
+            <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+              Status
+            </TableCell>
+            <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+              Data
+            </TableCell>
+            <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+              Pedido
+            </TableCell>
+            <TableCell
+              sx={{ color: "white", fontWeight: "bold" }}
+              align="center"
+            >
+              Ações
+            </TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {filteredOccurrences.map((occurrence) => (
+            <TableRow
+              key={occurrence._id}
+              hover
+              sx={{ "&:hover": { bgcolor: "action.hover" } }}
+            >
+              <TableCell>{getTypeChip(occurrence.type)}</TableCell>
+              <TableCell sx={{ maxWidth: 300 }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                  }}
+                >
+                  {occurrence.description}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                {getStatusChip(occurrence.status, occurrence)}
+              </TableCell>
+              <TableCell>
+                <Typography variant="body2">
+                  {format(new Date(occurrence.date), "dd/MM/yyyy")}
+                </Typography>
+                <Typography variant="caption" color="textSecondary">
+                  {format(new Date(occurrence.date), "HH:mm")}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                {occurrence.orderId ? (
+                  <Chip
+                    icon={<OrderIcon />}
+                    label={`#${occurrence.orderId.slice(-6)}`}
+                    size="small"
+                    variant="outlined"
+                  />
+                ) : (
+                  <Typography variant="caption" color="textSecondary">
+                    N/A
+                  </Typography>
+                )}
+              </TableCell>
+              <TableCell align="center">
+                <Box sx={{ display: "flex", gap: 1, justifyContent: "center" }}>
+                  <Tooltip title="Ver detalhes">
+                    <IconButton
+                      size="small"
+                      onClick={() => handleViewDetails(occurrence)}
+                      color="primary"
+                    >
+                      <MoreVertIcon />
+                    </IconButton>
+                  </Tooltip>
+                  {occurrence.status === "ABERTO" && (
+                    <>
+                      <Tooltip title="Responder">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleOpenResponseDialog(occurrence)}
+                          color="success"
+                        >
+                          <SendIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Iniciar chat">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleStartChat(occurrence)}
+                          color="info"
+                        >
+                          <ChatIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </>
+                  )}
+                </Box>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Paper>
+  );
+
+  // Função para renderizar vista em grid (existente)
+  const renderGridView = () => (
+    <Grid container spacing={2} display={"grid"} width={"400px"}>
+      {filteredOccurrences.map((occurrence) => (
+        <Grid item xs={12} sm={6} mb={2} md={4} key={occurrence._id}>
+          <Card
+            elevation={2}
+            sx={{
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              borderRadius: 2,
+              position: "relative",
+            }}
+          >
+            <Box
+              sx={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                zIndex: 1,
+              }}
+            >
+              <IconButton
+                size="small"
+                onClick={(e) => handleMenuClick(e, occurrence)}
+              >
+                <MoreVertIcon fontSize="small" />
+              </IconButton>
+            </Box>
+
+            <CardContent sx={{ flexGrow: 1 }}>
+              <Box sx={{ mb: 1 }}>
+                {getTypeChip(occurrence.type)}
+                <Box
+                  sx={{
+                    mt: 1,
+                    mb: 0.5,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <Typography
+                    variant="subtitle1"
+                    component="div"
+                    fontWeight="bold"
+                    noWrap
+                    sx={{ maxWidth: "70%" }}
+                  >
+                    {TIPOS_OCORRENCIA[occurrence.type]?.label}
+                  </Typography>
+                  {getStatusChip(occurrence.status, occurrence)}
+                </Box>
+              </Box>
+
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{
+                  mb: 2,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 3,
+                  WebkitBoxOrient: "vertical",
+                }}
+              >
+                {occurrence.description}
+              </Typography>
+
+              <Box
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  justifyContent: "space-between",
+                  gap: 0.5,
+                  mt: 3,
+                }}
+              >
+                {occurrence.orderId && (
+                  <Chip
+                    icon={<OrderIcon />}
+                    label={`Pedido #${occurrence.orderId}`}
+                    size="small"
+                    variant="outlined"
+                  />
+                )}
+                <Chip
+                  icon={<DateIcon />}
+                  label={format(new Date(occurrence.date), "dd/MM/yyyy")}
+                  size="small"
+                  variant="outlined"
+                />
+              </Box>
+            </CardContent>
+
+            <CardActions sx={{ justifyContent: "flex-end", p: 2, pt: 0 }}>
+              <Button
+                size="small"
+                onClick={() => handleViewDetails(occurrence)}
+              >
+                Ver Detalhes
+              </Button>
+              {occurrence.status === "ABERTO" && (
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="primary"
+                  onClick={() => handleOpenResponseDialog(occurrence)}
+                  startIcon={<SendIcon />}
+                >
+                  Responder
+                </Button>
+              )}
+            </CardActions>
+          </Card>
+        </Grid>
+      ))}
+    </Grid>
+  );
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       {/* Header */}
@@ -1424,6 +1686,70 @@ const Occurrences = () => {
           Gerencie as ocorrências reportadas pelos usuários
         </Typography>
       </Box>
+      {isMobile ? (
+        <SideDrawer
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          variant="temporary"
+          title="Gringo Delivery"
+          logoUrl="https://i.imgur.com/8jOdfcO.png"
+          logoAlt="Gringo Delivery"
+          logoHeight={50}
+          menuItems={[
+            {
+              path: "/dashboard",
+              text: "Dashboard",
+              icon: <DashboardIcon />,
+            },
+            {
+              path: "/ocorrencias",
+              text: "Ocorrências",
+              icon: <OcorrenciasIcon />,
+            },
+            { path: "/chat", text: "Chat", icon: <ChatIcon /> },
+          ]}
+          // Passa diretamente a função de logout
+          footerItems={[
+            {
+              text: "Sair",
+              icon: <LogoutIcon />,
+              onClick: handleLogout,
+              color: "error",
+            },
+          ]}
+        />
+      ) : (
+        <SideDrawer
+          open={true}
+          variant="permanent"
+          title="Gringo Delivery"
+          logoUrl="https://i.imgur.com/8jOdfcO.png"
+          logoAlt="Gringo Delivery"
+          logoHeight={50}
+          menuItems={[
+            {
+              path: "/dashboard",
+              text: "Dashboard",
+              icon: <DashboardIcon />,
+            },
+            {
+              path: "/ocorrencias",
+              text: "Ocorrências",
+              icon: <OcorrenciasIcon />,
+            },
+            { path: "/chat", text: "Chat", icon: <ChatIcon /> },
+            { path: "/mapa", text: "Mapa", icon: <MapIcon /> },
+          ]}
+          footerItems={[
+            {
+              text: "Sair",
+              icon: <LogoutIcon />,
+              onClick: handleLogout,
+              color: "error",
+            },
+          ]}
+        />
+      )}
 
       {detailMode ? (
         renderOccurrenceDetails()
@@ -1432,7 +1758,7 @@ const Occurrences = () => {
           {/* Filters and search */}
           <Box sx={{ mb: 3 }}>
             <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} md={7}>
+              <Grid item xs={12} md={5}>
                 <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
                   <Tabs
                     value={tabValue}
@@ -1494,7 +1820,8 @@ const Occurrences = () => {
                   </Tabs>
                 </Box>
               </Grid>
-              <Grid item xs={12} md={5}>
+
+              <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
                   placeholder="Buscar ocorrências..."
@@ -1521,6 +1848,37 @@ const Occurrences = () => {
                     ),
                   }}
                 />
+              </Grid>
+
+              {/* Botão toggle para alternar visualização */}
+              <Grid item xs={12} md={3}>
+                <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                  <ToggleButtonGroup
+                    value={viewMode}
+                    exclusive
+                    onChange={handleViewModeChange}
+                    size="small"
+                    color="primary"
+                  >
+                    <ToggleButton
+                      value="grid"
+                      aria-label="visualização em grid"
+                    >
+                      <Tooltip title="Visualização em cartões">
+                        <GridViewIcon /> {/* ou AppsIcon ou DashboardIcon */}
+                      </Tooltip>
+                    </ToggleButton>
+                    <ToggleButton
+                      value="table"
+                      aria-label="visualização em tabela"
+                    >
+                      <Tooltip title="Visualização em tabela">
+                        <TableChartIcon />{" "}
+                        {/* ou ListViewIcon ou ViewListIcon */}
+                      </Tooltip>
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                </Box>
               </Grid>
             </Grid>
           </Box>
@@ -1557,130 +1915,11 @@ const Occurrences = () => {
                 Tente ajustar os filtros ou realizar uma nova busca
               </Typography>
             </Paper>
+          ) : // Renderizar baseado no modo de visualização selecionado
+          viewMode === "grid" ? (
+            renderGridView()
           ) : (
-            <Grid container spacing={2} display={"table"}>
-              {filteredOccurrences.map((occurrence) => (
-                <Grid item xs={12} sm={6} mb={2} md={4} key={occurrence._id}>
-                  <Card
-                    elevation={2}
-                    sx={{
-                      height: "100%",
-                      display: "flex",
-                      flexDirection: "column",
-                      borderRadius: 2,
-                      position: "relative",
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        position: "absolute",
-                        top: 8,
-                        right: 8,
-                        zIndex: 1,
-                      }}
-                    >
-                      <IconButton
-                        size="small"
-                        onClick={(e) => handleMenuClick(e, occurrence)}
-                      >
-                        <MoreVertIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-
-                    <CardContent sx={{ flexGrow: 1 }}>
-                      <Box sx={{ mb: 1 }}>
-                        {getTypeChip(occurrence.type)}
-                        <Box
-                          sx={{
-                            mt: 1,
-                            mb: 0.5,
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                          }}
-                        >
-                          <Typography
-                            variant="subtitle1"
-                            component="div"
-                            fontWeight="bold"
-                            noWrap
-                            sx={{ maxWidth: "70%" }}
-                          >
-                            {TIPOS_OCORRENCIA[occurrence.type]?.label}
-                          </Typography>
-                          {getStatusChip(occurrence.status, occurrence)}
-                        </Box>
-                      </Box>
-
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{
-                          mb: 2,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          display: "-webkit-box",
-                          WebkitLineClamp: 3,
-                          WebkitBoxOrient: "vertical",
-                        }}
-                      >
-                        {occurrence.description}
-                      </Typography>
-
-                      <Box
-                        sx={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          justifyContent: "space-between",
-                          gap: 0.5,
-                          mt: 3,
-                        }}
-                      >
-                        {occurrence.orderId && (
-                          <Chip
-                            icon={<OrderIcon />}
-                            label={`Pedido #${occurrence.orderId}`}
-                            size="small"
-                            variant="outlined"
-                          />
-                        )}
-                        <Chip
-                          icon={<DateIcon />}
-                          label={format(
-                            new Date(occurrence.date),
-                            "dd/MM/yyyy"
-                          )}
-                          size="small"
-                          variant="outlined"
-                        />
-                      </Box>
-                    </CardContent>
-
-                    <CardActions
-                      sx={{ justifyContent: "flex-end", p: 2, pt: 0 }}
-                    >
-                      <Button
-                        size="small"
-                        onClick={() => handleViewDetails(occurrence)}
-                      >
-                        Ver Detalhes
-                      </Button>
-                      {occurrence.status === "TESTE" && (
-                        <Button
-                          size="small"
-                          variant="contained"
-                          color="primary"
-                          onClick={() => handleOpenResponseDialog(occurrence)}
-                          startIcon={<SendIcon />}
-                        >
-                          Responder
-                        </Button>
-                      )}
-                    </CardActions>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
+            renderTableView()
           )}
         </>
       )}

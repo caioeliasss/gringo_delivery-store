@@ -1,14 +1,14 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
-import { 
-  onAuthStateChanged, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
+import React, { createContext, useState, useEffect, useContext } from "react";
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signOut,
   GoogleAuthProvider,
-  signInWithPopup
-} from 'firebase/auth';
-import { auth } from '../firebase';
-import { updateUserProfile } from '../services/api';
+  signInWithPopup,
+} from "firebase/auth";
+import { auth } from "../firebase";
+import { updateUserProfile } from "../services/api";
 
 const AuthContext = createContext();
 
@@ -22,7 +22,11 @@ export function AuthProvider({ children }) {
 
   async function signup(email, password, displayName) {
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
       // Vamos apenas retornar o objeto de usuário para podermos usar o UID
       return userCredential;
     } catch (error) {
@@ -42,7 +46,7 @@ export function AuthProvider({ children }) {
       if (result.user) {
         await updateUserProfile({
           displayName: result.user.displayName,
-          photoURL: result.user.photoURL
+          photoURL: result.user.photoURL,
         });
       }
       return result.user;
@@ -65,11 +69,12 @@ export function AuthProvider({ children }) {
   }, []);
 
   const value = {
+    user: currentUser,
     currentUser,
     login,
     signup,
     logout,
-    loginWithGoogle
+    loginWithGoogle,
   };
 
   return (

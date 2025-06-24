@@ -17,10 +17,9 @@ class OccurrenceService {
       });
 
       const savedOccurrence = await occurrence.save();
-      console.log("✅ Ocorrência criada com sucesso:", savedOccurrence);
       return savedOccurrence;
     } catch (error) {
-      console.error("❌ Erro ao criar ocorrência:", error.message);
+      console.error("Erro ao criar ocorrência:", error.message);
       throw error;
     }
   }

@@ -28,6 +28,8 @@ import {
   Alert,
   useTheme,
   useMediaQuery,
+  AppBar,
+  Toolbar,
 } from "@mui/material";
 import {
   Send as SendIcon,
@@ -42,6 +44,12 @@ import {
   CheckCircle as CheckCircleIcon,
   Close as CloseIcon,
   Headset as HeadsetIcon,
+  Menu as MenuIcon,
+  Dashboard as DashboardIcon,
+  Receipt as OrdersIcon,
+  ShoppingBag as ProductsIcon,
+  Logout as LogoutIcon,
+  ReportProblem as OcorrenciasIcon,
 } from "@mui/icons-material";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -49,12 +57,13 @@ import api from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
 import eventService from "../../services/eventService";
 import { useNavigate } from "react-router-dom";
+import SideDrawer from "../../components/SideDrawer/SideDrawer";
 
 export default function ChatStore() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const { user } = useAuth();
-  const router = useNavigate();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [chats, setChats] = useState([]);
   const [activeChat, setActiveChat] = useState(null);
   const activeChatRef = useRef(null);
@@ -67,6 +76,7 @@ export default function ChatStore() {
   const [userProfiles, setUserProfiles] = useState({});
   const [createChatDialog, setCreateChatDialog] = useState(false);
   const messagesEndRef = useRef(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Carregar chats do usuário
   useEffect(() => {
@@ -207,7 +217,7 @@ export default function ChatStore() {
 
   const markMessagesAsRead = async (chatId) => {
     try {
-      await api.put(`/chat/message/${chatId}/read/${user.uid}`);
+      //await api.put(`/chat/message/${chatId}/read/${user.uid}`); // TODO adicionar mensagem marcada como lida
       setChats((prevChats) =>
         prevChats.map((chat) =>
           chat._id === chatId ? { ...chat, unreadCount: 0 } : chat
@@ -327,6 +337,35 @@ export default function ChatStore() {
   const handleBackToList = () => {
     setActiveChat(null);
   };
+
+  // Fazer logout
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/login");
+    } catch (error) {
+      console.error("Erro ao fazer logout:", error);
+    }
+  };
+
+  // Definir itens de menu para o SideDrawer
+  const menuItems = [
+    { path: "/dashboard", text: "Dashboard", icon: <DashboardIcon /> },
+    { path: "/produtos", text: "Produtos", icon: <ProductsIcon /> },
+    { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
+    { path: "/ocorrencias", text: "Ocorrências", icon: <OcorrenciasIcon /> },
+    { path: "/chat", text: "Chat", icon: <ChatIcon /> },
+  ];
+
+  // Definir itens de rodapé para o SideDrawer
+  const footerItems = [
+    {
+      text: "Sair",
+      icon: <LogoutIcon />,
+      onClick: handleLogout,
+      color: "error",
+    },
+  ];
 
   const renderChatList = () => {
     return (
@@ -742,67 +781,138 @@ export default function ChatStore() {
   );
 
   return (
-    <Container maxWidth="xl" sx={{ height: "100vh", py: 2 }}>
-      <Paper
-        sx={{
-          height: "calc(100vh - 32px)",
-          display: "flex",
-          overflow: "hidden",
-        }}
-      >
-        {/* Lista de chats - sempre visível em desktop, condicional em mobile */}
-        <Box
-          sx={{
-            width: isMobile ? (activeChat ? 0 : "100%") : 350,
-            display: isMobile && activeChat ? "none" : "block",
-            flexShrink: 0,
-          }}
-        >
-          {renderChatList()}
-        </Box>
-
-        {/* Área de mensagens */}
-        <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
-          {activeChat ? renderChatMessages() : renderNoActiveChat()}
-        </Box>
-      </Paper>
-
-      {/* FAB para mobile */}
-      {isMobile && !activeChat && (
-        <Fab
-          color="primary"
-          onClick={() => setCreateChatDialog(true)}
-          sx={{ position: "fixed", bottom: 20, right: 20 }}
-        >
-          <AddIcon />
-        </Fab>
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        bgcolor: "background.default",
+      }}
+    >
+      {/* AppBar para dispositivos móveis */}
+      {isMobile && (
+        <AppBar position="fixed" sx={{ bgcolor: "primary.main" }}>
+          <Toolbar>
+            <IconButton
+              color="inherit"
+              edge="start"
+              onClick={() => setDrawerOpen(true)}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Typography
+              variant="h6"
+              component="div"
+              sx={{ flexGrow: 1, fontWeight: "bold" }}
+            >
+              Gringo Delivery
+            </Typography>
+          </Toolbar>
+        </AppBar>
       )}
 
-      {/* Dialog para criar nova conversa */}
-      <Dialog
-        open={createChatDialog}
-        onClose={() => setCreateChatDialog(false)}
+      {/* SideDrawer */}
+      {isMobile ? (
+        <SideDrawer
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          variant="temporary"
+          title="Gringo Delivery"
+          logoUrl="https://i.imgur.com/8jOdfcO.png"
+          logoAlt="Gringo Delivery"
+          logoHeight={50}
+          menuItems={menuItems}
+          footerItems={footerItems}
+        />
+      ) : (
+        <SideDrawer
+          open={true}
+          variant="permanent"
+          title="Gringo Delivery"
+          logoUrl="https://i.imgur.com/8jOdfcO.png"
+          logoAlt="Gringo Delivery"
+          logoHeight={50}
+          menuItems={menuItems}
+          footerItems={footerItems}
+        />
+      )}
+
+      {/* Conteúdo principal */}
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: 3,
+          ml: isMobile ? 0 : "2px",
+          mt: isMobile ? "64px" : 0,
+          position: "relative",
+          display: "flex",
+          flexDirection: "column",
+          height: "100vh",
+        }}
       >
-        <DialogTitle>Nova Conversa</DialogTitle>
-        <DialogContent>
-          <Alert severity="info" sx={{ mb: 2 }}>
-            Por enquanto, você só pode iniciar conversas com o suporte.
-          </Alert>
-          <Typography variant="body1">
-            Deseja iniciar uma conversa com nossa equipe de suporte?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCreateChatDialog(false)}>Cancelar</Button>
-          <Button
-            variant="contained"
-            onClick={() => router("/ocorrencias")}
-            startIcon={<HeadsetIcon />}
+        <Paper
+          sx={{
+            height: "calc(100vh - 48px)",
+            display: "flex",
+            overflow: "hidden",
+            flexGrow: 1,
+          }}
+        >
+          {/* Lista de chats - sempre visível em desktop, condicional em mobile */}
+          <Box
+            sx={{
+              width: isMobile ? (activeChat ? 0 : "100%") : 350,
+              display: isMobile && activeChat ? "none" : "block",
+              flexShrink: 0,
+            }}
           >
-            Criar ocorrência com Suporte
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
+            {renderChatList()}
+          </Box>
+
+          {/* Área de mensagens */}
+          <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            {activeChat ? renderChatMessages() : renderNoActiveChat()}
+          </Box>
+        </Paper>
+
+        {/* FAB para mobile */}
+        {isMobile && !activeChat && (
+          <Fab
+            color="primary"
+            onClick={() => setCreateChatDialog(true)}
+            sx={{ position: "fixed", bottom: 20, right: 20 }}
+          >
+            <AddIcon />
+          </Fab>
+        )}
+
+        {/* Dialog para criar nova conversa */}
+        <Dialog
+          open={createChatDialog}
+          onClose={() => setCreateChatDialog(false)}
+        >
+          <DialogTitle>Nova Conversa</DialogTitle>
+          <DialogContent>
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Por enquanto, você só pode iniciar conversas com o suporte.
+            </Alert>
+            <Typography variant="body1">
+              Deseja iniciar uma conversa com nossa equipe de suporte?
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setCreateChatDialog(false)}>Cancelar</Button>
+            <Button
+              variant="contained"
+              onClick={() => navigate("/ocorrencias")}
+              startIcon={<HeadsetIcon />}
+            >
+              Criar ocorrência com Suporte
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Box>
+    </Box>
   );
 }

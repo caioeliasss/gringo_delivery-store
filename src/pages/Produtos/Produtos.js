@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../services/api";
+import SideDrawer from "../../components/SideDrawer/SideDrawer";
 import {
   Container,
   Typography,
@@ -33,11 +34,6 @@ import {
   MenuItem,
   AppBar,
   Toolbar,
-  Drawer,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
@@ -46,6 +42,7 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   ShoppingBag as ShoppingBagIcon,
+  ShoppingBag as ProductsIcon,
   Search as SearchIcon,
   FilterList as FilterListIcon,
   LocalOffer as LocalOfferIcon,
@@ -55,6 +52,8 @@ import {
   Menu as MenuIcon,
   Dashboard as DashboardIcon,
   Logout as LogoutIcon,
+  ReportProblem as OcorrenciasIcon,
+  Chat as ChatIcon,
 } from "@mui/icons-material";
 
 const Produtos = () => {
@@ -157,17 +156,6 @@ const Produtos = () => {
 
     setFilteredProdutos(result);
   }, [produtos, searchTerm, filterSuperPromo, filterImage]);
-
-  // Controle do drawer
-  const toggleDrawer = (open) => (event) => {
-    if (
-      event.type === "keydown" &&
-      (event.key === "Tab" || event.key === "Shift")
-    ) {
-      return;
-    }
-    setDrawerOpen(open);
-  };
 
   // Limpar todos os filtros
   const handleClearFilters = () => {
@@ -332,88 +320,6 @@ const Produtos = () => {
     }
   };
 
-  // Drawer content
-  const drawerItems = (
-    <Box sx={{ width: 250 }}>
-      <Box sx={{ p: 2, textAlign: "center" }}>
-        <img
-          src="https://i.imgur.com/8jOdfcO.png"
-          style={{ height: 50, marginBottom: 16 }}
-        />
-      </Box>
-      <Divider />
-      <List>
-        <ListItem
-          button
-          component={Link}
-          to="/dashboard"
-          sx={{
-            color: "text.primary",
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <DashboardIcon />
-          </ListItemIcon>
-          <ListItemText primary="Dashboard" />
-        </ListItem>
-        <ListItem
-          button
-          component={Link}
-          to="/produtos"
-          selected={true}
-          sx={{
-            color: "text.primary",
-            "&.Mui-selected": {
-              bgcolor: "primary.main",
-              color: "white",
-              "&:hover": { bgcolor: "primary.dark" },
-            },
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <ShoppingBagIcon />
-          </ListItemIcon>
-          <ListItemText primary="Produtos" />
-        </ListItem>
-        <ListItem
-          button
-          component={Link}
-          to="/pedidos"
-          selected={true}
-          sx={{
-            color: "text.primary",
-            "&.Mui-selected": {
-              bgcolor: "primary.main",
-              color: "white",
-              "&:hover": { bgcolor: "primary.dark" },
-            },
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <OrdersIcon />
-          </ListItemIcon>
-          <ListItemText primary="Pedidos" />
-        </ListItem>
-      </List>
-      <Divider />
-      <List>
-        <ListItem
-          button
-          onClick={handleLogout}
-          sx={{ "&:hover": { bgcolor: "error.light", color: "white" } }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <LogoutIcon />
-          </ListItemIcon>
-          <ListItemText primary="Sair" />
-        </ListItem>
-      </List>
-    </Box>
-  );
-
   // Renderizar estado vazio (sem produtos)
   const renderEmptyState = () => (
     <Box
@@ -467,6 +373,25 @@ const Produtos = () => {
     </Box>
   );
 
+  // Definir itens de menu para o SideDrawer
+  const menuItems = [
+    { path: "/dashboard", text: "Dashboard", icon: <DashboardIcon /> },
+    { path: "/produtos", text: "Produtos", icon: <ProductsIcon /> },
+    { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
+    { path: "/ocorrencias", text: "Ocorrências", icon: <OcorrenciasIcon /> },
+    { path: "/chat", text: "Chat", icon: <ChatIcon /> },
+  ];
+
+  // Definir itens de rodapé para o SideDrawer
+  const footerItems = [
+    {
+      text: "Sair",
+      icon: <LogoutIcon />,
+      onClick: handleLogout,
+      color: "error",
+    },
+  ];
+
   return (
     <Box
       sx={{
@@ -482,7 +407,7 @@ const Produtos = () => {
             <IconButton
               color="inherit"
               edge="start"
-              onClick={toggleDrawer(true)}
+              onClick={() => setDrawerOpen(true)}
               sx={{ mr: 2 }}
             >
               <MenuIcon />
@@ -498,23 +423,31 @@ const Produtos = () => {
         </AppBar>
       )}
 
-      {/* Drawer para navegação */}
-      <Drawer
-        anchor="left"
-        open={isMobile ? drawerOpen : true}
-        onClose={toggleDrawer(false)}
-        variant={isMobile ? "temporary" : "permanent"}
-        sx={{
-          width: 250,
-          flexShrink: 0,
-          "& .MuiDrawer-paper": {
-            width: 250,
-            boxSizing: "border-box",
-          },
-        }}
-      >
-        {drawerItems}
-      </Drawer>
+      {/* SideDrawer no lugar do Drawer */}
+      {isMobile ? (
+        <SideDrawer
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          variant="temporary"
+          title="Gringo Delivery"
+          logoUrl="https://i.imgur.com/8jOdfcO.png"
+          logoAlt="Gringo Delivery"
+          logoHeight={50}
+          menuItems={menuItems}
+          footerItems={footerItems}
+        />
+      ) : (
+        <SideDrawer
+          open={true}
+          variant="permanent"
+          title="Gringo Delivery"
+          logoUrl="https://i.imgur.com/8jOdfcO.png"
+          logoAlt="Gringo Delivery"
+          logoHeight={50}
+          menuItems={menuItems}
+          footerItems={footerItems}
+        />
+      )}
 
       {/* Main content */}
       <Box

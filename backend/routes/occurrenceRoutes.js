@@ -206,4 +206,23 @@ router.get("/stats/summary", async (req, res) => {
   }
 });
 
+router.get("/firebase/:firebaseUid", async (req, res) => {
+  try {
+    const { firebaseUid } = req.params;
+
+    // Buscar todas as ocorrências deste usuário Firebase
+    const occurrences = await Occurrence.find({ firebaseUid }).sort({
+      createdAt: -1,
+    });
+
+    res.status(200).json(occurrences);
+  } catch (error) {
+    console.error("Erro ao buscar ocorrências do usuário Firebase:", error);
+    res.status(500).json({
+      message: "Erro ao buscar ocorrências do usuário Firebase",
+      error: error.message,
+    });
+  }
+});
+
 module.exports = router;

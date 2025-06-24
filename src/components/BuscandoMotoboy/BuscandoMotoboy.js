@@ -74,6 +74,7 @@ const BuscandoMotoboy = ({
   ];
 
   // Timer para mostrar tempo de busca
+  //TODO quando o driver aceitar o pedido, parar o timer e mostrar o tempo total de busca
   useEffect(() => {
     let interval;
     if (open) {

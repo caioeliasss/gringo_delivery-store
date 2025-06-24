@@ -43,6 +43,14 @@ import {
   Star as StarIcon,
   Assignment as OrdersIcon,
   FilterList as FilterIcon,
+  Dashboard as DashboardIcon,
+  ShoppingBag as ProductsIcon,
+  Person as ProfileIcon,
+  Logout as LogoutIcon,
+  ShoppingBag,
+  Map as MapIcon,
+  ReportProblem as OcorrenciasIcon,
+  Chat as ChatIcon,
 } from "@mui/icons-material";
 import {
   GoogleMap,
@@ -53,6 +61,7 @@ import {
 import api from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import SideDrawer from "../../components/SideDrawer/SideDrawer";
 
 const mapContainerStyle = {
   width: "100%",
@@ -154,7 +163,7 @@ const createMarkerIcon = (type, status) => {
 };
 
 export default function SupportMapPage() {
-  const { currentUser } = useAuth();
+  const { currentUser, logout } = useAuth();
   const mapRef = useRef(null);
   const navigate = useNavigate();
 
@@ -168,6 +177,7 @@ export default function SupportMapPage() {
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [mapCenter, setMapCenter] = useState(defaultCenter);
   const [isMapLoaded, setIsMapLoaded] = useState(false); // Adicionar estado
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
     loadMapData();
@@ -397,6 +407,16 @@ export default function SupportMapPage() {
 
     if (hasPoints) {
       mapRef.current.fitBounds(bounds);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/login");
+    } catch (error) {
+      console.error("Erro ao fazer logout:", error);
+      alert("Erro ao fazer logout. Tente novamente.");
     }
   };
 
@@ -822,7 +842,7 @@ export default function SupportMapPage() {
   );
 
   return (
-    <Container maxWidth="xl" sx={{ py: 3 }}>
+    <Container maxWidth="lg" sx={{ py: 3 }}>
       {/* Header */}
       <Paper sx={{ p: 2, mb: 3 }}>
         <Box
@@ -849,6 +869,70 @@ export default function SupportMapPage() {
             </Tooltip>
           </Box>
         </Box>
+        {false ? (
+          <SideDrawer
+            open={drawerOpen}
+            onClose={() => setDrawerOpen(false)}
+            variant="temporary"
+            title="Gringo Delivery"
+            logoUrl="https://i.imgur.com/8jOdfcO.png"
+            logoAlt="Gringo Delivery"
+            logoHeight={50}
+            menuItems={[
+              {
+                path: "/dashboard",
+                text: "Dashboard",
+                icon: <DashboardIcon />,
+              },
+              {
+                path: "/ocorrencias",
+                text: "Ocorrências",
+                icon: <OcorrenciasIcon />,
+              },
+              { path: "/chat", text: "Chat", icon: <ChatIcon /> },
+            ]}
+            // Passa diretamente a função de logout
+            footerItems={[
+              {
+                text: "Sair",
+                icon: <LogoutIcon />,
+                onClick: handleLogout,
+                color: "error",
+              },
+            ]}
+          />
+        ) : (
+          <SideDrawer
+            open={true}
+            variant="permanent"
+            title="Gringo Delivery"
+            logoUrl="https://i.imgur.com/8jOdfcO.png"
+            logoAlt="Gringo Delivery"
+            logoHeight={50}
+            menuItems={[
+              {
+                path: "/dashboard",
+                text: "Dashboard",
+                icon: <DashboardIcon />,
+              },
+              {
+                path: "/ocorrencias",
+                text: "Ocorrências",
+                icon: <OcorrenciasIcon />,
+              },
+              { path: "/chat", text: "Chat", icon: <ChatIcon /> },
+              { path: "/mapa", text: "Mapa", icon: <MapIcon /> },
+            ]}
+            footerItems={[
+              {
+                text: "Sair",
+                icon: <LogoutIcon />,
+                onClick: handleLogout,
+                color: "error",
+              },
+            ]}
+          />
+        )}
 
         {/* Filtros */}
         <Grid container spacing={2} alignItems="center">

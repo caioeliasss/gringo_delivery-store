@@ -216,13 +216,13 @@ app.use(
 app.use("/api/billing", require("./routes/billingRoutes"));
 app.use("/api/webhooks", require("./routes/webhookRoutes"));
 app.use("/api/admin", require("./routes/adminRoutes"));
-app.use("/api/webhook/ifood", (req, res) => {
-  const WebhookController = require("./controllers/webhookController");
-  const OrderService = require("./services/orderService");
-  const orderService = new OrderService();
-  const webhookController = new WebhookController(orderService);
-  webhookController.handleIfoodWebhook(req, res);
-});
+// app.use("/api/webhook/ifood", (req, res) => {
+//   const WebhookController = require("./controllers/webhookController");
+//   const OrderService = require("./services/orderService");
+//   const orderService = new OrderService();
+//   const webhookController = new WebhookController(orderService);
+//   webhookController.handleIfoodWebhook(req, res);
+// });
 
 // Middleware de logging
 app.use((req, res, next) => {

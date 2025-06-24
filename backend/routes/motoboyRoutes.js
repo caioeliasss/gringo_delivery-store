@@ -251,10 +251,12 @@ const findMotoboys = async (req, res) => {
     // console.log("storecoord:", storeCoordinates);
     // console.log(order);
     let count = 0;
+    let motoboyRequest;
+    let motoboys;
     do {
-      const motoboys = await motoboyServices.findBestMotoboys(storeCoordinates);
+      motoboys = await motoboyServices.findBestMotoboys(storeCoordinates);
 
-      const motoboyRequest = await motoboyServices.processMotoboyQueue(
+      motoboyRequest = await motoboyServices.processMotoboyQueue(
         motoboys,
         order
       );
@@ -266,7 +268,7 @@ const findMotoboys = async (req, res) => {
           storeId: order.store._id,
           type: "MOTOBOY",
           amount: 0,
-          description: `Tentativa de encontrar motoboy falhou após ${count} tentativas
+          description: `Tentativa de encontrar motoboy falhou e já reniciamos a fila automaticamente.
           `,
           firebaseUid: "system",
         });
@@ -275,8 +277,8 @@ const findMotoboys = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      motoboy: motoboyRequest.motoboy,
-      order_sucess: motoboyRequest.success,
+      motoboy: motoboys || [],
+      order_sucess: motoboyRequest.success || false,
     });
   } catch (error) {
     console.error("Test error:", error);

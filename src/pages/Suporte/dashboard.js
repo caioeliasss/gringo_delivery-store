@@ -39,6 +39,7 @@ import api from "../../services/api";
 import { buscarGenero } from "../../services/gender";
 
 const SuporteDashboard = () => {
+  //TODO adicionar stats dos suportes
   const { currentUser, logout } = useAuth();
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -51,7 +52,6 @@ const SuporteDashboard = () => {
     "avatar-placeholder.png"
   );
 
-  //FIXME add verification if user is logged in
   useEffect(() => {
     const fetchData = async () => {
       try {

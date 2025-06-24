@@ -43,6 +43,15 @@ import {
   EmojiEmotions as EmojiIcon,
   NotificationsOff as NotificationsOffIcon,
   Delete as DeleteIcon,
+  Dashboard as DashboardIcon,
+  ShoppingBag as ProductsIcon,
+  Receipt as OrdersIcon,
+  Person as ProfileIcon,
+  Logout as LogoutIcon,
+  ShoppingBag,
+  Map as MapIcon,
+  ReportProblem as OcorrenciasIcon,
+  Chat as ChatIcon,
 } from "@mui/icons-material";
 import { useAuth } from "../../contexts/AuthContext";
 import { format } from "date-fns";
@@ -50,6 +59,7 @@ import { ptBR } from "date-fns/locale";
 import api from "../../services/api";
 import { useLocation, useNavigate } from "react-router-dom";
 import eventService from "../../services/eventService";
+import SideDrawer from "../../components/SideDrawer/SideDrawer";
 
 // Definições de cores baseadas no tipo de usuário
 const USER_TYPES = {
@@ -82,7 +92,7 @@ const USER_TYPES = {
 const ChatPage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const { currentUser } = useAuth();
+  const { currentUser, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const messagesEndRef = useRef(null);
@@ -240,6 +250,16 @@ const ChatPage = () => {
       eventService.off("CHAT_MESSAGE");
     };
   }, [currentUser, activeChat]); // Manter activeChat nas dependências
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/login");
+    } catch (error) {
+      console.error("Erro ao fazer logout:", error);
+      alert("Erro ao fazer logout. Tente novamente.");
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -1235,6 +1255,70 @@ const ChatPage = () => {
         }}
       >
         {/* Lista de chats para desktop ou drawer para mobile */}
+        {isMobile ? (
+          <SideDrawer
+            open={drawerOpen}
+            onClose={() => setDrawerOpen(false)}
+            variant="temporary"
+            title="Gringo Delivery"
+            logoUrl="https://i.imgur.com/8jOdfcO.png"
+            logoAlt="Gringo Delivery"
+            logoHeight={50}
+            menuItems={[
+              {
+                path: "/dashboard",
+                text: "Dashboard",
+                icon: <DashboardIcon />,
+              },
+              {
+                path: "/ocorrencias",
+                text: "Ocorrências",
+                icon: <OcorrenciasIcon />,
+              },
+              { path: "/chat", text: "Chat", icon: <ChatIcon /> },
+            ]}
+            // Passa diretamente a função de logout
+            footerItems={[
+              {
+                text: "Sair",
+                icon: <LogoutIcon />,
+                onClick: handleLogout,
+                color: "error",
+              },
+            ]}
+          />
+        ) : (
+          <SideDrawer
+            open={true}
+            variant="permanent"
+            title="Gringo Delivery"
+            logoUrl="https://i.imgur.com/8jOdfcO.png"
+            logoAlt="Gringo Delivery"
+            logoHeight={50}
+            menuItems={[
+              {
+                path: "/dashboard",
+                text: "Dashboard",
+                icon: <DashboardIcon />,
+              },
+              {
+                path: "/ocorrencias",
+                text: "Ocorrências",
+                icon: <OcorrenciasIcon />,
+              },
+              { path: "/chat", text: "Chat", icon: <ChatIcon /> },
+              { path: "/mapa", text: "Mapa", icon: <MapIcon /> },
+            ]}
+            footerItems={[
+              {
+                text: "Sair",
+                icon: <LogoutIcon />,
+                onClick: handleLogout,
+                color: "error",
+              },
+            ]}
+          />
+        )}
         {isMobile ? (
           <Drawer
             open={drawerOpen}
