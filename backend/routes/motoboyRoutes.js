@@ -6,6 +6,7 @@ const motoboyServices = require("../services/motoboyServices");
 const sendNotification = require("../services/fcmService");
 const createNotificationGeneric = require("../routes/notificationRoutes");
 const OccurrenceService = require("../services/OccurrenceService");
+const Travel = require("../models/Travel");
 
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -318,6 +319,12 @@ const removeMotoboyFromOrder = async (req, res) => {
       return res.status(404).json({ message: "Motoboy não encontrado" });
     }
 
+    const travel = await Travel.findById(motoboy.race.travelId);
+    if (travel) {
+      // Cancel the travel if it exists
+      await travel.updateOne({ status: "cancelado" });
+    }
+
     motoboy.race = {
       active: false,
       orderId: null,
@@ -331,6 +338,7 @@ const removeMotoboyFromOrder = async (req, res) => {
       return res.status(404).json({ message: "Pedido não encontrado" });
     }
 
+    order.motoboy.blacklist.push(motoboyId);
     order.motoboy.motoboyId = null;
     order.motoboy.rated = false;
     order.motoboy.name = null;

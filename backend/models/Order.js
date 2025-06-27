@@ -16,7 +16,7 @@ const pointSchema = new mongoose.Schema({
 
 const customerAddress = new mongoose.Schema({
   cep: {
-    type: Number,
+    type: String,
     required: true,
   },
   address: {
@@ -49,16 +49,16 @@ const orderItemSchema = new mongoose.Schema({
   },
   productName: {
     type: String,
-    required: true,
+    required: false,
   },
   quantity: {
     type: Number,
-    required: true,
+    required: false,
     min: 1,
   },
   price: {
     type: Number,
-    required: true,
+    required: false,
   },
 });
 

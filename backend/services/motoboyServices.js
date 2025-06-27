@@ -3,6 +3,8 @@ const geolib = require("geolib");
 const Notification = require("../models/Notification");
 const mongoose = require("mongoose");
 const axios = require("axios");
+const Order = require("../models/Order");
+const Travel = require("../models/Travel");
 
 /**
  * Service for handling motoboy operations
@@ -29,6 +31,7 @@ class MotoboyService {
 
   async findBestMotoboys(coordinates, maxDistance = 5000, limit = 50) {
     //TODO criar lista de motoboys que aceitaram mas nao fizeram a corrida
+    // Filtrando os motoboys que cancelaram a corrida ou que aceitaram e depois cancelaram
     try {
       // First find all available and approved motoboys within the max distance
 
@@ -123,6 +126,10 @@ class MotoboyService {
     }
 
     const motoboy = motoboys[0];
+    if (order.motoboy.blacklist.includes(motoboy._id.toString())) {
+      // Se o motoboy está na blacklist, tentar o próximo
+      return this.processMotoboyQueue(motoboys.slice(1), order);
+    }
     try {
       const accepted = await this.requestMotoboy(motoboy, order);
 
@@ -287,6 +294,60 @@ class MotoboyService {
     } else {
       // Tentar próximo motoboy
       return this.processMotoboyQueue(motoboys.slice(1), order);
+    }
+  }
+
+  async removeMotoboyFromOrder(orderId, motoboyId) {
+    try {
+      const motoboy = await Motoboy.findById(motoboyId);
+      if (!motoboy) {
+        console.log(`Motoboy ${motoboyId} não encontrado`);
+        return;
+      }
+
+      const travel = await Travel.findById(motoboy.race?.travelId);
+      if (travel) {
+        // Cancel the travel if it exists
+        await travel.updateOne({ status: "cancelado" });
+      }
+
+      // Reset motoboy race data
+      motoboy.race = {
+        active: false,
+        orderId: null,
+        travelId: null,
+      };
+      motoboy.isAvailable = true; // Tornar disponível novamente
+      await motoboy.save();
+
+      const order = await Order.findById(orderId);
+      if (!order) {
+        console.log(`Pedido ${orderId} não encontrado`);
+        return;
+      }
+
+      // Verificar se blacklist existe, senão criar
+      if (!order.motoboy.blacklist) {
+        order.motoboy.blacklist = [];
+      }
+
+      // Adicionar à blacklist se não estiver já
+      if (!order.motoboy.blacklist.includes(motoboyId.toString())) {
+        order.motoboy.blacklist.push(motoboyId.toString());
+      }
+
+      // Reset motoboy data in order
+      order.motoboy.motoboyId = null;
+      order.motoboy.name = "";
+      order.motoboy.phone = null;
+      order.motoboy.rated = false;
+
+      await order.save();
+
+      return order;
+    } catch (error) {
+      console.error("❌ Erro ao remover motoboy:", error);
+      return { error: error.message };
     }
   }
 }

@@ -8,6 +8,8 @@ const axios = require("axios");
 const geolib = require("geolib");
 const DeliveryPrice = require("../models/DeliveryPrice");
 const mongoose = require("mongoose");
+const Travel = require("../models/Travel");
+const motoboyServices = require("../services/motoboyServices");
 
 const buscarCnpj = async (cnpj) => {
   const API_URL = "https://brasilapi.com.br/api/cnpj/v1";
@@ -222,6 +224,75 @@ router.put("/status", authenticateToken, async (req, res) => {
     // Guardar status anterior para comparação
     const previousStatus = order.status;
 
+    if (status === "em_preparo") {
+      // verificar se ja deu quinze minutos e ver se o motoboy ja chegou
+      if (order.motoboy && order.motoboy.motoboyId) {
+        const motoboy = await Motoboy.findById(order.motoboy.motoboyId);
+        if (motoboy && motoboy.race?.travelId) {
+          // Executar em background de forma não-bloqueante
+          setImmediate(() => {
+            setTimeout(async () => {
+              try {
+                // Buscar dados atualizados
+                const orderAtual = await Order.findById(id);
+                const motoboyAtual = await Motoboy.findById(
+                  order.motoboy.motoboyId
+                );
+                const travelAtual = await Travel.findById(
+                  motoboy.race.travelId
+                );
+
+                // Verificações de segurança
+                if (
+                  orderAtual &&
+                  motoboyAtual &&
+                  travelAtual &&
+                  !travelAtual.arrival_store &&
+                  !travelAtual.arrival_store_manually &&
+                  orderAtual.status !== "cancelado" &&
+                  orderAtual.status !== "entregue" &&
+                  orderAtual.motoboy.motoboyId?.toString() ===
+                    motoboyAtual._id.toString()
+                ) {
+                  // Executar remoção sem esperar
+                  motoboyServices
+                    .removeMotoboyFromOrder(orderAtual._id, motoboyAtual._id)
+                    .catch((error) =>
+                      console.error("Erro ao remover motoboy:", error)
+                    );
+
+                  //TODO voltar a buscar de motoboy
+                }
+              } catch (error) {
+                console.error("Erro no background timer:", error);
+              }
+            }, 900000); // 15 minutos
+          });
+        }
+      }
+    }
+
+    if (status === "cancelado") {
+      order.motoboy = {
+        motoboyId: null,
+        name: "",
+        phone: null,
+      };
+      order.motoboy.blacklist.push(order.motoboy.motoboyId);
+
+      const motoboy = await Motoboy.findById(order.motoboy.motoboyId);
+      if (motoboy && motoboy.race.orderId === order._id.toString()) {
+        // Marcar motoboy como disponível novamente
+        motoboy.race = {
+          travelId: null,
+          orderId: null,
+          active: false,
+        };
+        motoboy.isAvailable = true;
+        await motoboy.save();
+      }
+    }
+
     // Atualizar status
     order.status = status;
     await order.save();
@@ -361,9 +432,9 @@ router.post("/", async (req, res) => {
     } = req.body;
 
     if (!store.cnpj || !customer || !items || !total || !payment) {
-      return res
-        .status(400)
-        .json({ message: "Dados obrigatórios não fornecidos" });
+      return res.status(400).json({
+        message: "Dados obrigatórios não fornecidos",
+      });
     }
 
     const cnpj = store.cnpj;
@@ -371,17 +442,67 @@ router.post("/", async (req, res) => {
     // Gerar número do pedido (formato: PD + timestamp)
     const orderNumber = "PD" + Date.now().toString().substr(-6);
 
-    const getCep = async (cnpj) => {
-      const response = await buscarCnpj(cnpj);
-      const cep = response.data.cep;
+    if (!store.coordinates) {
+      buscarCoord(
+        store.address.logradouro,
+        store.address.localidade,
+        store.address.uf
+      )
+        .then((response) => {
+          store.coordinates = [
+            parseFloat(response.data[0].lon),
+            parseFloat(response.data[0].lat),
+          ];
+        })
+        .catch((error) => {
+          console.error("Erro ao buscar coordenadas da loja:", error);
+          return res
+            .status(500)
+            .json({ message: "Erro ao buscar coordenadas da loja" });
+        });
+    }
 
-      let storeName = response.data.nome_fantasia;
-      if (!storeName) {
-        storeName = response.data.razao_social;
+    if (!customer.customerAddress.coordinates) {
+      const address = customer.customerAddress.cep;
+      if (!address) {
+        return res
+          .status(400)
+          .json({ message: "CEP do cliente não fornecido" });
       }
 
-      return { cep, storeName };
-    };
+      try {
+        const response = await buscarCep(address);
+        const addressCustomer = response.data;
+
+        const responseCoord = await buscarCoord(
+          addressCustomer.logradouro,
+          addressCustomer.localidade,
+          addressCustomer.uf
+        );
+
+        customer.customerAddress.coordinates = [
+          parseFloat(responseCoord.data[0].lon),
+          parseFloat(responseCoord.data[0].lat),
+        ];
+      } catch (error) {
+        console.error("Erro ao buscar coordenadas do cliente:", error);
+        return res
+          .status(500)
+          .json({ message: "Erro ao buscar coordenadas do cliente" });
+      }
+    }
+
+    // const getCep = async (cnpj) => {
+    //   const response = await buscarCnpj(cnpj);
+    //   const cep = response.data.cep;
+
+    //   let storeName = response.data.nome_fantasia;
+    //   if (!storeName) {
+    //     storeName = response.data.razao_social;
+    //   }
+
+    //   return { cep, storeName };
+    // };
 
     const calculatePrice = async (coordFrom, cep, driveBack) => {
       const response = await buscarCep(cep);
@@ -451,15 +572,12 @@ router.post("/", async (req, res) => {
       customer.customerAddress.cep,
       driveBack || false
     );
-    const { cep, storeName } = await getCep(cnpj);
 
     const newOrder = new Order({
       store: {
-        name: storeName,
         cnpj: cnpj,
         coordinates: store.coordinates,
         address: store.address,
-        cep: cep,
       },
       orderNumber,
       customer: {
