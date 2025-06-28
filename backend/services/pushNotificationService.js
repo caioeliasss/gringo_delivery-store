@@ -112,6 +112,91 @@ const pushNotificationService = {
       throw error;
     }
   },
+
+  /**
+   * Envia uma notificação push estilo chamada (full screen intent)
+   * @param {string} expoPushToken - Token do dispositivo destino
+   * @param {string} title - Título da notificação (ex: nome do chamador)
+   * @param {string} body - Corpo da notificação
+   * @param {object} data - Dados adicionais para a notificação
+   * @param {number} timeoutSeconds - Tempo em segundos para auto-cancelar (padrão: 30)
+   * @returns {Promise} - Resultado do envio
+   */
+  async sendCallStyleNotification(
+    expoPushToken,
+    title,
+    body,
+    data = {},
+    timeoutSeconds = 30
+  ) {
+    // Validar o formato do token
+    if (!expoPushToken || !expoPushToken.startsWith("ExponentPushToken[")) {
+      console.log("Token inválido:", expoPushToken);
+      throw new Error("Formato de token inválido");
+    }
+
+    // Criar o payload da notificação estilo chamada
+    const message = {
+      to: expoPushToken,
+      sound: "default", // Som personalizado pode ser configurado no app
+      title: title,
+      body: body,
+      data: {
+        ...data,
+        type: "call_style",
+        showFullScreen: true,
+        timeout: timeoutSeconds * 1000, // Converter para millisegundos
+        vibrate: [0, 1000, 500, 1000, 500, 1000], // Padrão de vibração
+        importance: "max",
+        category: "call",
+        actions: [
+          {
+            id: "accept",
+            title: "Aceitar",
+            pressAction: { id: "accept" },
+          },
+          {
+            id: "decline",
+            title: "Recusar",
+            pressAction: { id: "decline" },
+          },
+        ],
+      },
+      badge: 1,
+      priority: "high", // Máxima prioridade
+      channelId: "call_notifications", // Canal específico para chamadas
+      categoryId: "call", // Categoria de chamada
+      mutableContent: true, // Permite modificação no cliente
+      contentAvailable: true, // Para background processing
+      ttl: timeoutSeconds, // Time to live em segundos
+    };
+
+    console.log(`Enviando notificação estilo chamada para: ${expoPushToken}`);
+
+    try {
+      // Enviar a notificação usando a API Expo
+      const response = await axios.post(
+        "https://exp.host/--/api/v2/push/send",
+        message,
+        {
+          headers: {
+            Accept: "application/json",
+            "Accept-encoding": "gzip, deflate",
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      console.log("Resposta da API Expo (Call Style):", response.data);
+      return response.data;
+    } catch (error) {
+      console.error(
+        "Erro ao enviar notificação estilo chamada:",
+        error.response?.data || error.message
+      );
+      throw error;
+    }
+  },
 };
 
 module.exports = pushNotificationService;

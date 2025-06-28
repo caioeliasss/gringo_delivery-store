@@ -6,6 +6,7 @@ const express = require("express");
 const router = express.Router();
 const motoboyServices = require("../services/motoboyServices");
 const pushNotificationService = require("../services/pushNotificationService");
+const notificationService = require("../services/notificationService");
 
 const getNotifications = async (req, res) => {
   try {
@@ -390,6 +391,122 @@ const notifyOccurrence = async (req, res) => {
   }
 };
 
+/**
+ * Cria uma notificação estilo chamada do WhatsApp (full screen intent)
+ */
+const createCallStyleNotification = async (req, res) => {
+  try {
+    const {
+      motoboyId,
+      firebaseUid,
+      title,
+      message,
+      type,
+      timeoutSeconds,
+      callId,
+      screen,
+      additionalData,
+    } = req.body;
+
+    if (!title || !message) {
+      return res.status(400).json({
+        message: "Dados incompletos. title e message são obrigatórios",
+      });
+    }
+
+    const result = await notificationService.createCallStyleNotification(
+      {
+        motoboyId,
+        firebaseUid,
+        title,
+        message,
+        type,
+        timeoutSeconds,
+        callId,
+        screen,
+        additionalData,
+      },
+      req.app
+    );
+
+    console.log(`Notificação estilo chamada criada com sucesso: ${result.callId}`);
+    res.status(201).json(result);
+  } catch (error) {
+    console.error("Erro ao criar notificação estilo chamada:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Responde a uma notificação estilo chamada (aceitar/recusar)
+ */
+const respondToCallStyleNotification = async (req, res) => {
+  try {
+    const { callId, action, firebaseUid } = req.body;
+
+    if (!callId || !action || !firebaseUid) {
+      return res.status(400).json({
+        message: "Dados incompletos. callId, action e firebaseUid são obrigatórios",
+      });
+    }
+
+    if (!["accept", "decline"].includes(action)) {
+      return res.status(400).json({
+        message: "Ação inválida. Use 'accept' ou 'decline'",
+      });
+    }
+
+    const result = await notificationService.respondToCallStyleNotification(
+      { callId, action, firebaseUid },
+      req.app
+    );
+
+    console.log(`Resposta da chamada processada: ${callId} - ${action}`);
+    res.json(result);
+  } catch (error) {
+    console.error("Erro ao responder notificação estilo chamada:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Busca informações de uma chamada pelo ID
+ */
+const getCallInfo = async (req, res) => {
+  try {
+    const { callId } = req.params;
+
+    if (!callId) {
+      return res.status(400).json({
+        message: "callId é obrigatório",
+      });
+    }
+
+    const notification = await Notification.findOne({
+      "data.callId": callId,
+      type: "CALL_STYLE",
+    });
+
+    if (!notification) {
+      return res.status(404).json({
+        message: "Chamada não encontrada",
+      });
+    }
+
+    res.json({
+      callId,
+      notification,
+      status: notification.status,
+      createdAt: notification.createdAt,
+      expiresAt: notification.expiresAt,
+      data: notification.data,
+    });
+  } catch (error) {
+    console.error("Erro ao buscar informações da chamada:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 router.post("/notifyOccurrence", notifyOccurrence);
 router.post("/notifySupport", notifySupport);
 router.post("/generic", createNotificationGeneric);
@@ -397,5 +514,8 @@ router.get("/", getNotifications);
 router.get("/all", getNotificationsAll);
 router.post("/", createNotification);
 router.put("/", updateNotification);
+router.post("/call-style", createCallStyleNotification);
+router.post("/call-style/respond", respondToCallStyleNotification);
+router.get("/call-style/:callId", getCallInfo);
 
 module.exports = router;
