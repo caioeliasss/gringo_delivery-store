@@ -293,7 +293,7 @@ const findMotoboys = async (req, res) => {
 const updateFCMToken = async (req, res) => {
   try {
     const user = await Motoboy.findOne({
-      firebaseUid: req.user.uid,
+      firebaseUid: req.user.uid || req.body.firebaseUid,
     });
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });

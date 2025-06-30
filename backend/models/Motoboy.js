@@ -20,6 +20,11 @@ const motoboySchema = new mongoose.Schema(
       required: false,
       trim: true,
     },
+    fcmToken: {
+      type: String,
+      required: false,
+      trim: true,
+    },
     phoneNumber: {
       type: String,
       required: true,

@@ -22,6 +22,7 @@ const notificationSchema = new mongoose.Schema({
       "MOTOBOY",
       "SUPPORT",
       "CHAT_MESSAGE",
+      "CALL_STYLE",
     ],
     required: true,
   },

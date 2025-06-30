@@ -193,7 +193,6 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const travelRoutes = require("./routes/travelRoutes");
 const occurrenceRoutes = require("./routes/occurrenceRoutes");
 const cronService = require("./services/cronService");
-const callStyleExamplesRoutes = require("./routes/callStyleExamplesRoutes");
 cronService.startAll(); // Iniciar serviço de cron
 
 app.use("/api/webhooks", express.raw({ type: "application/json" }));
@@ -217,7 +216,6 @@ app.use(
 app.use("/api/billing", require("./routes/billingRoutes"));
 app.use("/api/webhooks", require("./routes/webhookRoutes"));
 app.use("/api/admin", require("./routes/adminRoutes"));
-app.use("/api/call-examples", callStyleExamplesRoutes);
 // app.use("/api/webhook/ifood", (req, res) => {
 //   const WebhookController = require("./controllers/webhookController");
 //   const OrderService = require("./services/orderService");
