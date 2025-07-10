@@ -23,6 +23,8 @@ const notificationSchema = new mongoose.Schema({
       "SUPPORT",
       "CHAT_MESSAGE",
       "CALL_STYLE",
+      "ORDER_READY",
+      "FULLSCREEN_CALL",
     ],
     required: true,
   },

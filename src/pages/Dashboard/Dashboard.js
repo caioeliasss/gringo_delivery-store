@@ -343,7 +343,7 @@ const Dashboard = () => {
                       CNPJ:
                     </Typography>
                     <Typography variant="body1">
-                      {String(userProfile.cnpj).replace(
+                      {String(userProfile?.cnpj).replace(
                         /(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,
                         "$1.$2.$3/$4-$5"
                       )}
@@ -358,9 +358,9 @@ const Dashboard = () => {
                   </Typography>
                   <Typography
                     variant="body1"
-                    color={userProfile.cnpj_approved ? "success" : "error"}
+                    color={userProfile?.cnpj_approved ? "success" : "error"}
                   >
-                    {userProfile.cnpj_approved ? "Aprovado" : "Pendente"}
+                    {userProfile?.cnpj_approved ? "Aprovado" : "Pendente"}
                   </Typography>
                 </Box>
               </Grid>

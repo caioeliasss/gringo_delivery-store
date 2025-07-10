@@ -93,6 +93,22 @@ const storeSchema = new mongoose.Schema({
   },
 });
 
+const customerSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+  },
+  phone: {
+    type: String,
+    required: true,
+  },
+  cliente_cod: {
+    type: Number,
+    required: false,
+  },
+  customerAddress: customerAddress,
+});
+
 const orderSchema = new mongoose.Schema({
   store: {
     type: storeSchema,
@@ -106,23 +122,13 @@ const orderSchema = new mongoose.Schema({
     type: String,
     required: false,
   },
-  customer: {
-    name: {
-      type: String,
-      required: true,
-    },
-    phone: {
-      type: String,
-      required: true,
-    },
-    customerAddress: customerAddress,
-    geolocation: {
-      type: pointSchema,
-      index: "2dsphere",
-      required: false,
-    },
-  },
+  customer: [customerSchema],
   motoboy: {
+    blacklist: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: "Motoboy",
+      default: [],
+    },
     rated: {
       type: Boolean,
       default: false,
@@ -211,6 +217,10 @@ const orderSchema = new mongoose.Schema({
     distance: {
       type: Number, // em metros
       required: false,
+    },
+    driveBack: {
+      type: Boolean,
+      default: false,
     },
     startTime: {
       type: Date,

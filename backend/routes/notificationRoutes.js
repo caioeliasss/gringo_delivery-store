@@ -7,6 +7,7 @@ const router = express.Router();
 const motoboyServices = require("../services/motoboyServices");
 const pushNotificationService = require("../services/pushNotificationService");
 const notificationService = require("../services/notificationService");
+const fullScreenNotificationService = require("../services/fullScreenNotificationService");
 
 const getNotifications = async (req, res) => {
   try {
@@ -36,66 +37,19 @@ const getNotificationsAll = async (req, res) => {
 
 const createNotification = async (req, res) => {
   try {
-    const { motoboyId, order } = req.body;
+    const { motoboyId, order, fullscreen } = req.body;
 
-    if (!motoboyId || !order) {
-      return res.status(400).json({
-        message: "Dados incompletos. motoboyId e order são obrigatórios",
-      });
-    }
-
-    // Verificar se motoboy existe e está disponível
     const motoboy = await Motoboy.findById(motoboyId);
     if (!motoboy) {
-      return res.status(404).json({ message: "Motoboy não encontrado" });
+      throw new Error("Motoboy não encontrado");
     }
 
-    // console.log(motoboy._id)
-
-    if (!motoboy.isAvailable) {
-      return res.status(400).json({ message: "Motoboy não está disponível" });
-    }
-
-    // Criar a notificação
-    const notification = new Notification({
-      motoboyId: motoboyId,
-      type: "DELIVERY_REQUEST",
-      title: `${order.store.name}`,
-      message: `Pedido #${order.orderNumber}`,
-      data: {
-        storeAddress: order.store.address,
-        order: order,
-        orderId: order._id,
-        customerName: order.customer.name,
-        address: order.customer.customerAddress,
-      },
-      status: "PENDING",
-      expiresAt: new Date(Date.now() + 60000), // 1 minuto para expirar
-    });
-
-    await notification.save();
-    console.log(
-      `Notificação criada: ${notification._id} para motoboy ${motoboyId}`
-    );
-
-    if (motoboy.pushToken) {
-      try {
-        await pushNotificationService.sendPushNotification(
-          motoboy.pushToken,
-          "Nova Entrega Disponível",
-          notification.message,
-          {
-            notificationId: notification._id,
-            type: notification.type,
-            orderId: order._id,
-            screen: "DeliveryRequest",
-          }
-        );
-      } catch (pushError) {
-        console.error("Erro ao enviar notificação push:", pushError);
-        // Não falhar o request se a notificação push falhar
-      }
-    }
+    const notification =
+      await notificationService.createDeliveryRequestNotification({
+        motoboyId,
+        order,
+        fullscreen,
+      });
 
     // Enviar evento SSE se disponível na aplicação
     if (req.app.locals.sendEventToStore) {
@@ -111,7 +65,7 @@ const createNotification = async (req, res) => {
         const notified = req.app.locals.sendEventToStore(
           motoboy.firebaseUid,
           "notificationUpdate",
-          notifyData
+          notification
         );
 
         console.log(
@@ -127,6 +81,63 @@ const createNotification = async (req, res) => {
     res.status(201).json(notification);
   } catch (error) {
     console.error("Erro ao criar notificação:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const orderReadyNotification = async (req, res) => {
+  try {
+    const { motoboyId, orderId } = req.body;
+    if (!motoboyId || !orderId) {
+      return res.status(400).json({
+        message: "Dados incompletos. motoboyId e orderId são obrigatórios",
+      });
+    }
+    const motoboy = await Motoboy.findById(motoboyId);
+    if (!motoboy) {
+      return res.status(404).json({ message: "Motoboy não encontrado" });
+    }
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: "Pedido não encontrado" });
+    }
+    const notification = new Notification({
+      motoboyId: motoboy._id,
+      type: "ORDER_READY",
+      title: "Pedido Pronto",
+      message: `O pedido ${order.orderNumber} está pronto para retirada no estabelecimento ${order.store.name}.`,
+      status: "PENDING",
+      expiresAt: new Date(Date.now() + 60000 * 60 * 1 * 1), // 1 hora para expirar
+    });
+    await notification.save();
+    // Enviar notificação push
+    let fcmNotification = null;
+    if (motoboy.fcmToken) {
+      try {
+        fcmNotification =
+          await pushNotificationService.sendCallStyleNotificationFCM(
+            motoboy.fcmToken,
+            notification.title,
+            notification.message,
+            {
+              notificationId: notification._id,
+              type: notification.type,
+              screen: "/(tabs)",
+              orderId: order._id,
+            }
+          );
+      } catch (pushError) {
+        console.error("Erro ao enviar notificação push:", pushError);
+        // Não falhar o request se a notificação push falhar
+      }
+    }
+    res.status(201).json({
+      message: "Notificação de pedido pronto criada com sucesso",
+      notification,
+      fcmNotification,
+    });
+  } catch (error) {
+    console.error("Erro ao criar notificação de pedido pronto:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -429,7 +440,9 @@ const createCallStyleNotification = async (req, res) => {
       req.app
     );
 
-    console.log(`Notificação estilo chamada criada com sucesso: ${result.callId}`);
+    console.log(
+      `Notificação estilo chamada criada com sucesso: ${result.callId}`
+    );
     res.status(201).json(result);
   } catch (error) {
     console.error("Erro ao criar notificação estilo chamada:", error);
@@ -446,7 +459,8 @@ const respondToCallStyleNotification = async (req, res) => {
 
     if (!callId || !action || !firebaseUid) {
       return res.status(400).json({
-        message: "Dados incompletos. callId, action e firebaseUid são obrigatórios",
+        message:
+          "Dados incompletos. callId, action e firebaseUid são obrigatórios",
       });
     }
 
@@ -517,5 +531,6 @@ router.put("/", updateNotification);
 router.post("/call-style", createCallStyleNotification);
 router.post("/call-style/respond", respondToCallStyleNotification);
 router.get("/call-style/:callId", getCallInfo);
+router.post("/order-ready", orderReadyNotification);
 
 module.exports = router;

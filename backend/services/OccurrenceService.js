@@ -14,6 +14,8 @@ class OccurrenceService {
         description: data.description || "",
         firebaseUid: data.firebaseUid || null, // Pode ser nulo se não houver
         date: data.date || new Date(),
+        expiresAt:
+          data.expiresAt || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Expira em 30 dias
       });
 
       const savedOccurrence = await occurrence.save();

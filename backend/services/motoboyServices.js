@@ -30,7 +30,6 @@ class MotoboyService {
   }
 
   async findBestMotoboys(coordinates, maxDistance = 5000, limit = 50) {
-    //TODO criar lista de motoboys que aceitaram mas nao fizeram a corrida
     // Filtrando os motoboys que cancelaram a corrida ou que aceitaram e depois cancelaram
     try {
       // First find all available and approved motoboys within the max distance

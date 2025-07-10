@@ -255,16 +255,22 @@ router.put("/status", authenticateToken, async (req, res) => {
                     motoboyAtual._id.toString()
                 ) {
                   // Executar remoção sem esperar
-                  motoboyServices
+                  await motoboyServices
                     .removeMotoboyFromOrder(orderAtual._id, motoboyAtual._id)
                     .catch((error) =>
                       console.error("Erro ao remover motoboy:", error)
                     );
 
-                  //TODO voltar a buscar de motoboy
+                  const motoboys = await motoboyServices.findBestMotoboys(
+                    orderAtual.store.coordinates
+                  );
+                  await motoboyServices.processMotoboyQueue(
+                    motoboys,
+                    orderAtual
+                  );
                 }
               } catch (error) {
-                console.error("Erro no background timer:", error);
+                console.error("Erro no background 15m timer:", error);
               }
             }, 900000); // 15 minutos
           });
@@ -278,6 +284,9 @@ router.put("/status", authenticateToken, async (req, res) => {
         name: "",
         phone: null,
       };
+      if (!order.motoboy.blacklist) {
+        order.motoboy.blacklist = [];
+      }
       order.motoboy.blacklist.push(order.motoboy.motoboyId);
 
       const motoboy = await Motoboy.findById(order.motoboy.motoboyId);
@@ -334,9 +343,10 @@ router.put("/status", authenticateToken, async (req, res) => {
 
       // Tentar enviar a notificação
       try {
+        const motoboy = await Motoboy.findById(order.motoboy.motoboyId);
         const notified = req.app.locals.sendEventToStore(
-          user.firebaseUid,
-          "orderUpdate",
+          motoboy.firebaseUid,
+          "orderStatusUpdate",
           orderData
         );
 
@@ -462,64 +472,22 @@ router.post("/", async (req, res) => {
         });
     }
 
-    if (!customer.customerAddress.coordinates) {
-      const address = customer.customerAddress.cep;
-      if (!address) {
+    customer.forEach((customer) => {
+      if (!customer.customerAddress.coordinates) {
         return res
           .status(400)
-          .json({ message: "CEP do cliente não fornecido" });
+          .json({ message: "Endereço de entrega incorreto" });
       }
+    });
 
-      try {
-        const response = await buscarCep(address);
-        const addressCustomer = response.data;
-
-        const responseCoord = await buscarCoord(
-          addressCustomer.logradouro,
-          addressCustomer.localidade,
-          addressCustomer.uf
-        );
-
-        customer.customerAddress.coordinates = [
-          parseFloat(responseCoord.data[0].lon),
-          parseFloat(responseCoord.data[0].lat),
-        ];
-      } catch (error) {
-        console.error("Erro ao buscar coordenadas do cliente:", error);
-        return res
-          .status(500)
-          .json({ message: "Erro ao buscar coordenadas do cliente" });
-      }
-    }
-
-    // const getCep = async (cnpj) => {
-    //   const response = await buscarCnpj(cnpj);
-    //   const cep = response.data.cep;
-
-    //   let storeName = response.data.nome_fantasia;
-    //   if (!storeName) {
-    //     storeName = response.data.razao_social;
-    //   }
-
-    //   return { cep, storeName };
-    // };
-
-    const calculatePrice = async (coordFrom, cep, driveBack) => {
-      const response = await buscarCep(cep);
-      const addressCustomer = response.data;
-
-      const responseCoord = await buscarCoord(
-        addressCustomer.logradouro,
-        addressCustomer.localidade,
-        addressCustomer.uf
-      );
-
-      const { lat, lon } = responseCoord.data[0];
-      const coordTo = { latitude: parseFloat(lat), longitude: parseFloat(lon) };
-
+    const calculateOriginToFirstCustomer = async (
+      coordFrom,
+      coordTo,
+      driveBack
+    ) => {
       let distance = geolib.getDistance(
         { latitude: coordFrom[1], longitude: coordFrom[0] },
-        coordTo
+        { latitude: coordTo[1], longitude: coordTo[0] }
       );
       distance = distance / 1000;
 
@@ -534,6 +502,7 @@ router.post("/", async (req, res) => {
       let valorFixo;
 
       try {
+        //TODO trocar de api por uma do google
         const getWeather = require("../services/weatherService").getWeather;
         const weatherResponse = getWeather(coordTo.latitude, coordTo.longitude);
         const weatherData = await weatherResponse;
@@ -554,7 +523,7 @@ router.post("/", async (req, res) => {
       }
 
       if (distance > priceList.fixedKm) {
-        let bonusDistance = valorFixo - distance;
+        let bonusDistance = distance - priceList.fixedKm;
         cost = bonusDistance * priceList.bonusKm;
         cost = cost + valorFixo;
       } else {
@@ -564,38 +533,141 @@ router.post("/", async (req, res) => {
         cost = distance * priceList.driveBack + cost;
       }
 
-      return { cost, distance, coordTo, priceList };
+      let distanceOrigin = distance;
+
+      return { cost, distance, distanceOrigin };
     };
 
-    const { cost, distance, coordTo, priceList } = await calculatePrice(
+    const calculateCustomerToCustomer = async (customer) => {
+      // Inicialize a variável distance fora do loop
+      let totalDistance = 0;
+
+      for (let i = 0; i < customer.length - 1; i++) {
+        const coordFrom = customer[i].customerAddress.coordinates;
+        const coordTo = customer[i + 1].customerAddress.coordinates;
+
+        // Calcule a distância entre cada par de clientes e adicione ao total
+        totalDistance += geolib.getDistance(
+          { latitude: coordFrom[1], longitude: coordFrom[0] },
+          { latitude: coordTo[1], longitude: coordTo[0] }
+        );
+      }
+
+      // Converta para quilômetros
+      totalDistance = totalDistance / 1000;
+
+      const priceList = await DeliveryPrice.findOne();
+
+      if (!priceList) {
+        console.log("Price List nao encontrado");
+        return { cost: 0, distance: 0, priceList: {}, distanceCustomers: 0 };
+      }
+
+      let cost;
+      if (totalDistance > priceList.fixedKm) {
+        let bonusDistance = totalDistance - priceList.fixedKm;
+        cost = bonusDistance * priceList.bonusKm + priceList.fixedPrice;
+      } else {
+        cost = priceList.fixedPrice;
+      }
+
+      let distanceCustomers = totalDistance;
+      return { cost, distance: totalDistance, priceList, distanceCustomers };
+    };
+
+    const calculatePrice = async (coordFrom, coordTo, driveBack) => {
+      if (!coordFrom || !coordTo) {
+        throw new Error("Coordenadas de origem ou destino não fornecidas");
+      }
+
+      // Calcular distância e custo do ponto de origem para o primeiro cliente
+      const firstCustomer = customer[0].customerAddress.coordinates;
+      let { distanceOrigin } = await calculateOriginToFirstCustomer(
+        coordFrom,
+        firstCustomer,
+        driveBack
+      );
+      let { distanceCustomers } = await calculateCustomerToCustomer(customer);
+
+      let distance = distanceOrigin + distanceCustomers;
+
+      // Buscar lista de preços
+      const priceList = await DeliveryPrice.findOne();
+
+      if (!priceList) {
+        console.log("Price List nao encontrado");
+        return { cost: 0, distance: 0, priceList: {} };
+      }
+
+      let cost;
+      let valorFixo;
+
+      try {
+        //TODO trocar de api por uma do google
+        const getWeather = require("../services/weatherService").getWeather;
+        const weatherResponse = getWeather(coordTo.latitude, coordTo.longitude);
+        const weatherData = await weatherResponse;
+        if (weatherData.current.weather_code > 60) {
+          priceList.isRain = true;
+        }
+      } catch (error) {
+        console.error("Erro ao obter dados do clima:", error.message);
+        priceList.isRain = false; // Definir como falso se houver erro na API de
+      }
+
+      if (priceList.isRain) {
+        valorFixo = priceList.priceRain;
+      } else if (priceList.isHighDemand) {
+        valorFixo = priceList.fixedPriceHigh;
+      } else {
+        valorFixo = priceList.fixedPrice;
+      }
+
+      if (distance > priceList.fixedKm) {
+        let bonusDistance = distance - priceList.fixedKm;
+        cost = bonusDistance * priceList.bonusKm;
+        cost = cost + valorFixo;
+      } else {
+        cost = valorFixo;
+      }
+      if (driveBack) {
+        cost = distance * priceList.driveBack + cost;
+      }
+      if (customer.length > 1) {
+        cost = valorFixo * (customer.length - 1) + cost;
+      }
+
+      return { cost, distance, priceList };
+    };
+
+    const { cost, distance, priceList } = await calculatePrice(
       store.coordinates,
-      customer.customerAddress.cep,
+      //buscar a ultima coordenada da lista customer
+      customer[0].customerAddress.coordinates,
       driveBack || false
     );
+
+    console.log(store);
 
     const newOrder = new Order({
       store: {
         cnpj: cnpj,
+        name: store.name || store.businessName || "Estabelecimento",
         coordinates: store.coordinates,
         address: store.address,
       },
       orderNumber,
-      customer: {
-        ...customer,
-        customerAddress: {
-          ...customer.customerAddress,
-          coordinates: [coordTo.longitude, coordTo.latitude],
-        },
-      },
+      customer: customer,
       items,
       total,
       payment,
       notes: notes || "",
       status: "pendente",
-      cliente_cod: customer.phone.replace(/\D/g, "").slice(-4),
+      cliente_cod: 1234, //customer.phone.replace(/\D/g, "").slice(-4),
       delivery: {
         distance: distance,
         priceList: priceList || {},
+        driveBack: driveBack,
       },
       motoboy: {
         price: cost,

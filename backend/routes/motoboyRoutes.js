@@ -272,6 +272,7 @@ const findMotoboys = async (req, res) => {
           description: `Tentativa de encontrar motoboy falhou e já reniciamos a fila automaticamente.
           `,
           firebaseUid: "system",
+          expiresAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // Expira em 30 dias
         });
       }
     } while (motoboyRequest.success === true && count < 3);
@@ -336,6 +337,10 @@ const removeMotoboyFromOrder = async (req, res) => {
     const order = await Order.findById(orderId);
     if (!order) {
       return res.status(404).json({ message: "Pedido não encontrado" });
+    }
+
+    if (order.motoboy && !order.motoboy.blacklist) {
+      order.motoboy.blacklist = [];
     }
 
     order.motoboy.blacklist.push(motoboyId);
@@ -403,6 +408,6 @@ router.get("/find", findMotoboys);
 router.get("/me", getMotoboyMe);
 router.post("/", createMotoboy);
 router.put("/", updateMotoboy);
-router.post("/updateFCMToken", updateFCMToken);
+router.put("/updateFCMToken", updateFCMToken);
 
 module.exports = router;

@@ -18,7 +18,9 @@ import {
   LocationOn as LocationIcon,
   Schedule as ScheduleIcon,
   CheckCircle as CheckIcon,
+  Person as PersonIcon,
 } from "@mui/icons-material";
+import eventService from "../../services/eventService";
 
 // Animação para o ícone da moto
 const bounce = keyframes`
@@ -54,10 +56,15 @@ const BuscandoMotoboy = ({
   orderNumber,
   customerName,
   createdAt,
+  orderId, // Adicione o ID do pedido para monitorar
+  status,
 }) => {
   const theme = useTheme();
   const [searchTime, setSearchTime] = useState(0);
   const [currentStep, setCurrentStep] = useState(0);
+  const [motoboyFound, setMotoboyFound] = useState(false);
+  const [motoboyInfo, setMotoboyInfo] = useState(null);
+  const [orderStatus, setOrderStatus] = useState("pendente");
 
   const steps = [
     { label: "Criando pedido...", icon: <CheckIcon />, completed: true },
@@ -71,19 +78,81 @@ const BuscandoMotoboy = ({
       icon: <ScheduleIcon />,
       completed: false,
     },
+    {
+      label: "Motoboy encontrado!",
+      icon: <PersonIcon />,
+      completed: false,
+    },
   ];
 
+  // Efeito para monitorar atualizações do pedido via SSE
+  useEffect(() => {
+    if (!open || !orderId) return;
+
+    const handleOrderUpdate = (orderData) => {
+      console.log("Atualização de pedido no BuscandoMotoboy:", orderData);
+
+      // Verificar se é o pedido que estamos monitorando
+      if (orderData._id === orderId) {
+        setOrderStatus(orderData.status);
+
+        // Se encontrou um motoboy (mudou para "em_entrega")
+        console.log("Status do pedido:", orderData.status);
+        if (orderData.status === "em_preparo" && orderData.motoboy) {
+          setMotoboyFound(true);
+          setMotoboyInfo(orderData.motoboy);
+          setCurrentStep(3); // Último step
+
+          // Fechar automaticamente após 3 segundos
+          setTimeout(() => {
+            if (onClose && typeof onClose === "function") {
+              onClose();
+            }
+          }, 3000);
+        }
+      }
+    };
+
+    // Registrar o listener
+    eventService.on("orderUpdate", handleOrderUpdate);
+
+    // Cleanup
+    return () => {
+      eventService.off("orderUpdate", handleOrderUpdate);
+    };
+  }, [open, orderId, onClose]);
+
+  useEffect(() => {
+    // Atualizar o status do pedido se for passado como prop
+    if (status) {
+      setOrderStatus(status);
+      if (status === "em_preparo") {
+        setMotoboyFound(true);
+        setCurrentStep(3); // Último step
+        // Fechar automaticamente após 3 segundos
+        setTimeout(() => {
+          if (onClose && typeof onClose === "function") {
+            onClose();
+          }
+        }, 3000);
+      } else if (status === "pendente") {
+        setMotoboyFound(false);
+        setCurrentStep(2); // Primeiro step
+      }
+    }
+  }, [status, onClose]);
+
   // Timer para mostrar tempo de busca
-  //TODO quando o driver aceitar o pedido, parar o timer e mostrar o tempo total de busca
   useEffect(() => {
     let interval;
-    if (open) {
+    if (open && !motoboyFound) {
       setSearchTime(
         createdAt
           ? Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000)
           : 1
       );
       setCurrentStep(2);
+
       interval = setInterval(() => {
         setSearchTime((prev) => prev + 1);
 
@@ -91,7 +160,7 @@ const BuscandoMotoboy = ({
         if (searchTime >= 5 && currentStep === 1) {
           setCurrentStep(2);
         }
-      }, 60000);
+      }, 1000); // Mudou para 1 segundo para melhor UX
     }
 
     return () => {
@@ -99,7 +168,7 @@ const BuscandoMotoboy = ({
         clearInterval(interval);
       }
     };
-  }, [open, searchTime, currentStep, createdAt]);
+  }, [open, searchTime, currentStep, createdAt, motoboyFound]);
 
   // Formatar tempo de busca
   const formatTime = (seconds) => {
@@ -110,9 +179,11 @@ const BuscandoMotoboy = ({
 
   // Calcular progresso
   const getProgress = () => {
-    const baseProgress = (currentStep / steps.length) * 100;
-    const timeProgress = Math.min((searchTime / 30) * 20, 20); // Máximo 20% adicional
-    return Math.min(baseProgress + timeProgress, 85); // Máximo 85% até encontrar motoboy
+    if (motoboyFound) return 100;
+
+    const baseProgress = (currentStep / (steps.length - 1)) * 100;
+    const timeProgress = Math.min((searchTime / 30) * 20, 20);
+    return Math.min(baseProgress + timeProgress, 85);
   };
 
   // Handler seguro para o onClose
@@ -125,7 +196,7 @@ const BuscandoMotoboy = ({
   return (
     <Dialog
       open={open}
-      onClose={null} // Não permite fechar clicando fora
+      onClose={null}
       maxWidth="sm"
       fullWidth
       PaperProps={{
@@ -138,7 +209,9 @@ const BuscandoMotoboy = ({
       {/* Header com gradiente */}
       <DialogTitle
         sx={{
-          background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+          background: motoboyFound
+            ? `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.dark} 100%)`
+            : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
           color: "white",
           textAlign: "center",
           py: 3,
@@ -146,15 +219,19 @@ const BuscandoMotoboy = ({
       >
         <Box
           sx={{
-            animation: `${bounce} 2s infinite`,
+            animation: motoboyFound ? "none" : `${bounce} 2s infinite`,
             display: "inline-block",
             mb: 2,
           }}
         >
-          <MotobikeIcon sx={{ fontSize: 48 }} />
+          {motoboyFound ? (
+            <CheckIcon sx={{ fontSize: 48 }} />
+          ) : (
+            <MotobikeIcon sx={{ fontSize: 48 }} />
+          )}
         </Box>
         <Typography variant="h5" sx={{ fontWeight: "bold", mb: 1 }}>
-          Buscando Motoboy
+          {motoboyFound ? "Motoboy Encontrado!" : "Buscando Motoboy"}
         </Typography>
         <Typography variant="body2" sx={{ opacity: 0.9 }}>
           Pedido #{orderNumber || "N/A"} para {customerName || "Cliente"}
@@ -166,11 +243,11 @@ const BuscandoMotoboy = ({
         <Box sx={{ mb: 4 }}>
           <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              Progresso da busca
+              {motoboyFound ? "Busca concluída" : "Progresso da busca"}
             </Typography>
             <Typography
               variant="body2"
-              color="primary.main"
+              color={motoboyFound ? "success.main" : "primary.main"}
               sx={{ fontWeight: "bold" }}
             >
               {Math.round(getProgress())}%
@@ -185,7 +262,9 @@ const BuscandoMotoboy = ({
               bgcolor: "grey.200",
               "& .MuiLinearProgress-bar": {
                 borderRadius: 4,
-                background: `linear-gradient(90deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                background: motoboyFound
+                  ? `linear-gradient(90deg, ${theme.palette.success.main} 0%, ${theme.palette.success.light} 100%)`
+                  : `linear-gradient(90deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
               },
             }}
           />
@@ -216,14 +295,19 @@ const BuscandoMotoboy = ({
                     index < currentStep
                       ? "success.main"
                       : index === currentStep
-                      ? "primary.main"
+                      ? motoboyFound
+                        ? "success.main"
+                        : "primary.main"
                       : "grey.300",
                   color: "white",
                   animation:
-                    index === currentStep ? `${pulse} 2s infinite` : "none",
+                    index === currentStep && !motoboyFound
+                      ? `${pulse} 2s infinite`
+                      : "none",
                 }}
               >
-                {index < currentStep ? (
+                {index < currentStep ||
+                (index === currentStep && motoboyFound) ? (
                   <CheckIcon sx={{ fontSize: 20 }} />
                 ) : (
                   step.icon
@@ -240,9 +324,14 @@ const BuscandoMotoboy = ({
                 >
                   {step.label}
                 </Typography>
-                {index === currentStep && (
+                {index === currentStep && !motoboyFound && (
                   <Typography variant="body2" color="primary.main">
                     Em andamento...
+                  </Typography>
+                )}
+                {index === currentStep && motoboyFound && (
+                  <Typography variant="body2" color="success.main">
+                    Concluído!
                   </Typography>
                 )}
               </Box>
@@ -250,76 +339,161 @@ const BuscandoMotoboy = ({
           ))}
         </Box>
 
+        {/* Informações do motoboy encontrado */}
+        {motoboyFound && motoboyInfo && (
+          <Box
+            sx={{
+              bgcolor: "success.light",
+              borderRadius: 2,
+              p: 3,
+              mb: 3,
+              border: `1px solid ${theme.palette.success.main}`,
+            }}
+          >
+            <Typography
+              variant="h6"
+              color="success.dark"
+              sx={{ fontWeight: "bold", mb: 2, textAlign: "center" }}
+            >
+              🎉 Motoboy Encontrado!
+            </Typography>
+            <Box sx={{ textAlign: "center" }}>
+              <Typography variant="body1" sx={{ fontWeight: "bold", mb: 1 }}>
+                {motoboyInfo.name}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Telefone: {motoboyInfo.phone}
+              </Typography>
+              <Chip
+                label="🚀 Saiu para entrega"
+                color="success"
+                size="small"
+                variant="filled"
+              />
+            </Box>
+          </Box>
+        )}
+
         {/* Informações de tempo */}
         <Box
           sx={{
-            bgcolor: "grey.50",
+            bgcolor: motoboyFound ? "success.50" : "grey.50",
             borderRadius: 2,
             p: 3,
             textAlign: "center",
-            border: `1px solid ${theme.palette.grey[200]}`,
+            border: `1px solid ${
+              motoboyFound
+                ? theme.palette.success.light
+                : theme.palette.grey[200]
+            }`,
           }}
         >
           <Typography
             variant="h6"
-            color="primary.main"
+            color={motoboyFound ? "success.main" : "primary.main"}
             sx={{ fontWeight: "bold", mb: 1 }}
           >
-            Tempo de busca: {formatTime(searchTime)}
+            {motoboyFound
+              ? `Busca concluída em: ${formatTime(searchTime)}`
+              : `Tempo de busca: ${formatTime(searchTime)}`}
           </Typography>
 
           <Box
             sx={{ display: "flex", justifyContent: "center", gap: 1, mb: 2 }}
           >
-            {/* Remover onClick dos Chips que não precisam */}
-            <Chip
-              label="🔍 Procurando"
-              color="primary"
-              size="small"
-              variant="filled"
-              sx={{
-                animation: `${pulse} 1.5s infinite`,
-                cursor: "default", // Indica que não é clicável
-              }}
-            />
-            <Chip
-              label="📍 Na sua região"
-              color="secondary"
-              size="small"
-              variant="filled"
-              sx={{ cursor: "default" }}
-            />
+            {motoboyFound ? (
+              <>
+                <Chip
+                  label="✅ Encontrado"
+                  color="success"
+                  size="small"
+                  variant="filled"
+                  sx={{ cursor: "default" }}
+                />
+                <Chip
+                  label="🚀 Em entrega"
+                  color="primary"
+                  size="small"
+                  variant="filled"
+                  sx={{ cursor: "default" }}
+                />
+              </>
+            ) : (
+              <>
+                <Chip
+                  label="🔍 Procurando"
+                  color="primary"
+                  size="small"
+                  variant="filled"
+                  sx={{
+                    animation: `${pulse} 1.5s infinite`,
+                    cursor: "default",
+                  }}
+                />
+                <Chip
+                  label="📍 Na sua região"
+                  color="secondary"
+                  size="small"
+                  variant="filled"
+                  sx={{ cursor: "default" }}
+                />
+              </>
+            )}
           </Box>
 
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Estamos buscando o melhor motoboy disponível para realizar sua
-            entrega. Isso pode levar alguns minutos.
+            {motoboyFound
+              ? "Seu pedido está a caminho! O motoboy entrará em contato em breve."
+              : "Estamos buscando o melhor motoboy disponível para realizar sua entrega. Isso pode levar alguns minutos."}
           </Typography>
 
-          <Box
-            sx={{
-              bgcolor: "info.light",
-              color: "info.contrastText",
-              borderRadius: 1,
-              p: 2,
-              mt: 2,
-            }}
-          >
-            <Typography variant="body2" sx={{ fontWeight: "bold", mb: 0.5 }}>
-              💡 Você pode fechar esta janela
-            </Typography>
-            <Typography variant="body2">
-              A busca continuará em segundo plano e você será notificado quando
-              um motoboy aceitar o pedido.
-            </Typography>
-          </Box>
+          {!motoboyFound && (
+            <Box
+              sx={{
+                bgcolor: "info.light",
+                color: "info.contrastText",
+                borderRadius: 1,
+                p: 2,
+                mt: 2,
+              }}
+            >
+              <Typography variant="body2" sx={{ fontWeight: "bold", mb: 0.5 }}>
+                💡 Você pode fechar esta janela
+              </Typography>
+              <Typography variant="body2">
+                A busca continuará em segundo plano e você será notificado
+                quando um motoboy aceitar o pedido.
+              </Typography>
+            </Box>
+          )}
+
+          {motoboyFound && (
+            <Box
+              sx={{
+                bgcolor: "success.light",
+                color: "success.contrastText",
+                borderRadius: 1,
+                p: 2,
+                mt: 2,
+              }}
+            >
+              <Typography variant="body2" sx={{ fontWeight: "bold", mb: 0.5 }}>
+                🎯 Próximos passos
+              </Typography>
+              <Typography variant="body2">
+                Acompanhe o status do pedido na lista de pedidos. Esta janela
+                será fechada automaticamente.
+              </Typography>
+            </Box>
+          )}
         </Box>
       </DialogContent>
 
       <DialogActions sx={{ px: 3, pb: 3 }}>
         <Button
           onClick={handleClose}
-          variant="outlined"
+          variant={motoboyFound ? "contained" : "outlined"}
+          color={motoboyFound ? "success" : "primary"}
           fullWidth
           sx={{
             py: 1.5,
@@ -327,7 +501,7 @@ const BuscandoMotoboy = ({
             borderRadius: 2,
           }}
         >
-          Continuar navegando
+          {motoboyFound ? "Fechar" : "Continuar navegando"}
         </Button>
       </DialogActions>
     </Dialog>

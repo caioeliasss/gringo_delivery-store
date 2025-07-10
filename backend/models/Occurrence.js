@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-
 const occurrenceSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -79,12 +78,21 @@ const occurrenceSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  expiresAt: {
+    type: Date,
+    default: function () {
+      // Define expiration as 30 days from creation
+      return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    },
+  },
 });
 
 occurrenceSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
   next();
 });
+
+occurrenceSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const Occurrence = mongoose.model("Occurrence", occurrenceSchema);
 module.exports = Occurrence;

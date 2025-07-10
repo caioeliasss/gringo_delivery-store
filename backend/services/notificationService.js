@@ -59,7 +59,9 @@ class NotificationService {
       motoboyId: motoboyId,
       type: "DELIVERY_REQUEST",
       title: `${order.store.name}`,
-      message: `Pedido #${order.orderNumber}`,
+      message: `${
+        order.customer.length > 1 ? "(ESPECIAL) " : ""
+      }Entregue por R$${order.motoboy.price.toFixed(2)} - ${order.store.name}`,
       data: {
         storeAddress: order.store.address,
         order: order,
@@ -76,25 +78,25 @@ class NotificationService {
       `Notificação criada: ${notification._id} para motoboy ${motoboyId}`
     );
 
-    // Enviar push notification se o motoboy tiver token
-    if (motoboy.pushToken) {
+    if (motoboy.fcmToken) {
       try {
-        await pushNotificationService.sendPushNotification(
-          motoboy.pushToken,
-          "Nova Entrega Disponível",
-          notification.message,
-          {
-            notificationId: notification._id,
-            type: notification.type,
-            orderId: order._id,
-            screen: "DeliveryRequest",
-          }
-        );
+        const fcmNotification =
+          await pushNotificationService.sendCallStyleNotificationFCM(
+            motoboy.fcmToken,
+            notification.title,
+            notification.message,
+            {
+              notificationId: notification._id,
+              type: notification.type,
+              screen: "/(tabs)",
+              orderId: order._id,
+            }
+          );
       } catch (pushError) {
-        console.error("Erro ao enviar notificação push:", pushError);
+        console.error("Erro ao enviar notificação call style:", pushError);
+        // Não falhar o request se a notificação call style falhar
       }
     }
-
     // Enviar evento SSE se disponível
     if (app?.locals?.sendEventToStore) {
       try {

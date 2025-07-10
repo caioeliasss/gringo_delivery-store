@@ -1,7 +1,8 @@
 const axios = require("axios");
+const admin = require("firebase-admin");
 
 /**
- * Serviço para enviar notificações push usando a API Expo
+ * Serviço para enviar notificações push usando a API Expo e FCM
  */
 const pushNotificationService = {
   /**
@@ -12,6 +13,25 @@ const pushNotificationService = {
    * @param {object} data - Dados adicionais para a notificação
    * @returns {Promise} - Resultado do envio
    */
+
+  convertToStringData(obj) {
+    const result = {};
+
+    for (const [key, value] of Object.entries(obj)) {
+      if (value === null || value === undefined) {
+        result[key] = "";
+      } else if (typeof value === "object") {
+        // Se for objeto, converte para JSON string
+        result[key] = JSON.stringify(value);
+      } else {
+        // Converte para string
+        result[key] = String(value);
+      }
+    }
+
+    return result;
+  },
+
   async sendPushNotification(expoPushToken, title, body, data = {}) {
     // Validar o formato do token
     if (!expoPushToken || !expoPushToken.startsWith("ExponentPushToken[")) {
@@ -194,6 +214,67 @@ const pushNotificationService = {
         "Erro ao enviar notificação estilo chamada:",
         error.response?.data || error.message
       );
+      throw error;
+    }
+  },
+
+  /**
+   * Envia uma notificação push estilo chamada (full screen intent) usando FCM
+   * @param {string} token - Token do dispositivo destino
+   * @param {string} title - Título da notificação (ex: nome do chamador)
+   * @param {string} message - Mensagem da notificação
+   * @param {object} data - Dados adicionais para a notificação
+   * @returns {Promise} - Resultado do envio
+   */
+  async sendCallStyleNotificationFCM(token, title, message, data = {}) {
+    try {
+      // Converter todos os dados para string (obrigatório no FCM)
+      const stringData = this.convertToStringData({
+        ...data,
+        isCallStyle: "true",
+        type: data.type || "call_style",
+        screen: data.screen || "IncomingCallScreen",
+        timestamp: Date.now().toString(),
+        notificationId: data.notificationId?.toString() || "",
+        orderId: data.orderId?.toString() || "",
+        timeoutSeconds: "30",
+        title: title,
+        body: message,
+        message: message,
+      });
+
+      const payload = {
+        token: token,
+        data: stringData,
+        android: {
+          priority: "high",
+        },
+        apns: {
+          headers: {
+            "apns-priority": "10",
+            "apns-push-type": "alert",
+          },
+          payload: {
+            aps: {
+              alert: {
+                title: title,
+                body: message,
+              },
+              sound: "default",
+              badge: 1,
+              "content-available": 1,
+              "mutable-content": 1,
+              category: "DELIVERY_NOTIFICATION",
+              "interruption-level": "time-sensitive",
+            },
+          },
+        },
+      };
+
+      const response = await admin.messaging().send(payload);
+      return response;
+    } catch (error) {
+      console.error("❌ Erro ao enviar FCM:", error);
       throw error;
     }
   },

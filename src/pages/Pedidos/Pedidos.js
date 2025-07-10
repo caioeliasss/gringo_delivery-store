@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import axios from "axios";
 import { useAuth } from "../../contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../services/api";
@@ -45,6 +46,8 @@ import {
   Fab,
   Autocomplete,
   Icon,
+  Tab,
+  Tabs,
 } from "@mui/material";
 import {
   Dashboard as DashboardIcon,
@@ -73,10 +76,72 @@ import {
   ReportProblem as OcorrenciasIcon,
   Chat as ChatIcon,
   Receipt as ReceiptIcon,
+  NotificationAdd,
 } from "@mui/icons-material";
 import eventService from "../../services/eventService";
 import Avaliate from "../../components/Avaliate";
 import BuscandoMotoboy from "../../components/BuscandoMotoboy/BuscandoMotoboy";
+import GoogleMapReact from "google-map-react";
+import MyLocationIcon from "@mui/icons-material/MyLocation";
+
+const SearchField = ({
+  placeholder,
+  color = "primary",
+  searchAddress,
+  setSearchAddress,
+  onSearch,
+}) => (
+  <Box
+    sx={{
+      position: "absolute",
+      top: 10,
+      left: 10,
+      right: 10,
+      zIndex: 10,
+    }}
+  >
+    <Box sx={{ display: "flex", gap: 1 }}>
+      <TextField
+        fullWidth
+        placeholder={placeholder}
+        value={searchAddress}
+        onChange={(e) => setSearchAddress(e.target.value)}
+        onKeyPress={(e) => {
+          if (e.key === "Enter") {
+            onSearch();
+          }
+        }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon color={color} />
+            </InputAdornment>
+          ),
+          sx: {
+            backgroundColor: "white",
+            borderRadius: 2,
+            boxShadow: 2,
+          },
+        }}
+        variant="outlined"
+        size="small"
+      />
+      <Button
+        variant="contained"
+        color={color}
+        onClick={onSearch}
+        sx={{
+          minWidth: "auto",
+          px: 2,
+          borderRadius: 2,
+          boxShadow: 2,
+        }}
+      >
+        <SearchIcon />
+      </Button>
+    </Box>
+  </Box>
+);
 
 const Pedidos = () => {
   const { currentUser, logout } = useAuth();
@@ -89,6 +154,7 @@ const Pedidos = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [currentPedido, setCurrentPedido] = useState(null);
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
+  const searchInputRef = useRef(null);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -100,21 +166,47 @@ const Pedidos = () => {
   const [avaliateOpen, setAvaliateOpen] = useState(false);
   const [buscandoMotoboy, setBuscandoMotoboy] = useState(false);
   const [orderCreated, setOrderCreated] = useState(null); // Para armazenar dados do pedido criado
-
+  const [searchAddress, setSearchAddress] = useState("");
+  const [activeCustomerIndex, setActiveCustomerIndex] = useState(0); // Índice do cliente ativo
+  const [storeOrigin, setStoreOrigin] = useState(null);
   // Estado para o formulário de novo pedido
   const [novoPedido, setNovoPedido] = useState({
-    customer: {
+    store: {
       name: "",
-      phone: "",
-      customerAddress: {
+      cnpj: "",
+      coordinates: [],
+      address: {
         cep: null,
-        address: "",
-        addressNumber: "",
+        logradouro: "",
+        numero: "",
         bairro: "",
         cidade: "",
+        estado: "",
       },
     },
-    items: [],
+    customer: [
+      {
+        name: "",
+        phone: "",
+        customerAddress: {
+          cep: null,
+          address: "",
+          addressNumber: "",
+          bairro: "",
+          cidade: "",
+          estado: "",
+          coordinates: [], // [longitude, latitude]
+        },
+      },
+    ],
+    items: [
+      {
+        productId: "",
+        productName: "Produto padrão",
+        quantity: 1,
+        price: 0,
+      },
+    ],
     payment: {
       method: "dinheiro",
       change: 0,
@@ -136,6 +228,22 @@ const Pedidos = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const navigate = useNavigate();
 
+  // Novos estados para controle de localização
+  const [locationTab, setLocationTab] = useState(0); // 0 para Origem, 1 para Destino
+  const [useMap, setUseMap] = useState(true); // Se true, usa mapa para selecionar localização
+
+  // Estados para controlar o mapa
+  const [mapCenter, setMapCenter] = useState({
+    lat: -22.39731,
+    lng: -46.947326,
+  }); // -22.397310, -46.947326
+  const [originLocation, setOriginLocation] = useState(null);
+  const [destinationLocation, setDestinationLocation] = useState([]);
+  const [addressSearch, setAddressSearch] = useState(null);
+  const [statusBuscandoMotoboy, setStatusBuscandoMotoboy] =
+    useState("pendente");
+  // Removido em favor de activeCustomerIndex
+
   useEffect(() => {
     // Só conectar o SSE se o usuário estiver autenticado
     if (currentUser) {
@@ -144,9 +252,8 @@ const Pedidos = () => {
 
       // Configurar manipulador para atualizações de pedidos
       const handleOrderUpdate = (orderData) => {
-        console.log("Atualização de pedido recebida:", orderData);
-
         // Atualizar o pedido na lista local se o pedido já existir
+        setStatusBuscandoMotoboy(orderData.status);
         setPedidos((prevPedidos) =>
           prevPedidos.map((pedido) =>
             pedido._id === orderData._id ? { ...pedido, ...orderData } : pedido
@@ -249,6 +356,32 @@ const Pedidos = () => {
     fetchPedidos();
   }, []);
 
+  useEffect(() => {
+    const fetchStore = async () => {
+      try {
+        const userProfileResponse = await api.get("/stores/me");
+        const userProfile = userProfileResponse.data;
+        setStoreOrigin({
+          name:
+            userProfile.name ||
+            userProfile.businessName ||
+            userProfile.displayName,
+          cnpj: userProfile.cnpj,
+          address: userProfile.address,
+          coordinates: userProfile.geolocation.coordinates,
+        });
+      } catch (err) {
+        console.error("Erro ao carregar perfil da loja:", err);
+        setSnackbar({
+          open: true,
+          message: "Erro ao carregar perfil da loja",
+          severity: "error",
+        });
+      }
+    };
+    fetchStore();
+  }, []);
+
   // Carregar produtos (para uso na criação de pedidos)
   useEffect(() => {
     const fetchProdutos = async () => {
@@ -274,13 +407,34 @@ const Pedidos = () => {
 
     // Filtrar por termo de busca
     if (searchTerm) {
-      result = result.filter(
-        (pedido) =>
-          pedido.customer?.name
-            ?.toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
+      result = result.filter((pedido) => {
+        // Procura no número do pedido
+        if (
           pedido.orderNumber?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+        ) {
+          return true;
+        }
+
+        // Se customer for array, procura em todos os clientes
+        if (Array.isArray(pedido.customer)) {
+          return pedido.customer.some(
+            (cliente) =>
+              cliente?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              cliente?.phone?.includes(searchTerm)
+          );
+        }
+        // Para compatibilidade com pedidos antigos
+        else if (pedido.customer?.name) {
+          return (
+            pedido.customer.name
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase()) ||
+            pedido.customer?.phone?.includes(searchTerm)
+          );
+        }
+
+        return false;
+      });
     }
 
     // Filtrar por status
@@ -315,7 +469,9 @@ const Pedidos = () => {
       setBuscandoMotoboy(true);
       setOrderCreated({
         orderNumber: pedido.orderNumber,
-        customerName: pedido.customer.name,
+        customerName: Array.isArray(pedido.customer)
+          ? pedido.customer.map((c) => c.name).join(", ")
+          : pedido.customer?.name || "Cliente",
         createdAt: pedido.createdAt,
       });
     }
@@ -329,7 +485,7 @@ const Pedidos = () => {
       setLoading(true);
 
       // Chamar API para atualizar status
-      await api.put(`/orders/${pedidoId}/status`, { status: newStatus });
+      await api.put(`/orders/status`, { status: newStatus, id: pedidoId });
 
       // Atualizar estado local
       const updatedPedidos = pedidos.map((pedido) =>
@@ -400,17 +556,21 @@ const Pedidos = () => {
         coordinates: [],
         address: {},
       },
-      customer: {
-        name: "",
-        phone: "",
-        customerAddress: {
-          cep: null,
-          address: "",
-          addressNumber: "",
-          bairro: "",
-          cidade: "",
+      customer: [
+        {
+          name: "",
+          phone: "",
+          customerAddress: {
+            cep: null,
+            address: "",
+            addressNumber: "",
+            bairro: "",
+            cidade: "",
+            estado: "",
+            coordinates: [],
+          },
         },
-      },
+      ],
       items: [],
       payment: {
         method: "dinheiro",
@@ -425,6 +585,16 @@ const Pedidos = () => {
       quantity: 1,
       price: 0,
     });
+    setOriginLocation({
+      lat: storeOrigin.coordinates[1],
+      lng: storeOrigin.coordinates[0],
+    });
+    setMapCenter({
+      lat: storeOrigin.coordinates[1],
+      lng: storeOrigin.coordinates[0],
+    });
+    setDestinationLocation([]);
+    setActiveCustomerIndex(0);
     setOpenCreateDialog(true);
   };
 
@@ -433,14 +603,86 @@ const Pedidos = () => {
     setOpenCreateDialog(false);
   };
 
+  // Adicionar um novo cliente
+  const handleAddCustomer = () => {
+    const newCustomerIndex = novoPedido.customer.length;
+
+    setNovoPedido((prev) => ({
+      ...prev,
+      customer: [
+        ...prev.customer,
+        {
+          name: "",
+          phone: "",
+          customerAddress: {
+            cep: null,
+            address: "",
+            addressNumber: "",
+            bairro: "",
+            cidade: "",
+            estado: "",
+            coordinates: [],
+          },
+        },
+      ],
+    }));
+
+    // Muda o foco para o novo cliente adicionado
+    setActiveCustomerIndex(newCustomerIndex);
+  };
+
+  // Remover um cliente
+  const handleRemoveCustomer = (index) => {
+    if (novoPedido.customer.length <= 1) {
+      setSnackbar({
+        open: true,
+        message: "O pedido deve ter pelo menos um cliente",
+        severity: "warning",
+      });
+      return;
+    }
+
+    setNovoPedido((prev) => ({
+      ...prev,
+      customer: prev.customer.filter((_, i) => i !== index),
+    }));
+
+    // Remove o ponto de destino correspondente
+    setDestinationLocation((prevLocations) =>
+      prevLocations
+        .filter((location) => location.customerIndex !== index)
+        .map((location) => ({
+          ...location,
+          // Ajusta os índices dos pontos com índice maior que o removido
+          customerIndex:
+            location.customerIndex > index
+              ? location.customerIndex - 1
+              : location.customerIndex,
+        }))
+    );
+
+    // Atualiza o índice atual se necessário
+    if (activeCustomerIndex >= index && activeCustomerIndex > 0) {
+      setActiveCustomerIndex(activeCustomerIndex - 1);
+    }
+  };
+
   // Atualizar dados do cliente
   // Atualizar dados do cliente
   const handleCustomerChange = (e) => {
     const { name, value } = e.target;
+    const index = activeCustomerIndex;
 
     // Check if the field belongs to the address object
     if (
-      ["cep", "address", "addressNumber", "bairro", "cidade"].includes(name)
+      [
+        "cep",
+        "address",
+        "addressNumber",
+        "bairro",
+        "cidade",
+        "estado",
+      ].includes(name)
     ) {
       let processedValue = value;
 
@@ -454,23 +696,36 @@ const Pedidos = () => {
 
       setNovoPedido((prev) => ({
         ...prev,
-        customer: {
-          ...prev.customer,
-          customerAddress: {
-            ...prev.customer.customerAddress,
-            [name]: processedValue,
-          },
-        },
+        customer: prev.customer.map((customer, i) =>
+          i === index
+            ? {
+                ...customer,
+                customerAddress: {
+                  ...customer.customerAddress,
+                  [name]: processedValue,
+                },
+              }
+            : customer
+        ),
       }));
     } else {
       // Handle regular customer fields
       setNovoPedido((prev) => ({
         ...prev,
-        customer: {
-          ...prev.customer,
-          [name]: value,
-        },
+        customer: prev.customer.map((customer, i) =>
+          i === index ? { ...customer, [name]: value } : customer
+        ),
       }));
+      if (name === "phone") {
+        // Gerar código do cliente (últimos 4 dígitos do telefone)
+        const clienteCod = value.replace(/\D/g, "").slice(-4);
+        setNovoPedido((prev) => ({
+          ...prev,
+          customer: prev.customer.map((customer, i) =>
+            i === index ? { ...customer, cliente_cod: clienteCod } : customer
+          ),
+        }));
+      }
     }
   };
 
@@ -584,29 +839,60 @@ const Pedidos = () => {
     }));
   };
 
-  // Criar novo pedido
+  // Criar novo pedido com suporte a múltiplos clientes
   const handleCreatePedido = async () => {
-    // Validação básica
-    if (
-      !novoPedido.customer.name ||
-      !novoPedido.customer.phone ||
-      !novoPedido.customer.customerAddress.address
-    ) {
+    // Validação para múltiplos clientes
+    const clientesInvalidos = novoPedido.customer.filter(
+      (cliente) =>
+        !cliente.name ||
+        !cliente.phone ||
+        !cliente.customerAddress.address ||
+        !cliente.customerAddress.addressNumber ||
+        !cliente.customerAddress.bairro ||
+        !cliente.customerAddress.cidade
+    );
+
+    if (clientesInvalidos.length > 0) {
+      // Encontrar o índice do primeiro cliente inválido para focar nele
+      const indexInvalido = novoPedido.customer.findIndex(
+        (cliente) =>
+          !cliente.name ||
+          !cliente.phone ||
+          !cliente.customerAddress.address ||
+          !cliente.customerAddress.addressNumber ||
+          !cliente.customerAddress.bairro ||
+          !cliente.customerAddress.cidade
+      );
+
+      // Alterar para o cliente inválido
+      if (indexInvalido !== -1) {
+        setActiveCustomerIndex(indexInvalido);
+      }
+
       setSnackbar({
         open: true,
-        message: "Preencha todos os dados do cliente",
+        message:
+          "Todos os clientes precisam ter nome, telefone e endereço completo preenchidos",
         severity: "warning",
       });
       return;
     }
 
+    // Gerar código para cada cliente (últimos 4 dígitos do telefone)
+    const customersWithCode = novoPedido.customer.map((customer) => ({
+      ...customer,
+      cliente_cod: customer.phone.replace(/\D/g, "").slice(-4),
+    }));
+
     if (novoPedido.items.length === 0) {
-      setSnackbar({
-        open: true,
-        message: "Adicione pelo menos um item ao pedido",
-        severity: "warning",
-      });
-      return;
+      novoPedido.total = 1;
+      novoPedido.items = [
+        {
+          productName: "Produto padrão",
+          quantity: 1,
+          price: 1,
+        },
+      ];
     }
 
     try {
@@ -618,18 +904,27 @@ const Pedidos = () => {
 
       const orderData = {
         ...novoPedido,
+        customer: customersWithCode, // Enviar clientes com código gerado
         store: {
+          name: storeOrigin.name,
           cnpj: userCnpj,
-          address: storeAddress,
-          coordinates: userGeolocation.coordinates,
+          address: {
+            cep: novoPedido.store.address.cep,
+            address: novoPedido.store.address.logradouro,
+            addressNumber: novoPedido.store.address.numero,
+            bairro: novoPedido.store.address.bairro,
+            cidade: novoPedido.store.address.cidade,
+            estado: novoPedido.store.address.estado,
+            coordinates: novoPedido.store.coordinates,
+          },
+          coordinates: novoPedido.store.coordinates,
         },
-        driveBack: novoPedido.payment.method === "maquina",
+        driveBack:
+          novoPedido.payment.method === "maquina" ||
+          novoPedido.payment.method === "dinheiro",
         findDriverAuto: false,
-        // geolocation: userGeolocation,
       };
 
-      // console.log(orderData);
-      // Chamar API para criar pedido
       setOpenCreateDialog(false);
       setBuscandoMotoboy(true);
 
@@ -664,16 +959,16 @@ const Pedidos = () => {
       setOpenCreateDialog(false);
       setLoading(false);
 
-      findMotoboys(orderId);
+      await findMotoboys(orderId);
     } catch (err) {
-      setBuscandoMotoboy(false);
-      console.error("Erro ao criar pedido:", err);
       setSnackbar({
         open: true,
         message: "Erro ao criar pedido",
         severity: "error",
       });
+      console.error("Erro ao criar pedido:", err);
       setLoading(false);
+      return;
     }
   };
 
@@ -826,6 +1121,44 @@ const Pedidos = () => {
     </Box>
   );
 
+  const handleCallDeliveryPerson = async (pedido) => {
+    if (!pedido.motoboy || !pedido.motoboy.phone || !pedido.motoboy.motoboyId) {
+      setSnackbar({
+        open: true,
+        message: "Nenhum motoboy atribuído a este pedido.",
+        severity: "warning",
+      });
+      return;
+    }
+    try {
+      const phoneNumber = pedido.motoboy.phone;
+      const motoboyId = pedido.motoboy.motoboyId;
+
+      const orderReady = require("../../services/api").orderReady;
+      const response = await orderReady(motoboyId, pedido._id);
+      if (response.status > 199 && response.status < 300) {
+        setSnackbar({
+          open: true,
+          message: "Motoboy notificado sobre o pedido.",
+          severity: "success",
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message: `Erro ao notificar motoboy. Este é o telefone do motoboy: ${phoneNumber}`,
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao notificar motoboy:", error);
+      setSnackbar({
+        open: true,
+        message: `Erro ao notificar motoboy. Este é o telefone do motoboy: ${pedido.motoboy.phone}`,
+        severity: "error",
+      });
+    }
+  };
+
   // Renderizar estado vazio após filtros
   const renderEmptyFilterState = () => (
     <Box
@@ -854,6 +1187,333 @@ const Pedidos = () => {
       </Button>
     </Box>
   );
+
+  // Função para lidar com a alteração entre as guias Origem e Destino
+  const handleLocationTabChange = (event, newValue) => {
+    setLocationTab(newValue);
+  };
+
+  // Função para alternar entre mapa e entrada manual de endereço
+  const toggleAddressInputMethod = () => {
+    setUseMap(!useMap);
+  };
+
+  // Função para lidar com cliques no mapa
+  const handleMapClick = ({ lat, lng }) => {
+    // Atualizar a localização dependendo da aba selecionada
+    if (locationTab === 0) {
+      // Local 1 (Origem)
+      setOriginLocation({ lat, lng });
+      setNovoPedido((prev) => ({
+        ...prev,
+        store: {
+          ...prev.store,
+          coordinates: [lng, lat],
+        },
+      }));
+
+      // Se possível, buscar endereço reverso usando API de geocodificação
+      reverseGeocode(lat, lng, "origin");
+    } else {
+      // Local 2 (Destino) - Agora atualiza para o cliente ativo e adiciona/atualiza no array de destinos
+      setDestinationLocation((prevLocations) => {
+        // Criar um novo array para evitar mutação direta
+        const newLocations = [...prevLocations];
+        // Verificar se já existe um ponto para este cliente
+        const existingIndex = newLocations.findIndex(
+          (loc) => loc.customerIndex === activeCustomerIndex
+        );
+
+        // Se já existe, atualiza a localização
+        if (existingIndex !== -1) {
+          newLocations[existingIndex] = {
+            lat,
+            lng,
+            customerIndex: activeCustomerIndex,
+          };
+        } else {
+          // Caso contrário, adiciona nova localização
+          newLocations.push({ lat, lng, customerIndex: activeCustomerIndex });
+        }
+
+        return newLocations;
+      });
+
+      // Atualiza os dados do cliente ativo
+      setNovoPedido((prev) => ({
+        ...prev,
+        customer: prev.customer.map((customer, i) =>
+          i === activeCustomerIndex
+            ? {
+                ...customer,
+                customerAddress: {
+                  ...customer.customerAddress,
+                  coordinates: [lng, lat],
+                },
+              }
+            : customer
+        ),
+      }));
+
+      // Se possível, buscar endereço reverso usando API de geocodificação
+      reverseGeocode(lat, lng, "destination");
+    }
+  };
+
+  // Função para obter localização atual
+  const getCurrentLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setMapCenter({ lat: latitude, lng: longitude });
+
+          // Atualizar a localização dependendo da aba selecionada
+          if (locationTab === 0) {
+            // Local 1 (Origem)
+            setOriginLocation({ lat: latitude, lng: longitude });
+            setNovoPedido((prev) => ({
+              ...prev,
+              store: {
+                ...prev.store,
+                coordinates: [longitude, latitude],
+              },
+            }));
+
+            // Geocodificação reversa
+            reverseGeocode(latitude, longitude, "origin");
+          } else {
+            // Local 2 (Destino) - Atualiza para o cliente ativo no array de destinos
+            setDestinationLocation((prevLocations) => {
+              const newLocations = [...prevLocations];
+              const existingIndex = newLocations.findIndex(
+                (loc) => loc.customerIndex === activeCustomerIndex
+              );
+
+              if (existingIndex !== -1) {
+                newLocations[existingIndex] = {
+                  lat: latitude,
+                  lng: longitude,
+                  customerIndex: activeCustomerIndex,
+                };
+              } else {
+                newLocations.push({
+                  lat: latitude,
+                  lng: longitude,
+                  customerIndex: activeCustomerIndex,
+                });
+              }
+
+              return newLocations;
+            });
+
+            // Atualiza os dados do cliente ativo
+            setNovoPedido((prev) => ({
+              ...prev,
+              customer: prev.customer.map((customer, i) =>
+                i === activeCustomerIndex
+                  ? {
+                      ...customer,
+                      customerAddress: {
+                        ...customer.customerAddress,
+                        coordinates: [longitude, latitude],
+                      },
+                    }
+                  : customer
+              ),
+            }));
+
+            // Geocodificação reversa
+            reverseGeocode(latitude, longitude, "destination");
+          }
+        },
+        (error) => {
+          console.error("Erro ao obter localização:", error);
+          setSnackbar({
+            open: true,
+            message: "Não foi possível obter sua localização atual",
+            severity: "error",
+          });
+        }
+      );
+    } else {
+      setSnackbar({
+        open: true,
+        message: "Geolocalização não suportada pelo seu navegador",
+        severity: "error",
+      });
+    }
+  };
+
+  // Função para geocodificação reversa (obter endereço a partir das coordenadas)
+  const reverseGeocode = async (lat, lng, locationType) => {
+    try {
+      // Aqui você pode usar qualquer API de geocodificação reversa
+      // Por exemplo, usando a API do Google Maps ou Nominatim
+
+      // Exemplo com API do Google Maps (requer chave API)
+      const response = await axios.get(
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}`
+      );
+
+      if (!response.data) {
+        throw new Error("Erro ao obter endereço");
+      }
+
+      let addressData = response.data.results[0].address_components;
+      addressData = {
+        cep: response.data.results[0].address_components[6].long_name,
+        logradouro: response.data.results[0].address_components[1].long_name,
+        numero: response.data.results[0].address_components[0].long_name,
+        bairro: response.data.results[0].address_components[2].long_name,
+        cidade: response.data.results[0].address_components[3].long_name,
+        estado: response.data.results[0].address_components[4].long_name,
+      };
+
+      // Atualizar o estado com o endereço obtido
+      if (locationType === "origin") {
+        setNovoPedido((prev) => ({
+          ...prev,
+          store: {
+            ...prev.store,
+            address: {
+              ...prev.store.address,
+              cep: addressData.cep,
+              logradouro: addressData.logradouro,
+              numero: addressData.numero,
+              bairro: addressData.bairro,
+              cidade: addressData.cidade,
+              estado: addressData.estado,
+            },
+          },
+        }));
+      } else {
+        // Atualiza para o cliente atual
+        setNovoPedido((prev) => ({
+          ...prev,
+          customer: prev.customer.map((customer, i) =>
+            i === activeCustomerIndex
+              ? {
+                  ...customer,
+                  customerAddress: {
+                    ...customer.customerAddress,
+                    cep: addressData.cep,
+                    address: addressData.logradouro,
+                    addressNumber: addressData.numero,
+                    bairro: addressData.bairro,
+                    cidade: addressData.cidade,
+                    estado: addressData.estado,
+                  },
+                }
+              : customer
+          ),
+        }));
+      }
+    } catch (error) {
+      console.error("Erro na geocodificação reversa:", error);
+      setSnackbar({
+        open: true,
+        message: "Erro ao obter endereço a partir das coordenadas",
+        severity: "error",
+      });
+    }
+  };
+
+  // Adicione esta função para processar a seleção de endereço
+  const handleAddressSearch = async () => {
+    if (!searchAddress.trim()) {
+      setSnackbar({
+        open: true,
+        message: "Digite um endereço para buscar",
+        severity: "warning",
+      });
+      return;
+    }
+
+    try {
+      const response = await axios.get(
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+          searchAddress + ", Brasil"
+        )}&key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}`
+      );
+
+      if (response.data.status === "OK" && response.data.results.length > 0) {
+        const result = response.data.results[0];
+        const { lat, lng } = result.geometry.location;
+
+        // Centralizar o mapa na localização encontrada
+        setMapCenter({ lat, lng });
+
+        // Simular clique no mapa para definir a localização
+        handleMapClick({ lat, lng });
+
+        setSnackbar({
+          open: true,
+          message: "Endereço encontrado com sucesso!",
+          severity: "success",
+        });
+
+        // Limpar o campo de busca
+        setSearchAddress("");
+      } else {
+        setSnackbar({
+          open: true,
+          message: "Endereço não encontrado. Tente ser mais específico.",
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao buscar endereço:", error);
+      setSnackbar({
+        open: true,
+        message: "Erro ao buscar endereço. Tente novamente.",
+        severity: "error",
+      });
+    }
+  };
+  // Adicione este useEffect para inicializar a API do Google Places
+
+  // Novo useEffect para o autocomplete simples
+  useEffect(() => {
+    if (
+      useMap &&
+      searchInputRef.current &&
+      window.google &&
+      window.google.maps &&
+      window.google.maps.places
+    ) {
+      // Criar autocomplete simples
+      const autocomplete = new window.google.maps.places.Autocomplete(
+        searchInputRef.current,
+        {
+          componentRestrictions: { country: "br" },
+          fields: ["geometry", "formatted_address"],
+          types: ["address"],
+        }
+      );
+
+      // Listener para quando um lugar for selecionado
+      autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        if (place.geometry) {
+          const lat = place.geometry.location.lat();
+          const lng = place.geometry.location.lng();
+
+          // Atualizar centro do mapa
+          setMapCenter({ lat, lng });
+
+          // Simular clique no mapa
+          handleMapClick({ lat, lng });
+        }
+      });
+
+      return () => {
+        if (autocomplete) {
+          window.google.maps.event.clearInstanceListeners(autocomplete);
+        }
+      };
+    }
+  }, [useMap, locationTab]);
 
   return (
     <Box
@@ -1253,97 +1913,252 @@ const Pedidos = () => {
                 <DialogContent sx={{ p: 3, mt: 2 }}>
                   <Grid container spacing={3}>
                     {/* Informações do Cliente */}
-                    <Grid item xs={12} md={6}>
-                      <Paper elevation={1} sx={{ p: 2, height: "100%" }}>
-                        <Typography
-                          variant="h6"
+                    <Grid item xs={12} width="100%" mt={3}>
+                      <Paper elevation={1} sx={{ p: 2 }}>
+                        <Box
                           sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
                             mb: 2,
-                            color: "primary.main",
-                            fontWeight: "bold",
                           }}
                         >
-                          Informações do Cliente
-                        </Typography>
-                        <Box sx={{ mb: 1 }}>
                           <Typography
-                            variant="subtitle2"
-                            sx={{ fontWeight: "bold" }}
+                            variant="h6"
+                            sx={{
+                              color: "primary.main",
+                              fontWeight: "bold",
+                              display: "flex",
+                              alignItems: "center",
+                            }}
                           >
-                            Nome:
+                            <PersonIcon sx={{ mr: 1 }} /> Clientes e Endereços
+                            de Entrega
                           </Typography>
-                          <Typography variant="body2">
-                            {currentPedido.customer.name}
-                          </Typography>
+                          <Button
+                            variant="contained"
+                            startIcon={<AddIcon />}
+                            onClick={handleAddCustomer}
+                          >
+                            Adicionar Cliente
+                          </Button>
                         </Box>
-                        <Box sx={{ mb: 1 }}>
-                          <Typography
-                            variant="subtitle2"
-                            sx={{ fontWeight: "bold" }}
-                          >
-                            Telefone:
-                          </Typography>
-                          <Typography variant="body2">
-                            {currentPedido.customer.phone}
-                          </Typography>
-                        </Box>
-                        <Box>
-                          <Typography
-                            variant="subtitle2"
-                            sx={{ fontWeight: "bold" }}
-                          >
-                            CEP:
-                          </Typography>
-                          <Typography variant="body2">
-                            {currentPedido.customer.customerAddress.cep?.toString()}
-                          </Typography>
-                        </Box>
-                        <Box>
-                          <Typography
-                            variant="subtitle2"
-                            sx={{ fontWeight: "bold" }}
-                          >
-                            Logradouro:
-                          </Typography>
-                          <Typography variant="body2">
-                            {currentPedido.customer.customerAddress.address}
-                          </Typography>
-                        </Box>
-                        <Box>
-                          <Typography
-                            variant="subtitle2"
-                            sx={{ fontWeight: "bold" }}
-                          >
-                            Número:
-                          </Typography>
-                          <Typography variant="body2">
-                            {
-                              currentPedido.customer.customerAddress
-                                .addressNumber
+
+                        {/* Tabs para navegar entre os clientes */}
+                        <Box
+                          sx={{
+                            borderBottom: 1,
+                            borderColor: "divider",
+                            mb: 2,
+                          }}
+                        >
+                          <Tabs
+                            value={activeCustomerIndex}
+                            onChange={(e, newValue) =>
+                              setActiveCustomerIndex(newValue)
                             }
-                          </Typography>
-                        </Box>
-                        <Box>
-                          <Typography
-                            variant="subtitle2"
-                            sx={{ fontWeight: "bold" }}
+                            variant="scrollable"
+                            scrollButtons="auto"
                           >
-                            Bairro:
-                          </Typography>
-                          <Typography variant="body2">
-                            {currentPedido.customer.customerAddress.bairro}
-                          </Typography>
+                            {novoPedido.customer.map((customer, index) => (
+                              <Tab
+                                key={index}
+                                label={
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                    }}
+                                  >
+                                    <Typography variant="body2">
+                                      {customer.name
+                                        ? `${customer.name.substr(0, 15)}...`
+                                        : `Cliente ${index + 1}`}
+                                    </Typography>
+                                    {novoPedido.customer.length > 1 && (
+                                      <IconButton
+                                        size="small"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRemoveCustomer(index);
+                                        }}
+                                      >
+                                        <CloseIcon fontSize="small" />
+                                      </IconButton>
+                                    )}
+                                  </Box>
+                                }
+                              />
+                            ))}
+                          </Tabs>
                         </Box>
-                        <Box>
-                          <Typography
-                            variant="subtitle2"
-                            sx={{ fontWeight: "bold" }}
-                          >
-                            Cidade:
-                          </Typography>
-                          <Typography variant="body2">
-                            {currentPedido.customer.customerAddress.cidade}
-                          </Typography>
+
+                        {/* Formulário para o cliente atual */}
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} sm={6}>
+                            <TextField
+                              fullWidth
+                              label="Nome do Cliente"
+                              name="name"
+                              value={
+                                novoPedido.customer[activeCustomerIndex]
+                                  ?.name || ""
+                              }
+                              onChange={handleCustomerChange}
+                              required
+                            />
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                            <TextField
+                              fullWidth
+                              label="Telefone"
+                              name="phone"
+                              value={
+                                novoPedido.customer[activeCustomerIndex]
+                                  ?.phone || ""
+                              }
+                              onChange={handleCustomerChange}
+                              required
+                              placeholder="(XX) XXXXX-XXXX"
+                              InputProps={{
+                                startAdornment: (
+                                  <InputAdornment position="start">
+                                    <PhoneIcon color="primary" />
+                                  </InputAdornment>
+                                ),
+                              }}
+                            />
+                          </Grid>
+
+                          {/* Endereço do cliente atual */}
+                          <Grid item xs={12}>
+                            <Typography
+                              variant="subtitle1"
+                              sx={{ mt: 2, mb: 1, fontWeight: "bold" }}
+                            >
+                              Endereço de Entrega
+                            </Typography>
+                            <Box
+                              sx={{ p: 0, display: "flex", flexWrap: "wrap" }}
+                              columnGap={1}
+                              rowGap={2}
+                            >
+                              <TextField
+                                sx={{ minWidth: "120px", flexGrow: 1 }}
+                                label="CEP"
+                                name="cep"
+                                value={
+                                  novoPedido.customer[activeCustomerIndex]
+                                    .customerAddress.cep || ""
+                                }
+                                onChange={(e) =>
+                                  handleCustomerChange(e, activeCustomerIndex)
+                                }
+                                required
+                                inputProps={{
+                                  inputMode: "numeric",
+                                  pattern: "[0-9]*",
+                                }}
+                                InputProps={{
+                                  startAdornment: (
+                                    <InputAdornment position="start">
+                                      <LocationIcon color="primary" />
+                                    </InputAdornment>
+                                  ),
+                                }}
+                              />
+
+                              <TextField
+                                sx={{ minWidth: "200px", flexGrow: 3 }}
+                                label="Logradouro"
+                                name="logradouro"
+                                value={
+                                  novoPedido.customer[activeCustomerIndex]
+                                    .customerAddress.logradouro
+                                }
+                                onChange={(e) =>
+                                  handleCustomerChange(e, activeCustomerIndex)
+                                }
+                                required
+                              />
+
+                              <TextField
+                                sx={{ minWidth: "100px", flexGrow: 1 }}
+                                label="Número"
+                                name="numero"
+                                value={
+                                  novoPedido.customer[activeCustomerIndex]
+                                    .customerAddress.addressNumber
+                                }
+                                onChange={(e) =>
+                                  handleCustomerChange(e, activeCustomerIndex)
+                                }
+                                required
+                              />
+
+                              <TextField
+                                sx={{ minWidth: "150px", flexGrow: 2 }}
+                                label="Bairro"
+                                name="bairro"
+                                value={
+                                  novoPedido.customer[activeCustomerIndex]
+                                    .customerAddress.bairro
+                                }
+                                onChange={(e) =>
+                                  handleCustomerChange(e, activeCustomerIndex)
+                                }
+                                required
+                              />
+
+                              <TextField
+                                sx={{ minWidth: "150px", flexGrow: 2 }}
+                                label="Cidade"
+                                name="cidade"
+                                value={
+                                  novoPedido.customer[activeCustomerIndex]
+                                    .customerAddress.cidade
+                                }
+                                onChange={(e) =>
+                                  handleCustomerChange(e, activeCustomerIndex)
+                                }
+                                required
+                              />
+
+                              <TextField
+                                sx={{ minWidth: "100px", flexGrow: 1 }}
+                                label="Estado"
+                                name="estado"
+                                value={
+                                  novoPedido.customer[activeCustomerIndex]
+                                    .customerAddress.estado || ""
+                                }
+                                onChange={(e) =>
+                                  handleCustomerChange(e, activeCustomerIndex)
+                                }
+                              />
+                            </Box>
+                          </Grid>
+                        </Grid>
+
+                        {/* Informações de coordenadas para o cliente atual */}
+                        <Box sx={{ mt: 2 }}>
+                          {novoPedido.customer[activeCustomerIndex]
+                            .customerAddress.coordinates &&
+                            novoPedido.customer[activeCustomerIndex]
+                              .customerAddress.coordinates.length === 2 && (
+                              <Chip
+                                label={`Coordenadas: ${novoPedido.customer[
+                                  activeCustomerIndex
+                                ].customerAddress.coordinates[1].toFixed(
+                                  6
+                                )}, ${novoPedido.customer[
+                                  activeCustomerIndex
+                                ].customerAddress.coordinates[0].toFixed(6)}`}
+                                color="primary"
+                                variant="outlined"
+                                sx={{ mr: 1 }}
+                              />
+                            )}
                         </Box>
                       </Paper>
                     </Grid>
@@ -1497,7 +2312,7 @@ const Pedidos = () => {
                         >
                           Atualizar Status do Pedido
                         </Typography>
-                        {currentPedido.motoboy?.phone !== null ? (
+                        {currentPedido.motoboy?.name !== null ? (
                           <Box display="flex">
                             <Typography
                               fontSize={"12px"}
@@ -1621,6 +2436,21 @@ const Pedidos = () => {
                                   >
                                     Enviar para Entrega
                                   </Button>
+                                  <Button
+                                    variant="contained"
+                                    color="info"
+                                    startIcon={<NotificationAdd />}
+                                    onClick={() =>
+                                      handleCallDeliveryPerson(currentPedido)
+                                    }
+                                    sx={{
+                                      py: 1,
+                                      px: 2,
+                                      height: "40px",
+                                    }}
+                                  >
+                                    Chamar Entregador
+                                  </Button>
                                 </Box>
                               )}
 
@@ -1711,29 +2541,577 @@ const Pedidos = () => {
             </DialogTitle>
             <DialogContent sx={{ p: 3, mt: 2 }}>
               {/* Formulário de Pedido */}
-              <Grid container spacing={3}>
+              {/* Seção de Localização com Tabs */}
+              <Grid item xs={12} width="100%">
+                <Paper elevation={1} sx={{ p: 2 }}>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      mb: 2,
+                      color: "primary.main",
+                      fontWeight: "bold",
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    <LocationIcon sx={{ mr: 1 }} /> Localização
+                  </Typography>
+
+                  {/* Tabs para alternar entre Origem e Destino */}
+                  <Tabs
+                    value={locationTab}
+                    onChange={handleLocationTabChange}
+                    sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}
+                  >
+                    <Tab label="Local 1 (Retirada)" />
+                    <Tab label="Local 2 (Entrega)" />
+                  </Tabs>
+
+                  {/* Alternador entre mapa e entrada manual de endereço */}
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "flex-end",
+                      mb: 2,
+                    }}
+                  >
+                    <Button
+                      startIcon={useMap ? <Edit /> : <LocationIcon />}
+                      onClick={toggleAddressInputMethod}
+                      color="primary"
+                    >
+                      {useMap ? "Usar Endereço Manual" : "Usar Mapa"}
+                    </Button>
+                  </Box>
+
+                  {/* Conteúdo baseado na tab selecionada */}
+                  {locationTab === 0 ? (
+                    // Local 1 (Origem / Retirada)
+                    <>
+                      {useMap ? (
+                        // Para Local 1 (Origem)
+                        <Box
+                          sx={{
+                            height: 400,
+                            width: "100%",
+                            position: "relative",
+                            mb: 2,
+                          }}
+                        >
+                          <SearchField
+                            placeholder="Digite o endereço de retirada e pressione Enter ou clique na lupa"
+                            color="primary"
+                            searchAddress={searchAddress}
+                            setSearchAddress={setSearchAddress}
+                            onSearch={handleAddressSearch}
+                          />
+
+                          <GoogleMapReact
+                            bootstrapURLKeys={{
+                              key: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
+                            }}
+                            defaultCenter={mapCenter}
+                            center={mapCenter}
+                            defaultZoom={15}
+                            onClick={handleMapClick}
+                          >
+                            {/* Marcador para Local 1 (Origem) */}
+                            {originLocation && (
+                              <LocationIcon
+                                color="primary"
+                                fontSize="large"
+                                lat={originLocation.lat}
+                                lng={originLocation.lng}
+                                style={{
+                                  transform: "translate(-50%, -100%)",
+                                }}
+                              />
+                            )}
+
+                            {/* Marcadores para Locais de Destino (Clientes) - opacos quando não são o cliente ativo */}
+                            {destinationLocation.map((location, index) => (
+                              <LocationIcon
+                                key={`destination-${location.customerIndex}`}
+                                color="secondary"
+                                fontSize="large"
+                                lat={location.lat}
+                                lng={location.lng}
+                                style={{
+                                  transform: "translate(-50%, -100%)",
+                                  opacity:
+                                    location.customerIndex ===
+                                    activeCustomerIndex
+                                      ? 1.0
+                                      : 0.4,
+                                  // Destaque visual para o cliente ativo
+                                  filter:
+                                    location.customerIndex ===
+                                    activeCustomerIndex
+                                      ? "drop-shadow(0 0 5px rgba(255, 255, 255, 0.7))"
+                                      : "none",
+                                  zIndex:
+                                    location.customerIndex ===
+                                    activeCustomerIndex
+                                      ? 2
+                                      : 1,
+                                }}
+                              />
+                            ))}
+                          </GoogleMapReact>
+
+                          <Fab
+                            size="small"
+                            color="primary"
+                            onClick={getCurrentLocation}
+                            sx={{
+                              position: "absolute",
+                              bottom: 16,
+                              right: 16,
+                            }}
+                          >
+                            <MyLocationIcon />
+                          </Fab>
+                        </Box>
+                      ) : (
+                        // Entrada manual para Local 1
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} sm={4}>
+                            <TextField
+                              fullWidth
+                              label="CEP"
+                              name="cep"
+                              value={novoPedido.store.address.cep || ""}
+                              onChange={(e) => {
+                                const value = e.target.value.replace(/\D/g, "");
+                                setNovoPedido((prev) => ({
+                                  ...prev,
+                                  store: {
+                                    ...prev.store,
+                                    address: {
+                                      ...prev.store.address,
+                                      cep: value ? Number(value) : null,
+                                    },
+                                  },
+                                }));
+                              }}
+                              InputProps={{
+                                startAdornment: (
+                                  <InputAdornment position="start">
+                                    <LocationIcon color="primary" />
+                                  </InputAdornment>
+                                ),
+                              }}
+                            />
+                          </Grid>
+                          <Grid item xs={12} sm={8}>
+                            <TextField
+                              fullWidth
+                              label="Logradouro"
+                              name="logradouro"
+                              value={novoPedido.store.address.logradouro || ""}
+                              onChange={(e) => {
+                                setNovoPedido((prev) => ({
+                                  ...prev,
+                                  store: {
+                                    ...prev.store,
+                                    address: {
+                                      ...prev.store.address,
+                                      logradouro: e.target.value,
+                                    },
+                                  },
+                                }));
+                              }}
+                              required
+                            />
+                          </Grid>
+                          <Grid item xs={12} sm={3}>
+                            <TextField
+                              fullWidth
+                              label="Número"
+                              name="numero"
+                              value={novoPedido.store.address.numero || ""}
+                              onChange={(e) => {
+                                setNovoPedido((prev) => ({
+                                  ...prev,
+                                  store: {
+                                    ...prev.store,
+                                    address: {
+                                      ...prev.store.address,
+                                      numero: e.target.value,
+                                    },
+                                  },
+                                }));
+                              }}
+                              required
+                            />
+                          </Grid>
+                          <Grid item xs={12} sm={3}>
+                            <TextField
+                              fullWidth
+                              label="Bairro"
+                              name="bairro"
+                              value={novoPedido.store.address.bairro || ""}
+                              onChange={(e) => {
+                                setNovoPedido((prev) => ({
+                                  ...prev,
+                                  store: {
+                                    ...prev.store,
+                                    address: {
+                                      ...prev.store.address,
+                                      bairro: e.target.value,
+                                    },
+                                  },
+                                }));
+                              }}
+                              required
+                            />
+                          </Grid>
+                          <Grid item xs={12} sm={3}>
+                            <TextField
+                              fullWidth
+                              label="Cidade"
+                              name="cidade"
+                              value={novoPedido.store.address.cidade || ""}
+                              onChange={(e) => {
+                                setNovoPedido((prev) => ({
+                                  ...prev,
+                                  store: {
+                                    ...prev.store,
+                                    address: {
+                                      ...prev.store.address,
+                                      cidade: e.target.value,
+                                    },
+                                  },
+                                }));
+                              }}
+                              required
+                            />
+                          </Grid>
+                          <Grid item xs={12} sm={3}>
+                            <TextField
+                              fullWidth
+                              label="Estado"
+                              name="estado"
+                              value={novoPedido.store.address.estado || ""}
+                              onChange={(e) => {
+                                setNovoPedido((prev) => ({
+                                  ...prev,
+                                  store: {
+                                    ...prev.store,
+                                    address: {
+                                      ...prev.store.address,
+                                      estado: e.target.value,
+                                    },
+                                  },
+                                }));
+                              }}
+                              required
+                            />
+                          </Grid>
+                        </Grid>
+                      )}
+                    </>
+                  ) : (
+                    // Local 2 (Destino / Entrega)
+                    <>
+                      {useMap ? (
+                        // Para Local 2 (Destino)
+                        <Box
+                          sx={{
+                            height: 400,
+                            width: "100%",
+                            position: "relative",
+                            mb: 2,
+                          }}
+                        >
+                          <SearchField
+                            placeholder="Digite o endereço de entrega e pressione Enter ou clique na lupa"
+                            color="secondary"
+                            searchAddress={searchAddress}
+                            setSearchAddress={setSearchAddress}
+                            onSearch={handleAddressSearch}
+                          />
+
+                          <GoogleMapReact
+                            bootstrapURLKeys={{
+                              key: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
+                            }}
+                            defaultCenter={mapCenter}
+                            center={mapCenter}
+                            defaultZoom={15}
+                            onClick={handleMapClick}
+                          >
+                            {/* Marcador para Local 1 (Origem) - opaco quando não é a aba ativa */}
+                            {originLocation && (
+                              <LocationIcon
+                                color="primary"
+                                fontSize="large"
+                                lat={originLocation.lat}
+                                lng={originLocation.lng}
+                                style={{
+                                  transform: "translate(-50%, -100%)",
+                                  opacity: 0.4,
+                                }}
+                              />
+                            )}
+
+                            {/* Marcadores para Locais de Destino (Clientes) */}
+                            {destinationLocation.map((location, index) => (
+                              <LocationIcon
+                                key={`destination-${location.customerIndex}`}
+                                color="secondary"
+                                fontSize="large"
+                                lat={location.lat}
+                                lng={location.lng}
+                                style={{
+                                  transform: "translate(-50%, -100%)",
+                                  opacity:
+                                    location.customerIndex ===
+                                    activeCustomerIndex
+                                      ? 1.0
+                                      : 0.4,
+                                  // Destaque visual para o cliente ativo
+                                  filter:
+                                    location.customerIndex ===
+                                    activeCustomerIndex
+                                      ? "drop-shadow(0 0 5px rgba(255, 255, 255, 0.7))"
+                                      : "none",
+                                  zIndex:
+                                    location.customerIndex ===
+                                    activeCustomerIndex
+                                      ? 2
+                                      : 1,
+                                }}
+                              />
+                            ))}
+                          </GoogleMapReact>
+
+                          <Fab
+                            size="small"
+                            color="primary"
+                            onClick={getCurrentLocation}
+                            sx={{
+                              position: "absolute",
+                              bottom: 16,
+                              right: 16,
+                            }}
+                          >
+                            <MyLocationIcon />
+                          </Fab>
+                        </Box>
+                      ) : (
+                        // Entrada manual para Local 2 - CORRIGIR ESTA PARTE
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} sm={4}>
+                            <TextField
+                              fullWidth
+                              label="CEP"
+                              name="cep"
+                              value={
+                                novoPedido.customer.customerAddress.cep || ""
+                              }
+                              onChange={handleCustomerChange}
+                              inputProps={{
+                                inputMode: "numeric",
+                                pattern: "[0-9]*",
+                              }}
+                              InputProps={{
+                                startAdornment: (
+                                  <InputAdornment position="start">
+                                    <LocationIcon color="primary" />
+                                  </InputAdornment>
+                                ),
+                              }}
+                            />
+                          </Grid>
+                          <Grid item xs={12} sm={8}>
+                            <TextField
+                              fullWidth
+                              label="Logradouro"
+                              name="address"
+                              value={
+                                novoPedido.customer.customerAddress.address
+                              }
+                              onChange={handleCustomerChange}
+                              required
+                            />
+                          </Grid>
+                          <Grid item xs={12} sm={3}>
+                            <TextField
+                              fullWidth
+                              label="Número"
+                              name="addressNumber"
+                              value={
+                                novoPedido.customer.customerAddress
+                                  .addressNumber
+                              }
+                              onChange={handleCustomerChange}
+                              required
+                            />
+                          </Grid>
+                          <Grid item xs={12} sm={3}>
+                            <TextField
+                              fullWidth
+                              label="Bairro"
+                              name="bairro"
+                              value={novoPedido.customer.customerAddress.bairro}
+                              onChange={handleCustomerChange}
+                              required
+                            />
+                          </Grid>
+                          <Grid item xs={12} sm={3}>
+                            <TextField
+                              fullWidth
+                              label="Cidade"
+                              name="cidade"
+                              value={novoPedido.customer.customerAddress.cidade}
+                              onChange={handleCustomerChange}
+                              required
+                            />
+                          </Grid>
+                          <Grid item xs={12} sm={3}>
+                            <TextField
+                              fullWidth
+                              label="Estado"
+                              name="estado"
+                              value={
+                                novoPedido.customer.customerAddress.estado || ""
+                              }
+                              onChange={handleCustomerChange}
+                            />
+                          </Grid>
+                        </Grid>
+                      )}
+                    </>
+                  )}
+
+                  {/* Exibição das coordenadas selecionadas */}
+                  <Box sx={{ mt: 2 }}>
+                    {locationTab === 0 &&
+                      novoPedido.store.coordinates &&
+                      novoPedido.store.coordinates.length === 2 && (
+                        <Chip
+                          label={`Coordenadas: ${novoPedido.store.coordinates[1].toFixed(
+                            6
+                          )}, ${novoPedido.store.coordinates[0].toFixed(6)}`}
+                          color="white"
+                          variant="outlined"
+                          sx={{ mr: 1 }}
+                        />
+                      )}
+
+                    {locationTab === 1 &&
+                      novoPedido.customer[activeCustomerIndex]?.customerAddress
+                        ?.coordinates &&
+                      novoPedido.customer[activeCustomerIndex]?.customerAddress
+                        ?.coordinates.length === 2 && (
+                        <Chip
+                          label={`Coordenadas: ${novoPedido.customer[
+                            activeCustomerIndex
+                          ]?.customerAddress?.coordinates[1].toFixed(
+                            6
+                          )}, ${novoPedido.customer[
+                            activeCustomerIndex
+                          ]?.customerAddress?.coordinates[0].toFixed(6)}`}
+                          color="white"
+                          variant="outlined"
+                          sx={{ mr: 1 }}
+                        />
+                      )}
+                  </Box>
+                </Paper>
+              </Grid>
+              <Grid container spacing={3} mt={3}>
                 {/* Dados do Cliente */}
                 <Grid item xs={12} width="100%">
                   <Paper elevation={1} sx={{ p: 2 }}>
-                    <Typography
-                      variant="h6"
+                    <Box
                       sx={{
-                        mb: 2,
-                        color: "primary.main",
-                        fontWeight: "bold",
                         display: "flex",
+                        justifyContent: "space-between",
                         alignItems: "center",
+                        mb: 2,
                       }}
                     >
-                      <PersonIcon sx={{ mr: 1 }} /> Dados do Cliente
-                    </Typography>
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          color: "primary.main",
+                          fontWeight: "bold",
+                          display: "flex",
+                          alignItems: "center",
+                        }}
+                      >
+                        <PersonIcon sx={{ mr: 1 }} /> Dados do Cliente
+                      </Typography>
+
+                      <Box>
+                        <Button
+                          variant="outlined"
+                          color="primary"
+                          size="small"
+                          onClick={handleAddCustomer}
+                          startIcon={<AddIcon />}
+                          sx={{ mr: 1 }}
+                        >
+                          Adicionar Cliente
+                        </Button>
+
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          size="small"
+                          onClick={() =>
+                            handleRemoveCustomer(activeCustomerIndex)
+                          }
+                          startIcon={<CloseIcon />}
+                          disabled={novoPedido.customer.length <= 1}
+                        >
+                          Remover Cliente
+                        </Button>
+                      </Box>
+                    </Box>
+
+                    {/* Navegação entre clientes */}
+                    <Box
+                      sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}
+                    >
+                      <Tabs
+                        value={activeCustomerIndex}
+                        onChange={(e, newValue) =>
+                          setActiveCustomerIndex(newValue)
+                        }
+                        variant="scrollable"
+                        scrollButtons="auto"
+                        aria-label="clientes tabs"
+                      >
+                        {novoPedido.customer.map((cliente, index) => (
+                          <Tab
+                            key={index}
+                            label={
+                              cliente.name
+                                ? `Cliente: ${cliente.name}`
+                                : `Cliente ${index + 1}`
+                            }
+                            sx={{
+                              textTransform: "none",
+                              minWidth: "120px",
+                              maxWidth: "200px",
+                            }}
+                          />
+                        ))}
+                      </Tabs>
+                    </Box>
+
                     <Grid container spacing={2}>
                       <Grid item xs={12} sm={6}>
                         <TextField
                           fullWidth
                           label="Nome do Cliente"
                           name="name"
-                          value={novoPedido.customer.name}
+                          value={
+                            novoPedido.customer[activeCustomerIndex]?.name || ""
+                          }
                           onChange={handleCustomerChange}
                           required
                         />
@@ -1743,7 +3121,10 @@ const Pedidos = () => {
                           fullWidth
                           label="Telefone"
                           name="phone"
-                          value={novoPedido.customer.phone}
+                          value={
+                            novoPedido.customer[activeCustomerIndex]?.phone ||
+                            ""
+                          }
                           onChange={handleCustomerChange}
                           required
                           placeholder="(XX) XXXXX-XXXX"
@@ -1756,31 +3137,40 @@ const Pedidos = () => {
                           }}
                         />
                       </Grid>
-                      <TextField
-                        label="CEP"
-                        name="cep"
-                        value={novoPedido.customer.customerAddress.cep}
-                        onChange={handleCustomerChange}
-                        required
-                        inputProps={{
-                          inputMode: "numeric",
-                          pattern: "[0-9]*",
-                        }}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <LocationIcon color="primary" />
-                            </InputAdornment>
-                          ),
-                        }}
-                      />
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="CEP"
+                          name="cep"
+                          value={
+                            novoPedido.customer[activeCustomerIndex]
+                              ?.customerAddress?.cep || ""
+                          }
+                          onChange={handleCustomerChange}
+                          required
+                          inputProps={{
+                            inputMode: "numeric",
+                            pattern: "[0-9]*",
+                          }}
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <LocationIcon color="primary" />
+                              </InputAdornment>
+                            ),
+                          }}
+                        />
+                      </Grid>
                       <Grid item xs={12}>
                         <Box sx={{ p: 0, display: "flex" }} columnGap={1}>
                           <TextField
                             fullWidth
                             label="Logradouro"
                             name="address"
-                            value={novoPedido.customer.customerAddress.address}
+                            value={
+                              novoPedido.customer[activeCustomerIndex]
+                                ?.customerAddress?.address || ""
+                            }
                             onChange={handleCustomerChange}
                             required
                           />
@@ -1789,7 +3179,8 @@ const Pedidos = () => {
                             label="Número"
                             name="addressNumber"
                             value={
-                              novoPedido.customer.customerAddress.addressNumber
+                              novoPedido.customer[activeCustomerIndex]
+                                ?.customerAddress?.addressNumber || ""
                             }
                             onChange={handleCustomerChange}
                             required
@@ -1798,7 +3189,10 @@ const Pedidos = () => {
                           <TextField
                             label="Bairro"
                             name="bairro"
-                            value={novoPedido.customer.customerAddress.bairro}
+                            value={
+                              novoPedido.customer[activeCustomerIndex]
+                                ?.customerAddress?.bairro || ""
+                            }
                             onChange={handleCustomerChange}
                             required
                           />
@@ -1806,9 +3200,22 @@ const Pedidos = () => {
                           <TextField
                             label="Cidade"
                             name="cidade"
-                            value={novoPedido.customer.customerAddress.cidade}
+                            value={
+                              novoPedido.customer[activeCustomerIndex]
+                                ?.customerAddress?.cidade || ""
+                            }
                             onChange={handleCustomerChange}
                             required
+                          />
+
+                          <TextField
+                            label="Estado"
+                            name="estado"
+                            value={
+                              novoPedido.customer[activeCustomerIndex]
+                                ?.customerAddress?.estado || ""
+                            }
+                            onChange={handleCustomerChange}
                           />
                         </Box>
                       </Grid>
@@ -1967,7 +3374,7 @@ const Pedidos = () => {
                         label="Método de Pagamento"
                       >
                         <MenuItem value="dinheiro">Dinheiro</MenuItem>
-                        <MenuItem value="cartao">Cartão</MenuItem>
+                        {/* <MenuItem value="cartao">Cartão</MenuItem> */}
                         <MenuItem value="pix">PIX</MenuItem>
                         <MenuItem value="maquina">Maquina de Cartão</MenuItem>
                       </Select>
@@ -1988,8 +3395,24 @@ const Pedidos = () => {
                         }}
                       />
                     )}
+
+                    {novoPedido.payment.method === "dinheiro" && (
+                      <Typography
+                        variant="body2"
+                        color="textSecondary"
+                        sx={{ mt: 1 }}
+                      >
+                        Taxa de retorno será aplicada de R$0,40
+                      </Typography>
+                    )}
                     {novoPedido.payment.method === "maquina" && (
-                      <Typography>Taxa de retorno será aplicada</Typography>
+                      <Typography
+                        variant="body2"
+                        color="textSecondary"
+                        sx={{ mt: 1 }}
+                      >
+                        Taxa de retorno será aplicada de R$0,40
+                      </Typography>
                     )}
                   </Paper>
                 </Grid>
@@ -2021,7 +3444,7 @@ const Pedidos = () => {
                 variant="contained"
                 color="primary"
                 onClick={handleCreatePedido}
-                disabled={loading || novoPedido.items.length === 0}
+                disabled={loading}
               >
                 {loading ? (
                   <CircularProgress size={24} color="inherit" />
@@ -2067,6 +3490,8 @@ const Pedidos = () => {
             orderNumber={orderCreated?.orderNumber}
             customerName={orderCreated?.customerName}
             createdAt={orderCreated?.createdAt}
+            orderId={orderCreated?._id}
+            status={statusBuscandoMotoboy}
           />
         </Container>
       </Box>

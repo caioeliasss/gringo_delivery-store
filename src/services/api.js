@@ -91,6 +91,13 @@ export const findMotoboys = async (orderId) => {
   });
 };
 
+export const orderReady = async (motoboyId, orderId) => {
+  return api.post("/notifications/order-ready", {
+    motoboyId: motoboyId,
+    orderId: orderId,
+  });
+};
+
 export const updateMotoboyLocation = async (locationData) => {
   return api.put("/motoboys/update-location", locationData);
 };
