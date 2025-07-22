@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Travel = require("../models/Travel");
+const Order = require("../models/Order");
 
 const createTravel = async (req, res) => {
   const { price, rain, distance, coordinatesFrom, coordinatesTo, order } =
@@ -144,9 +145,57 @@ const getCurrentTravelPrice = async (req, res) => {
   }
 };
 
+const getTravelByOrderId = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const travel = await Travel.findOne({ "order._id": id });
+
+    if (!travel) {
+      return res
+        .status(404)
+        .json({ message: "Viagem não encontrada para este pedido" });
+    }
+
+    res.status(200).json(travel);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const updateTravelByOrder = async (req, res) => {
+  const { id } = req.params;
+  const { price } = req.body;
+  try {
+    const travel = await Travel.findOneAndUpdate(
+      { "order._id": id },
+      {
+        price: price,
+        "finance.value": price,
+      },
+      { new: true }
+    );
+
+    const order = await Order.findByIdAndUpdate(id, {
+      "motoboy.price": price,
+    });
+
+    if (!order) {
+      return res
+        .status(404)
+        .json({ message: "Viagem não encontrada para este pedido" });
+    }
+
+    res.json({ travel: travel || null, order: order });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Adicione a rota
 router.get("/price/:id", getCurrentTravelPrice);
 router.get("/details/:id", getTravelById);
+router.get("/order/:id", getTravelByOrderId);
+router.put("/priceOrder/:id", updateTravelByOrder);
 router.put("/:id", updateTravel);
 router.put("/status/:id", updateTravelStatus);
 router.post("/", createTravel);

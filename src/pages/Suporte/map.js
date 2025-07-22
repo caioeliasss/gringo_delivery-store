@@ -890,6 +890,8 @@ export default function SupportMapPage() {
                 icon: <OcorrenciasIcon />,
               },
               { path: "/chat", text: "Chat", icon: <ChatIcon /> },
+
+              { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
             ]}
             // Passa diretamente a função de logout
             footerItems={[
@@ -922,6 +924,7 @@ export default function SupportMapPage() {
               },
               { path: "/chat", text: "Chat", icon: <ChatIcon /> },
               { path: "/mapa", text: "Mapa", icon: <MapIcon /> },
+              { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
             ]}
             footerItems={[
               {

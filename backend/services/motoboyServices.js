@@ -118,10 +118,21 @@ class MotoboyService {
   async processMotoboyQueue(motoboys, order) {
     // If no motoboys left, return failure
     if (motoboys.length === 0) {
+      order.queue.status = "cancelado";
+      await order.save();
       return {
         success: false,
         message: "No available motoboys accepted the delivery",
       };
+    }
+
+    //TODO testar lista queue
+    if (order.queue && order.queue.motoboys.length === 0) {
+      order.queue = {
+        motoboys: motoboys,
+        status: "pendente",
+      };
+      await order.save();
     }
 
     const motoboy = motoboys[0];
@@ -133,6 +144,7 @@ class MotoboyService {
       const accepted = await this.requestMotoboy(motoboy, order);
 
       if (accepted) {
+        order.queue.status = "aceito";
         // Motoboy accepted, assign to order
         order.motoboy = {
           motoboyId: motoboy._id,
@@ -286,6 +298,7 @@ class MotoboyService {
         motoboyId: motoboy._id,
         name: motoboy.name,
         phone: motoboy.phoneNumber,
+        updatedAt: new Date(),
       };
       // console.log("salvando agora");
       await order.save();

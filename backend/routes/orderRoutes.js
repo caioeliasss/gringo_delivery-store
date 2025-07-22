@@ -134,6 +134,20 @@ const authenticateToken = async (req, res, next) => {
 };
 
 // Listar todos os pedidos do estabelecimento
+router.get("/all", authenticateToken, async (req, res) => {
+  try {
+    const orders = await Order.find({}).sort({
+      orderDate: -1,
+    });
+    res.status(200).json(orders);
+  } catch (error) {
+    console.error("Erro ao listar pedidos:", error);
+    res
+      .status(500)
+      .json({ message: "Erro ao listar pedidos", error: error.message });
+  }
+});
+
 router.get("/", authenticateToken, async (req, res) => {
   try {
     const user = await Store.findOne({ firebaseUid: req.user.uid });
@@ -225,6 +239,7 @@ router.put("/status", authenticateToken, async (req, res) => {
     const previousStatus = order.status;
 
     if (status === "em_preparo") {
+      //TODO arrumar
       // verificar se ja deu quinze minutos e ver se o motoboy ja chegou
       if (order.motoboy && order.motoboy.motoboyId) {
         const motoboy = await Motoboy.findById(order.motoboy.motoboyId);

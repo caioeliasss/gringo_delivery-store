@@ -109,6 +109,25 @@ const customerSchema = new mongoose.Schema({
   customerAddress: customerAddress,
 });
 
+const queueSchema = new mongoose.Schema({
+  motoboys: [
+    {
+      type: Object,
+      required: false,
+    },
+  ],
+  motoboy_status: {
+    type: [String],
+    enum: ["aguardando", "notificando", "aceito", "cancelado"],
+    default: [],
+  },
+  status: {
+    type: String,
+    enum: ["pendente", "buscando", "confirmado", "cancelado"],
+    default: "pendente",
+  },
+});
+
 const orderSchema = new mongoose.Schema({
   store: {
     type: storeSchema,
@@ -135,7 +154,7 @@ const orderSchema = new mongoose.Schema({
     },
     price: {
       type: Number,
-      required: false,
+      required: true,
     },
     motoboyId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -148,6 +167,14 @@ const orderSchema = new mongoose.Schema({
     },
     phone: {
       type: String,
+      required: false,
+    },
+    updatedAt: {
+      type: Date,
+      required: false,
+    },
+    queue: {
+      type: queueSchema,
       required: false,
     },
     location: {

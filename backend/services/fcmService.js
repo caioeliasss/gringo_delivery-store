@@ -12,6 +12,8 @@ module.exports = {
           title: notification.title,
           body: notification.body,
         },
+        title: notification.title,
+        message: notification.body,
         data: notification.data,
         android: {
           priority: "high",

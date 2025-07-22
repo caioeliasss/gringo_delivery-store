@@ -28,7 +28,8 @@ import AdminDashboard from "./pages/Admin/Dashboard/dashboard";
 import AdminFinanceiro from "./pages/Admin/Financeiro/financeiro";
 import { SuporteAuthProvider } from "./contexts/SuporteAuthContext";
 import LoginAdmin from "./pages/Admin/Login/login";
-
+import OrdersPage from "./pages/Orders/Orders";
+import MotoboysPage from "./pages/Motoboys";
 // Definir tema personalizado com a paleta de cores da Gringo Deli  very
 const theme = createTheme({
   typography: {
@@ -308,6 +309,26 @@ function SuporteApp() {
               <SuporteAuthProvider>
                 <PrivateRoute>
                   <SupportMapPage />
+                </PrivateRoute>
+              </SuporteAuthProvider>
+            }
+          />
+          <Route
+            path="/pedidos"
+            element={
+              <SuporteAuthProvider>
+                <PrivateRoute>
+                  <OrdersPage />
+                </PrivateRoute>
+              </SuporteAuthProvider>
+            }
+          />
+          <Route
+            path="/motoboys"
+            element={
+              <SuporteAuthProvider>
+                <PrivateRoute>
+                  <MotoboysPage />
                 </PrivateRoute>
               </SuporteAuthProvider>
             }

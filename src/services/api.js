@@ -82,6 +82,13 @@ export const updateOrderStatus = async (id, status) => {
 export const getMotoboys = async () => {
   return api.get("/motoboys");
 };
+export const getMotoboy = async (id) => {
+  return api.get(`/motoboys/id/${id}`);
+};
+
+export const getTravelsMotoboy = async (motoboyId) => {
+  return api.get(`/travels/${motoboyId}`);
+};
 
 export const findMotoboys = async (orderId) => {
   return api.get("/motoboys/find", {

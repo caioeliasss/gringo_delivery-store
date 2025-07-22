@@ -1707,6 +1707,7 @@ const Occurrences = () => {
               icon: <OcorrenciasIcon />,
             },
             { path: "/chat", text: "Chat", icon: <ChatIcon /> },
+            { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
           ]}
           // Passa diretamente a função de logout
           footerItems={[
@@ -1739,6 +1740,7 @@ const Occurrences = () => {
             },
             { path: "/chat", text: "Chat", icon: <ChatIcon /> },
             { path: "/mapa", text: "Mapa", icon: <MapIcon /> },
+            { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
           ]}
           footerItems={[
             {

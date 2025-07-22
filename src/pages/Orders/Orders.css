@@ -1,0 +1,169 @@
+/* Estilos específicos para a página de pedidos */
+.orders-page {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+.order-card {
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.order-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.status-chip {
+  font-weight: 600;
+  border-radius: 16px;
+}
+
+.details-modal {
+  border-radius: 16px;
+}
+
+.info-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  transition: box-shadow 0.2s ease;
+}
+
+.info-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.filter-section {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  background: #fafafa;
+  border-radius: 12px;
+}
+
+.header-section {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .order-card {
+    margin-bottom: 16px;
+  }
+
+  .details-modal {
+    margin: 16px;
+    border-radius: 12px;
+  }
+
+  .info-card {
+    margin-bottom: 16px;
+  }
+}
+
+/* Animações */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+/* Estados de loading */
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+}
+
+/* Estilos da tabela */
+.orders-table {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.orders-table .MuiTableHead-root {
+  background-color: #f5f5f5;
+}
+
+.orders-table .MuiTableHead-root .MuiTableCell-root {
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.orders-table .MuiTableRow-root:hover {
+  background-color: #f8f9fa;
+}
+
+.orders-table .MuiTableCell-root {
+  padding: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+/* Chips personalizados */
+.status-pending {
+  background-color: #fff3e0;
+  color: #f57c00;
+  border-color: #f57c00;
+}
+
+.status-confirmed {
+  background-color: #e3f2fd;
+  color: #1976d2;
+  border-color: #1976d2;
+}
+
+.status-preparing {
+  background-color: #f3e5f5;
+  color: #7b1fa2;
+  border-color: #7b1fa2;
+}
+
+.status-ready {
+  background-color: #e8f5e8;
+  color: #388e3c;
+  border-color: #388e3c;
+}
+
+.status-delivering {
+  background-color: #e0f2f1;
+  color: #00796b;
+  border-color: #00796b;
+}
+
+.status-delivered {
+  background-color: #e8f5e8;
+  color: #2e7d32;
+  border-color: #2e7d32;
+}
+
+.status-cancelled {
+  background-color: #ffebee;
+  color: #d32f2f;
+  border-color: #d32f2f;
+}

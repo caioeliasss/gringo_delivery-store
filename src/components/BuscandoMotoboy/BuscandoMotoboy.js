@@ -34,7 +34,7 @@ const bounce = keyframes`
     transform: translateY(-5px);
   }
 `;
-
+//FIXME arrumar status do pedido
 const pulse = keyframes`
   0% {
     transform: scale(1);

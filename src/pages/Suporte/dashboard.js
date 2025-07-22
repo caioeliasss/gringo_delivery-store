@@ -33,10 +33,14 @@ import {
   Logout as LogoutIcon,
   ShoppingBag,
   Map as MapIcon,
+  BikeScooter as MotoboyIcon,
+  ReportProblem as ReportProblemIcon,
+  Chat as ChatIcon,
 } from "@mui/icons-material";
 import { buscarCnpj } from "../../services/cnpj";
 import api from "../../services/api";
 import { buscarGenero } from "../../services/gender";
+import SideDrawer from "../../components/SideDrawer/SideDrawer";
 
 const SuporteDashboard = () => {
   //TODO adicionar stats dos suportes
@@ -110,100 +114,36 @@ const SuporteDashboard = () => {
     setDrawerOpen(open);
   };
 
+  const menuItems = [
+    { path: "/dashboard", text: "Dashboard", icon: <DashboardIcon /> },
+    { path: "/produtos", text: "Produtos", icon: <ProductsIcon /> },
+    { path: "/ocorrencias", text: "Ocorrências", icon: <ReportProblemIcon /> },
+    { path: "/chat", text: "Chat", icon: <ChatIcon /> },
+    { path: "/motoboys", text: "Entregadores", icon: <MotoboyIcon /> },
+    { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
+  ];
+
+  // Definir itens de rodapé para SideDrawer
+  const footerItems = [
+    {
+      text: "Sair",
+      icon: <LogoutIcon />,
+      onClick: handleLogout,
+      color: "error",
+    },
+  ];
+
   const drawerItems = (
-    <Box sx={{ width: 250 }}>
-      <Box sx={{ p: 2, textAlign: "center" }}>
-        <img
-          src="https://i.imgur.com/8jOdfcO.png"
-          alt="Gringo Delivery"
-          style={{ height: 50, marginBottom: 16 }}
-        />
-      </Box>
-      <Divider />
-      <List>
-        <ListItem
-          button
-          component={Link}
-          to="/dashboard"
-          selected={true}
-          sx={{
-            color: "text.primary",
-            "&.Mui-selected": {
-              bgcolor: "primary.main",
-              color: "white",
-              "&:hover": { bgcolor: "primary.dark" },
-            },
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <DashboardIcon />
-          </ListItemIcon>
-          <ListItemText primary="Dashboard" />
-        </ListItem>
-        <ListItem
-          button
-          component={Link}
-          to="/ocorrencias"
-          sx={{
-            color: "text.primary",
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <ProductsIcon />
-          </ListItemIcon>
-          <ListItemText primary="Ocorrências" />
-        </ListItem>
-        <ListItem
-          button
-          component={Link}
-          to="/chat"
-          selected={true}
-          sx={{
-            color: "text.primary",
-            "&.Mui-selected": {
-              bgcolor: "primary.main",
-              color: "white",
-              "&:hover": { bgcolor: "primary.dark" },
-            },
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <OrdersIcon />
-          </ListItemIcon>
-          <ListItemText primary="Chat" />
-        </ListItem>
-        <ListItem
-          button
-          component={Link}
-          to="/mapa"
-          sx={{
-            color: "text.primary",
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <MapIcon />
-          </ListItemIcon>
-          <ListItemText primary="Mapa" />
-        </ListItem>
-      </List>
-      <Divider />
-      <List>
-        <ListItem
-          button
-          onClick={handleLogout}
-          sx={{ "&:hover": { bgcolor: "error.light", color: "white" } }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <LogoutIcon />
-          </ListItemIcon>
-          <ListItemText primary="Sair" />
-        </ListItem>
-      </List>
-    </Box>
+    <SideDrawer
+      open={true}
+      variant="permanent"
+      title="Gringo Delivery"
+      logoUrl="https://i.imgur.com/8jOdfcO.png"
+      logoAlt="Gringo Delivery"
+      logoHeight={50}
+      menuItems={menuItems}
+      footerItems={footerItems}
+    />
   );
 
   if (loading) {

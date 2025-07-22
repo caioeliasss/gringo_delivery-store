@@ -213,21 +213,29 @@ class NotificationService {
     await notification.save();
 
     // Enviar push notification se tiver token
-    if (motoboy?.pushToken) {
+    if (motoboy && motoboy.fcmToken) {
       try {
-        await pushNotificationService.sendPushNotification(
-          motoboy.pushToken,
+        await pushNotificationService.sendCallStyleNotificationFCM(
+          motoboy.fcmToken,
           notification.title,
           notification.message,
           {
             notificationId: notification._id,
             type: notification.type,
-            screen: screen || "notifications",
+            screen: screen || "/(tabs)",
+            orderId: motoboy.race.orderId,
           }
         );
       } catch (pushError) {
-        console.error("Erro ao enviar notificação push:", pushError);
+        console.error("Erro ao enviar notificação call style:", pushError);
       }
+    } else {
+      console.warn("Motoboy não encontrado ou não possui token FCM", {
+        motoboyId,
+        firebaseUid,
+        motoboyExists: !!motoboy,
+        hasFcmToken: motoboy?.fcmToken ? true : false,
+      });
     }
 
     // Enviar evento SSE se disponível

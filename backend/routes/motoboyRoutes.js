@@ -3,8 +3,8 @@ const Order = require("../models/Order");
 const express = require("express");
 const router = express.Router();
 const motoboyServices = require("../services/motoboyServices");
-const sendNotification = require("../services/fcmService");
-const createNotificationGeneric = require("../routes/notificationRoutes");
+const { sendNotification } = require("../services/fcmService");
+const NotificationService = require("../services/notificationService");
 const OccurrenceService = require("../services/OccurrenceService");
 const Travel = require("../models/Travel");
 
@@ -382,6 +382,167 @@ const updatePushToken = async (req, res) => {
     });
   }
 };
+const assignMotoboy = async (req, res) => {
+  try {
+    const { motoboyId, orderId } = req.body;
+
+    // Validação inicial
+    if (!motoboyId || !orderId) {
+      return res
+        .status(400)
+        .json({ message: "Motoboy ID e Order ID são necessários" });
+    }
+
+    // Buscar motoboy
+    const motoboy = await Motoboy.findById(motoboyId);
+    if (!motoboy) {
+      return res.status(404).json({ message: "Motoboy não encontrado" });
+    }
+
+    // Verificar se motoboy está disponível
+    if (!motoboy.isAvailable || !motoboy.isApproved) {
+      return res.status(400).json({
+        message: "Motoboy não está disponível ou não foi aprovado",
+      });
+    }
+
+    // Verificar se motoboy já está em uma corrida
+    if (motoboy.race && motoboy.race.active) {
+      return res.status(400).json({
+        message: "Motoboy já está atribuído a outro pedido",
+      });
+    }
+
+    // Buscar pedido
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: "Pedido não encontrado" });
+    }
+
+    // Verificar se pedido já tem motoboy
+    if (order.motoboy && order.motoboy.motoboyId) {
+      return res
+        .status(400)
+        .json({ message: "Pedido já tem um motoboy atribuído" });
+    }
+
+    // Função helper para obter coordenadas do cliente
+    const getCustomerCoordinates = (order) => {
+      try {
+        // Verificar se existe customer como array
+        if (Array.isArray(order.customer) && order.customer.length > 0) {
+          const customer = order.customer[0];
+          if (
+            customer.customerAddress &&
+            Array.isArray(customer.customerAddress.coordinates)
+          ) {
+            return customer.customerAddress.coordinates;
+          }
+        }
+
+        // Verificar se existe customer como objeto único
+        if (order.customer && !Array.isArray(order.customer)) {
+          if (
+            order.customer.customerAddress &&
+            Array.isArray(order.customer.customerAddress.coordinates)
+          ) {
+            return order.customer.customerAddress.coordinates;
+          }
+        }
+
+        // Verificar se existe deliveryAddress diretamente no order
+        if (
+          order.deliveryAddress &&
+          Array.isArray(order.deliveryAddress.coordinates)
+        ) {
+          return order.deliveryAddress.coordinates;
+        }
+
+        console.warn(
+          "Coordenadas do cliente não encontradas, usando coordenadas padrão"
+        );
+        return [0, 0];
+      } catch (error) {
+        console.error("Erro ao obter coordenadas do cliente:", error);
+        return [0, 0];
+      }
+    };
+
+    // Atribuir motoboy ao pedido
+    order.motoboy = {
+      ...order.motoboy,
+      motoboyId: motoboy._id,
+      name: motoboy.name,
+      phone: motoboy.phoneNumber,
+      rated: false,
+    };
+
+    // Alterar status do pedido para "em_preparo" quando motoboy é atribuído
+    order.status = "em_preparo";
+
+    // Criar dados da viagem
+    const travelData = {
+      motoboyId: motoboy._id,
+      price: order.motoboy.price || 0,
+      rain: order.delivery?.priceList?.isRain || false,
+      distance: order.delivery?.distance || 0,
+      coordinatesFrom: order.store?.coordinates || [0, 0],
+      coordinatesTo: getCustomerCoordinates(order),
+      order: order,
+      status: "em_entrega",
+    };
+
+    // Criar viagem
+    const travel = new Travel(travelData);
+    await travel.save();
+
+    // Atualizar status do motoboy
+    motoboy.race = {
+      active: true,
+      orderId: order._id,
+      travelId: travel._id,
+    };
+
+    // Salvar todas as alterações
+    await motoboy.save();
+    await order.save();
+
+    // Enviar notificação para o motoboy
+
+    if (motoboy.fcmToken) {
+      NotificationService.createGenericNotification({
+        motoboyId: motoboy._id,
+        token: motoboy.fcmToken,
+        title: "Novo pedido atribuído",
+        message: `Você foi atribuído ao pedido ${order.orderNumber}.`,
+        data: {
+          orderId: order._id,
+          travelId: travel._id,
+          type: "SYSTEM",
+          screen: "/(tabs)",
+        },
+      });
+    } else {
+      console.warn("Motoboy não possui token FCM");
+    }
+
+    res.status(200).json({
+      message: "Motoboy atribuído ao pedido com sucesso",
+      motoboy: {
+        motoboyId: motoboy._id,
+        name: motoboy.name,
+        phone: motoboy.phoneNumber,
+        coordinates: motoboy.coordinates,
+      },
+    });
+  } catch (error) {
+    console.error("Erro ao atribuir motoboy:", error);
+    res.status(500).json({
+      message: "Erro interno do servidor ao atribuir motoboy",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
 
 router.get("/", async (req, res) => {
   try {
@@ -396,6 +557,59 @@ router.get("/", async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
+const approveMotoboy = async (req, res) => {
+  try {
+    const { motoboyId } = req.params;
+
+    if (!motoboyId) {
+      return res.status(400).json({ message: "Motoboy ID é necessário" });
+    }
+
+    const motoboy = await Motoboy.findById(motoboyId);
+    if (!motoboy) {
+      return res.status(404).json({ message: "Motoboy não encontrado" });
+    }
+
+    motoboy.isApproved = true;
+    await motoboy.save();
+
+    res.status(200).json({ message: "Motoboy aprovado com sucesso", motoboy });
+  } catch (error) {
+    console.error("Erro ao aprovar motoboy:", error);
+    res.status(500).json({
+      message: "Erro interno do servidor ao aprovar motoboy",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
+const repproveMotoboy = async (req, res) => {
+  try {
+    const { motoboyId } = req.params;
+
+    if (!motoboyId) {
+      return res.status(400).json({ message: "Motoboy ID é necessário" });
+    }
+
+    const motoboy = await Motoboy.findById(motoboyId);
+    if (!motoboy) {
+      return res.status(404).json({ message: "Motoboy não encontrado" });
+    }
+
+    motoboy.isApproved = false;
+    await motoboy.save();
+
+    res.status(200).json({ message: "Motoboy reprovado com sucesso", motoboy });
+  } catch (error) {
+    console.error("Erro ao reprovar motoboy:", error);
+    res.status(500).json({
+      message: "Erro interno do servidor ao reprovar motoboy",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
 router.delete(
   "/removeMotoboyFromOrder/:orderId/:motoboyId",
   removeMotoboyFromOrder
@@ -409,5 +623,8 @@ router.get("/me", getMotoboyMe);
 router.post("/", createMotoboy);
 router.put("/", updateMotoboy);
 router.put("/updateFCMToken", updateFCMToken);
+router.put("/assign", assignMotoboy);
+router.post("/approve/:motoboyId", approveMotoboy);
+router.post("/repprove/:motoboyId", repproveMotoboy);
 
 module.exports = router;

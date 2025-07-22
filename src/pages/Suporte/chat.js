@@ -1276,6 +1276,8 @@ const ChatPage = () => {
                 icon: <OcorrenciasIcon />,
               },
               { path: "/chat", text: "Chat", icon: <ChatIcon /> },
+
+              { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
             ]}
             // Passa diretamente a função de logout
             footerItems={[
@@ -1308,6 +1310,8 @@ const ChatPage = () => {
               },
               { path: "/chat", text: "Chat", icon: <ChatIcon /> },
               { path: "/mapa", text: "Mapa", icon: <MapIcon /> },
+
+              { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
             ]}
             footerItems={[
               {

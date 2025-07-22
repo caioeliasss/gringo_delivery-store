@@ -1,0 +1,123 @@
+/* Estilos para a página de Motoboys */
+
+.header-section {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.header-section .MuiTypography-root {
+  color: white;
+}
+
+.filter-section {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.motoboys-table {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.motoboys-table .MuiTableHead-root {
+  background-color: #f5f5f5;
+}
+
+.motoboys-table .MuiTableHead-root .MuiTableCell-root {
+  font-weight: 600;
+  color: #333;
+}
+
+.motoboys-table .MuiTableRow-root:hover {
+  background-color: #f8f9fa;
+}
+
+.loading-spinner {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.empty-state {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.details-modal .MuiDialog-paper {
+  max-height: 90vh;
+}
+
+.info-card {
+  height: 100%;
+  transition: transform 0.2s ease-in-out;
+}
+
+.info-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.info-card .MuiCardContent-root {
+  padding: 20px;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .header-section {
+    padding: 16px;
+  }
+
+  .filter-section {
+    padding: 16px;
+  }
+
+  .motoboys-table .MuiTableCell-root {
+    padding: 8px;
+    font-size: 0.875rem;
+  }
+
+  .info-card .MuiCardContent-root {
+    padding: 16px;
+  }
+}
+
+/* Animações */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.motoboys-table,
+.info-card,
+.header-section,
+.filter-section {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* Status específicos */
+.status-available {
+  background-color: #e8f5e8;
+  color: #2e7d32;
+}
+
+.status-busy {
+  background-color: #fff3e0;
+  color: #ef6c00;
+}
+
+.status-offline {
+  background-color: #fafafa;
+  color: #616161;
+}
+
+/* Google Maps customization */
+.gm-style-iw {
+  border-radius: 8px;
+}
+
+.gm-style-iw-d {
+  overflow: hidden !important;
+}
