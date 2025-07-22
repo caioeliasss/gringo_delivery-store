@@ -1696,17 +1696,15 @@ const Occurrences = () => {
           logoAlt="Gringo Delivery"
           logoHeight={50}
           menuItems={[
-            {
-              path: "/dashboard",
-              text: "Dashboard",
-              icon: <DashboardIcon />,
-            },
+            { path: "/dashboard", text: "Dashboard", icon: <DashboardIcon /> },
+            { path: "/produtos", text: "Produtos", icon: <ProductsIcon /> },
             {
               path: "/ocorrencias",
               text: "Ocorrências",
-              icon: <OcorrenciasIcon />,
+              icon: <ReportProblemIcon />,
             },
             { path: "/chat", text: "Chat", icon: <ChatIcon /> },
+            { path: "/motoboys", text: "Entregadores", icon: <MotoboyIcon /> },
             { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
           ]}
           // Passa diretamente a função de logout

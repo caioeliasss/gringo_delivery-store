@@ -439,10 +439,10 @@ export default function MotoboysPage() {
   const menuItems = [
     { path: "/dashboard", text: "Dashboard", icon: <DashboardIcon /> },
     { path: "/produtos", text: "Produtos", icon: <ProductsIcon /> },
-    { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
-    { path: "/motoboys", text: "Entregadores", icon: <MotoboyIcon /> },
     { path: "/ocorrencias", text: "Ocorrências", icon: <ReportProblemIcon /> },
     { path: "/chat", text: "Chat", icon: <ChatIcon /> },
+    { path: "/motoboys", text: "Entregadores", icon: <MotoboyIcon /> },
+    { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
   ];
 
   // Definir itens de rodapé para SideDrawer
@@ -456,7 +456,6 @@ export default function MotoboysPage() {
   ];
 
   const handleApproveMotoboy = async (motoboyId) => {
-    console.log("Aprovar motoboy:", motoboyId);
     try {
       const response = await api.post(`/motoboys/approve/${motoboyId}`);
       const data = response.data;
