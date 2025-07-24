@@ -41,6 +41,10 @@ import { buscarCnpj } from "../../services/cnpj";
 import api from "../../services/api";
 import { buscarGenero } from "../../services/gender";
 import SideDrawer from "../../components/SideDrawer/SideDrawer";
+import {
+  SUPPORT_MENU_ITEMS,
+  createSupportFooterItems,
+} from "../../config/menuConfig";
 
 const SuporteDashboard = () => {
   //TODO adicionar stats dos suportes
@@ -114,24 +118,11 @@ const SuporteDashboard = () => {
     setDrawerOpen(open);
   };
 
-  const menuItems = [
-    { path: "/dashboard", text: "Dashboard", icon: <DashboardIcon /> },
-    { path: "/produtos", text: "Produtos", icon: <ProductsIcon /> },
-    { path: "/ocorrencias", text: "Ocorrências", icon: <ReportProblemIcon /> },
-    { path: "/chat", text: "Chat", icon: <ChatIcon /> },
-    { path: "/motoboys", text: "Entregadores", icon: <MotoboyIcon /> },
-    { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
-  ];
+  // Usar configuração centralizada de menu
+  const menuItems = SUPPORT_MENU_ITEMS;
 
   // Definir itens de rodapé para SideDrawer
-  const footerItems = [
-    {
-      text: "Sair",
-      icon: <LogoutIcon />,
-      onClick: handleLogout,
-      color: "error",
-    },
-  ];
+  const footerItems = createSupportFooterItems(handleLogout);
 
   const drawerItems = (
     <SideDrawer

@@ -135,4 +135,33 @@ export const geocodeAddress = async (address) => {
   }
 };
 
+// Serviços de Estabelecimentos
+export const getStores = async () => {
+  return api.get("/stores");
+};
+
+export const getStore = async (id) => {
+  return api.get(`/stores/id/${id}`);
+};
+
+export const getStoreOrders = async (storeId) => {
+  return api.get(`/orders/store/${storeId}`);
+};
+
+export const approveStore = async (storeId) => {
+  return api.post(`/stores/approve/${storeId}`);
+};
+
+export const reproveStore = async (storeId) => {
+  return api.post(`/stores/reprove/${storeId}`);
+};
+
+export const updateStoreStatus = async (storeId, status) => {
+  return api.put(`/stores/${storeId}/status`, { status });
+};
+
+export const updateStoreBilling = async (storeId, billingOptions) => {
+  return api.post(`/stores/billingOptions`, { storeId, billingOptions });
+};
+
 export default api;

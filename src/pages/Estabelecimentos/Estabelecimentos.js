@@ -38,7 +38,7 @@ import {
   TextField,
 } from "@mui/material";
 import {
-  BikeScooter as MotoboyIcon,
+  Store as StoreIcon,
   Person as PersonIcon,
   Phone as PhoneIcon,
   Email as EmailIcon,
@@ -54,7 +54,7 @@ import {
   CheckCircle as OnlineIcon,
   Cancel as OfflineIcon,
   AccessTime as LastSeenIcon,
-  DirectionsBike as VehicleIcon,
+  Business as BusinessIcon,
   Star as RatingIcon,
   AttachMoney as EarningsIcon,
   Search as SearchIcon,
@@ -63,6 +63,8 @@ import {
   CloudDownload as DownloadIcon,
   Visibility as ViewIcon,
   Check as CheckIcon,
+  Schedule as ScheduleIcon,
+  Category as CategoryIcon,
 } from "@mui/icons-material";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -70,9 +72,12 @@ import { useNavigate, Link as RouterLink } from "react-router-dom";
 import SideDrawer from "../../components/SideDrawer/SideDrawer";
 import { useAuth } from "../../contexts/AuthContext";
 import api, {
-  getMotoboy,
-  getMotoboys,
-  getTravelsMotoboy,
+  getStores,
+  getStore,
+  getStoreOrders,
+  approveStore,
+  reproveStore,
+  updateStoreBilling,
 } from "../../services/api";
 import { getFileURL, getUserDocuments } from "../../services/storageService";
 import {
@@ -81,100 +86,223 @@ import {
   Marker,
   InfoWindow,
 } from "@react-google-maps/api";
-import "./Motoboys.css";
+import {
+  SUPPORT_MENU_ITEMS,
+  createSupportFooterItems,
+} from "../../config/menuConfig";
+import "./Estabelecimentos.css";
 
-const MOTOBOY_STATUS = [
+const STORE_STATUS = [
   {
-    value: "available",
-    label: "Disponível",
+    value: "open",
+    label: "Aberto",
     color: "success",
     icon: OnlineIcon,
+  },
+  {
+    value: "closed",
+    label: "Fechado",
+    color: "error",
+    icon: OfflineIcon,
   },
   {
     value: "busy",
     label: "Ocupado",
     color: "warning",
-    icon: MotoboyIcon,
-  },
-  {
-    value: "offline",
-    label: "Offline",
-    color: "error",
-    icon: OfflineIcon,
+    icon: ScheduleIcon,
   },
 ];
 
-export default function MotoboysPage() {
+const STORE_CATEGORIES = [
+  "Restaurante",
+  "Lanchonete",
+  "Pizzaria",
+  "Hamburgeria",
+  "Açaí",
+  "Pastelaria",
+  "Sorveteria",
+  "Padaria",
+  "Farmácia",
+  "Mercado",
+  "Outros",
+];
+
+export default function EstabelecimentosPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const [motoboys, setMotoboys] = useState([]);
-  const [filteredMotoboys, setFilteredMotoboys] = useState([]);
+  const [stores, setStores] = useState([]);
+  const [filteredStores, setFilteredStores] = useState([]);
   const [selectedStatuses, setSelectedStatuses] = useState([]);
+  const [selectedCategories, setSelectedCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [detailsModal, setDetailsModal] = useState(false);
-  const [selectedMotoboy, setSelectedMotoboy] = useState(null);
+  const [selectedStore, setSelectedStore] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
-  const [motoboyDocuments, setMotoboyDocuments] = useState([]);
+  const [storeDocuments, setStoreDocuments] = useState([]);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
+  const [billingModal, setBillingModal] = useState(false);
+  const [billingOptions, setBillingOptions] = useState({
+    deliveryFee: 0,
+    minimumOrder: 0,
+    commissionRate: 0,
+    paymentMethods: [],
+  });
+  const [loadingBilling, setLoadingBilling] = useState(false);
 
   useEffect(() => {
-    fetchMotoboys();
+    fetchStores();
   }, []);
 
   useEffect(() => {
     applyFilters();
-  }, [motoboys, selectedStatuses, searchTerm]);
+  }, [stores, selectedStatuses, selectedCategories, searchTerm]);
 
-  const fetchMotoboys = async () => {
+  const fetchStores = async () => {
     try {
       setLoading(true);
       // Simular delay da API
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      const response = await api.get("/motoboys");
-      const fetchedMotoboys = response.data;
-      setMotoboys(fetchedMotoboys);
+      const response = await getStores();
+      const fetchedStores = response.data;
+      setStores(fetchedStores);
     } catch (error) {
-      console.error("Erro ao buscar motoboys:", error);
+      console.error("Erro ao buscar estabelecimentos:", error);
       // Usar dados mock em caso de erro na API
-      setMotoboys([]);
+      setStores(generateMockStores());
     } finally {
       setLoading(false);
     }
   };
 
+  // Função para gerar dados mock enquanto não temos endpoint específico
+  const generateMockStores = () => {
+    return [
+      {
+        _id: "1",
+        name: "Pizzaria Bella Vista",
+        email: "contato@bellavista.com",
+        phoneNumber: "(11) 99999-1111",
+        address: {
+          address: "Rua das Flores, 123",
+          bairro: "Centro",
+          cidade: "São Paulo",
+          cep: "01234-567",
+        },
+        category: "Pizzaria",
+        status: "open",
+        rating: 4.5,
+        avatar: null,
+        coordinates: [-46.6333, -23.5505],
+        firebaseUid: "firebase_uid_1",
+        cnpj_approved: true,
+        createdAt: "2024-01-15T10:30:00Z",
+        openingHours: "18:00 - 23:00",
+        deliveryFee: 5.99,
+        minimumOrder: 25.0,
+        commissionRate: 15.0,
+        paymentMethods: ["PIX", "Cartão de Crédito", "Cartão de Débito"],
+      },
+      {
+        _id: "2",
+        name: "Burger King da Vila",
+        email: "pedidos@burgervila.com",
+        phoneNumber: "(11) 88888-2222",
+        address: {
+          address: "Av. Principal, 456",
+          bairro: "Vila Nova",
+          cidade: "São Paulo",
+          cep: "02345-678",
+        },
+        category: "Hamburgeria",
+        status: "busy",
+        rating: 4.2,
+        avatar: null,
+        coordinates: [-46.6444, -23.56],
+        firebaseUid: "firebase_uid_2",
+        cnpj_approved: true,
+        createdAt: "2024-02-10T08:15:00Z",
+        openingHours: "11:00 - 22:00",
+        deliveryFee: 4.99,
+        minimumOrder: 20.0,
+        commissionRate: 12.0,
+        paymentMethods: ["Dinheiro", "PIX", "Cartão de Crédito"],
+      },
+      {
+        _id: "3",
+        name: "Açaí do João",
+        email: "joao@acaijoao.com",
+        phoneNumber: "(11) 77777-3333",
+        address: {
+          address: "Rua da Praia, 789",
+          bairro: "Praia Grande",
+          cidade: "São Paulo",
+          cep: "03456-789",
+        },
+        category: "Açaí",
+        status: "closed",
+        rating: 4.8,
+        avatar: null,
+        coordinates: [-46.6555, -23.57],
+        firebaseUid: "firebase_uid_3",
+        cnpj_approved: false,
+        createdAt: "2024-03-05T14:20:00Z",
+        openingHours: "10:00 - 20:00",
+        deliveryFee: 3.99,
+        minimumOrder: 15.0,
+        commissionRate: 18.0,
+        paymentMethods: ["PIX", "Dinheiro", "Vale Alimentação"],
+      },
+    ];
+  };
+
   const applyFilters = () => {
-    let filtered = motoboys;
+    let filtered = stores;
 
     // Filtrar por status
     if (selectedStatuses.length > 0) {
-      filtered = filtered.filter((motoboy) =>
-        selectedStatuses.includes(motoboy.status || "offline")
+      filtered = filtered.filter((store) =>
+        selectedStatuses.includes(store.status || "closed")
+      );
+    }
+
+    // Filtrar por categoria
+    if (selectedCategories.length > 0) {
+      filtered = filtered.filter((store) =>
+        selectedCategories.includes(store.category || "Outros")
       );
     }
 
     // Filtrar por nome (busca flexível)
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase().trim();
-      filtered = filtered.filter((motoboy) => {
-        const name = (motoboy.name || "").toLowerCase();
-        // Busca por palavras parciais - exemplo: "caio elias" encontra "Caio Cesar Silva Elias"
+      filtered = filtered.filter((store) => {
+        const name = (store.businessName || "").toLowerCase();
+        const category = (store.category || "").toLowerCase();
+        // Busca por palavras parciais no nome ou categoria
         const searchWords = searchLower.split(/\s+/);
-        return searchWords.every((word) => name.includes(word));
+        return searchWords.every(
+          (word) => name.includes(word) || category.includes(word)
+        );
       });
     }
 
-    setFilteredMotoboys(filtered);
+    setFilteredStores(filtered);
   };
 
   const handleStatusChange = (event) => {
     const value = event.target.value;
     setSelectedStatuses(typeof value === "string" ? value.split(",") : value);
+  };
+
+  const handleCategoryChange = (event) => {
+    const value = event.target.value;
+    setSelectedCategories(typeof value === "string" ? value.split(",") : value);
   };
 
   const handleSearchChange = (event) => {
@@ -184,6 +312,7 @@ export default function MotoboysPage() {
   const clearAllFilters = () => {
     setSearchTerm("");
     setSelectedStatuses([]);
+    setSelectedCategories([]);
   };
 
   const handleLogout = async () => {
@@ -195,22 +324,22 @@ export default function MotoboysPage() {
     }
   };
 
-  const fetchMotoboyDocuments = async (firebaseUid) => {
+  const fetchStoreDocuments = async (firebaseUid) => {
     try {
       setLoadingDocuments(true);
 
       // Verificar se o firebaseUid existe
       if (!firebaseUid) {
-        console.warn("FirebaseUid não encontrado para este motoboy");
-        setMotoboyDocuments([]);
+        console.warn("FirebaseUid não encontrado para este estabelecimento");
+        setStoreDocuments([]);
         return;
       }
 
-      // Buscar documentos do motoboy usando o firebaseUid
+      // Buscar documentos do estabelecimento usando o firebaseUid
       const documents = await getUserDocuments(firebaseUid);
-      setMotoboyDocuments(documents);
+      setStoreDocuments(documents);
     } catch (error) {
-      console.error("❌ Erro ao buscar documentos do motoboy:", error);
+      console.error("❌ Erro ao buscar documentos do estabelecimento:", error);
 
       // Criar objeto de erro mais seguro
       const errorInfo = {
@@ -222,22 +351,22 @@ export default function MotoboysPage() {
       };
 
       console.error("❌ Detalhes do erro:", errorInfo);
-      setMotoboyDocuments([]);
+      setStoreDocuments([]);
     } finally {
       setLoadingDocuments(false);
     }
   };
 
-  const openDetails = async (motoboy) => {
+  const openDetails = async (store) => {
     try {
-      setSelectedMotoboy(motoboy);
+      setSelectedStore(store);
       setDetailsModal(true);
-      setMotoboyDocuments([]); // Limpar documentos anteriores
+      setStoreDocuments([]); // Limpar documentos anteriores
 
-      console.log("Abrindo detalhes do motoboy:", {
-        id: motoboy._id,
-        name: motoboy.name,
-        firebaseUid: motoboy.firebaseUid,
+      console.log("Abrindo detalhes do estabelecimento:", {
+        id: store._id,
+        name: store.businessName,
+        firebaseUid: store.firebaseUid,
       });
 
       // Verificar se o usuário está autenticado
@@ -246,39 +375,44 @@ export default function MotoboysPage() {
         return;
       }
 
-      // Buscar viagens do motoboy
+      // Buscar pedidos do estabelecimento
       try {
-        const travels = await getTravelsMotoboy(motoboy._id);
-        const data = travels.data;
-        setSelectedMotoboy((prev) => ({ ...prev, travels: data }));
-      } catch (travelsError) {
-        console.error("❌ Erro ao buscar viagens do motoboy:", travelsError);
+        const orders = await getStoreOrders(store._id);
+        setSelectedStore((prev) => ({ ...prev, orders: orders.data }));
+      } catch (ordersError) {
+        console.error(
+          "❌ Erro ao buscar pedidos do estabelecimento:",
+          ordersError
+        );
       }
 
-      // Buscar documentos do motoboy usando o firebaseUid
-      if (motoboy.firebaseUid) {
-        console.log("📄 Iniciando busca de documentos...");
-        await fetchMotoboyDocuments(motoboy.firebaseUid);
+      // Buscar documentos do estabelecimento usando o firebaseUid
+      if (store.firebaseUid) {
+        await fetchStoreDocuments(store.firebaseUid);
       } else {
-        console.warn("⚠️ Motoboy não possui firebaseUid:", motoboy.name);
-        setMotoboyDocuments([]);
+        console.warn(
+          "⚠️ Estabelecimento não possui firebaseUid:",
+          store.businessName
+        );
+        setStoreDocuments([]);
       }
     } catch (error) {
       console.error("❌ Erro geral ao abrir detalhes:", error);
-      setSelectedMotoboy(motoboy);
+      setSelectedStore(store);
       setDetailsModal(true);
     }
   };
+
   const closeDetails = () => {
-    setSelectedMotoboy(null);
+    setSelectedStore(null);
     setDetailsModal(false);
-    setMotoboyDocuments([]);
+    setStoreDocuments([]);
     setLoadingDocuments(false);
   };
 
   const getStatusChip = (status) => {
     const statusConfig =
-      MOTOBOY_STATUS.find((s) => s.value === status) || MOTOBOY_STATUS[2];
+      STORE_STATUS.find((s) => s.value === status) || STORE_STATUS[1];
 
     return (
       <Chip
@@ -291,25 +425,25 @@ export default function MotoboysPage() {
     );
   };
 
-  const createMotoboyMarker = (motoboy) => {
+  const createStoreMarker = (store) => {
     if (!window.google || !window.google.maps) {
       return null;
     }
 
     const colors = {
-      available: "#4CAF50",
+      open: "#4CAF50",
       busy: "#FF9800",
-      offline: "#9E9E9E",
+      closed: "#9E9E9E",
     };
 
-    const color = colors[motoboy.status] || colors.offline;
+    const color = colors[store.status] || colors.closed;
 
     try {
       const iconSvg = `
         <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
           <circle cx="20" cy="20" r="18" fill="white" stroke="${color}" stroke-width="3"/>
           <text x="20" y="25" text-anchor="middle" fill="${color}" font-size="16" font-family="Arial, sans-serif" font-weight="900">
-            🏍️
+            🏪
           </text>
         </svg>
       `;
@@ -344,25 +478,27 @@ export default function MotoboysPage() {
       return markers;
     }
 
-    // Renderizar marcador do motoboy selecionado
+    // Renderizar marcador do estabelecimento selecionado
     if (
-      selectedMotoboy &&
-      selectedMotoboy.coordinates &&
-      Array.isArray(selectedMotoboy.coordinates) &&
-      selectedMotoboy.coordinates.length === 2
+      selectedStore &&
+      selectedStore.coordinates &&
+      Array.isArray(selectedStore.coordinates) &&
+      selectedStore.coordinates.length === 2
     ) {
-      const icon = createMotoboyMarker(selectedMotoboy);
+      const icon = createStoreMarker(selectedStore);
 
       if (icon) {
         markers.push(
           <Marker
-            key={`motoboy-${selectedMotoboy._id || "selected"}`}
+            key={`store-${selectedStore._id || "selected"}`}
             position={{
-              lat: parseFloat(selectedMotoboy.coordinates[1]),
-              lng: parseFloat(selectedMotoboy.coordinates[0]),
+              lat: parseFloat(selectedStore.coordinates[1]),
+              lng: parseFloat(selectedStore.coordinates[0]),
             }}
             icon={icon}
-            title={`Motoboy: ${selectedMotoboy.name || "Sem nome"}`}
+            title={`Estabelecimento: ${
+              selectedStore.businessName || "Sem nome"
+            }`}
           />
         );
       }
@@ -394,7 +530,6 @@ export default function MotoboysPage() {
     if (typeof address === "object" && address !== null) {
       const parts = [];
       if (address.address) parts.push(address.address);
-      if (address.addressNumber) parts.push(address.addressNumber);
       if (address.bairro) parts.push(`- ${address.bairro}`);
       if (address.cidade) parts.push(`- ${address.cidade}`);
       if (address.cep) parts.push(`- CEP: ${address.cep}`);
@@ -435,52 +570,107 @@ export default function MotoboysPage() {
     document.body.removeChild(link);
   };
 
-  // Definir itens do menu para SideDrawer
-  const menuItems = [
-    { path: "/dashboard", text: "Dashboard", icon: <DashboardIcon /> },
-    { path: "/ocorrencias", text: "Ocorrências", icon: <ReportProblemIcon /> },
-    { path: "/chat", text: "Chat", icon: <ChatIcon /> },
-    { path: "/motoboys", text: "Entregadores", icon: <MotoboyIcon /> },
-    { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
-  ];
+  // Usar configuração centralizada de menu
+  const menuItems = SUPPORT_MENU_ITEMS;
+  const footerItems = createSupportFooterItems(handleLogout);
 
-  // Definir itens de rodapé para SideDrawer
-  const footerItems = [
-    {
-      text: "Sair",
-      icon: <LogoutIcon />,
-      onClick: handleLogout,
-      color: "error",
-    },
-  ];
-
-  const handleApproveMotoboy = async (motoboyId) => {
+  const handleApproveStore = async (storeId) => {
     try {
-      const response = await api.post(`/motoboys/approve/${motoboyId}`);
+      const response = await approveStore(storeId);
       const data = response.data;
       if (response.status === 200) {
-        setSelectedMotoboy((prev) => ({
+        setSelectedStore((prev) => ({
           ...prev,
-          isApproved: true, // Atualiza o status para aprovado
+          cnpj_approved: true, // Atualiza o status para aprovado
         }));
       }
     } catch (error) {
-      console.error("Erro ao aprovar motoboy:", error);
+      console.error("Erro ao aprovar estabelecimento:", error);
     }
   };
 
-  const handleReprovarMotoboy = async (motoboyId) => {
+  const handleReproveStore = async (storeId) => {
     try {
-      const response = await api.post(`/motoboys/repprove/${motoboyId}`);
+      const response = await reproveStore(storeId);
       const data = response.data;
       if (response.status === 200) {
-        setSelectedMotoboy((prev) => ({
+        setSelectedStore((prev) => ({
           ...prev,
-          isApproved: false, // Atualiza o status para reprovado
+          cnpj_approved: false, // Atualiza o status para reprovado
         }));
       }
     } catch (error) {
-      console.error("Erro ao reprovar motoboy:", error);
+      console.error("Erro ao reprovar estabelecimento:", error);
+    }
+  };
+
+  const openBillingModal = (store) => {
+    setSelectedStore(store);
+    setBillingOptions({
+      deliveryFee: store.billingOptions.motoBoyFee || 0,
+      minimumOrder: store.minimumOrder || 0,
+      commissionRate: store.billingOptions.monthlyFee || 0,
+      paymentMethods: store.paymentMethods || [],
+    });
+    setBillingModal(true);
+  };
+
+  const closeBillingModal = () => {
+    setBillingModal(false);
+    setBillingOptions({
+      deliveryFee: 0,
+      minimumOrder: 0,
+      commissionRate: 0,
+      paymentMethods: [],
+    });
+    setSelectedStore(null);
+    closeDetails();
+  };
+
+  const handleBillingChange = (field, value) => {
+    setBillingOptions((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handlePaymentMethodsChange = (event) => {
+    const value = event.target.value;
+    setBillingOptions((prev) => ({
+      ...prev,
+      paymentMethods: typeof value === "string" ? value.split(",") : value,
+    }));
+  };
+
+  const saveBillingOptions = async () => {
+    try {
+      setLoadingBilling(true);
+      const response = await updateStoreBilling(
+        selectedStore._id,
+        billingOptions
+      );
+
+      if (response.status === 200) {
+        // Atualizar o store na lista
+        setStores((prev) =>
+          prev.map((store) =>
+            store._id === selectedStore._id
+              ? { ...store, ...billingOptions }
+              : store
+          )
+        );
+
+        // Atualizar o store selecionado se o modal de detalhes estiver aberto
+        if (detailsModal && selectedStore) {
+          setSelectedStore((prev) => ({ ...prev, ...billingOptions }));
+        }
+
+        closeBillingModal();
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar opções de billing:", error);
+    } finally {
+      setLoadingBilling(false);
     }
   };
 
@@ -575,9 +765,9 @@ export default function MotoboysPage() {
                 boxShadow: 1,
               }}
             >
-              <MotoboyIcon sx={{ mr: 2, color: "primary.main" }} />
+              <StoreIcon sx={{ mr: 2, color: "primary.main" }} />
               <Typography variant="h4" fontWeight="bold" sx={{ flexGrow: 1 }}>
-                Entregadores
+                Estabelecimentos
               </Typography>
             </Box>
 
@@ -585,11 +775,11 @@ export default function MotoboysPage() {
             <Paper className="filter-section" sx={{ mb: 3, p: 2 }}>
               <Grid container spacing={2}>
                 {/* Barra de Pesquisa */}
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12} md={4}>
                   <TextField
                     fullWidth
-                    label="Pesquisar por nome"
-                    placeholder="Ex: João Souza"
+                    label="Pesquisar estabelecimento"
+                    placeholder="Ex: Pizzaria Bella Vista"
                     value={searchTerm}
                     onChange={handleSearchChange}
                     InputProps={{
@@ -611,7 +801,7 @@ export default function MotoboysPage() {
                 </Grid>
 
                 {/* Filtro por Status */}
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12} md={4}>
                   <FormControl fullWidth>
                     <InputLabel id="status-filter-label">
                       Filtrar por Status
@@ -657,47 +847,24 @@ export default function MotoboysPage() {
                             }}
                           >
                             {selected.map((value) => {
-                              const status = MOTOBOY_STATUS.find(
+                              const status = STORE_STATUS.find(
                                 (s) => s.value === value
                               );
-                              return (
+                              return status ? (
                                 <Chip
                                   key={value}
-                                  label={status?.label || value}
+                                  label={status.label}
                                   size="small"
-                                  sx={{
-                                    fontSize: "0.75rem",
-                                    height: "24px",
-                                    ...(status?.color === "error" && {
-                                      backgroundColor: "#ffebee",
-                                      color: "#c62828",
-                                      "& .MuiChip-deleteIcon": {
-                                        color: "#c62828",
-                                      },
-                                    }),
-                                    ...(status?.color === "warning" && {
-                                      backgroundColor: "#fff8e1",
-                                      color: "#f57c00",
-                                      "& .MuiChip-deleteIcon": {
-                                        color: "#f57c00",
-                                      },
-                                    }),
-                                    ...(status?.color === "success" && {
-                                      backgroundColor: "#e8f5e8",
-                                      color: "#2e7d32",
-                                      "& .MuiChip-deleteIcon": {
-                                        color: "#2e7d32",
-                                      },
-                                    }),
-                                  }}
+                                  color={status.color}
+                                  variant="outlined"
                                 />
-                              );
+                              ) : null;
                             })}
                           </Box>
                         );
                       }}
                     >
-                      {MOTOBOY_STATUS.map((status) => (
+                      {STORE_STATUS.map((status) => (
                         <MenuItem key={status.value} value={status.value}>
                           <Checkbox
                             checked={
@@ -710,11 +877,84 @@ export default function MotoboysPage() {
                     </Select>
                   </FormControl>
                 </Grid>
+
+                {/* Filtro por Categoria */}
+                <Grid item xs={12} md={4}>
+                  <FormControl fullWidth>
+                    <InputLabel id="category-filter-label">
+                      Filtrar por Categoria
+                    </InputLabel>
+                    <Select
+                      labelId="category-filter-label"
+                      multiple
+                      value={selectedCategories}
+                      onChange={handleCategoryChange}
+                      input={<OutlinedInput label="Filtrar por Categoria" />}
+                      displayEmpty
+                      sx={{
+                        minHeight: "56px",
+                        "& .MuiSelect-select": {
+                          minHeight: "20px",
+                          display: "flex",
+                          alignItems: "center",
+                        },
+                      }}
+                      MenuProps={{
+                        PaperProps: {
+                          style: {
+                            maxHeight: 300,
+                          },
+                        },
+                      }}
+                      renderValue={(selected) => {
+                        if (selected.length === 0) {
+                          return (
+                            <Typography variant="body2" color="text.secondary">
+                              Selecione as categorias
+                            </Typography>
+                          );
+                        }
+                        return (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: 0.5,
+                              alignItems: "center",
+                              minHeight: "20px",
+                            }}
+                          >
+                            {selected.map((value) => (
+                              <Chip
+                                key={value}
+                                label={value}
+                                size="small"
+                                color="primary"
+                                variant="outlined"
+                              />
+                            ))}
+                          </Box>
+                        );
+                      }}
+                    >
+                      {STORE_CATEGORIES.map((category) => (
+                        <MenuItem key={category} value={category}>
+                          <Checkbox
+                            checked={selectedCategories.indexOf(category) > -1}
+                          />
+                          <ListItemText primary={category} />
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
               </Grid>
             </Paper>
 
-            {/* Status dos Filtros Ativos */}
-            {(searchTerm.trim() || selectedStatuses.length > 0) && (
+            {/* Filtros ativos */}
+            {(searchTerm.trim() ||
+              selectedStatuses.length > 0 ||
+              selectedCategories.length > 0) && (
               <Box
                 sx={{
                   mb: 2,
@@ -739,24 +979,39 @@ export default function MotoboysPage() {
                 )}
 
                 {selectedStatuses.map((status) => {
-                  const statusConfig = MOTOBOY_STATUS.find(
+                  const statusConfig = STORE_STATUS.find(
                     (s) => s.value === status
                   );
-                  return (
+                  return statusConfig ? (
                     <Chip
                       key={status}
-                      label={`Status: ${statusConfig?.label || status}`}
+                      label={`Status: ${statusConfig.label}`}
                       size="small"
-                      color={statusConfig?.color || "default"}
+                      color="secondary"
                       variant="outlined"
-                      onDelete={() =>
+                      onDelete={() => {
                         setSelectedStatuses((prev) =>
                           prev.filter((s) => s !== status)
-                        )
-                      }
+                        );
+                      }}
                     />
-                  );
+                  ) : null;
                 })}
+
+                {selectedCategories.map((category) => (
+                  <Chip
+                    key={category}
+                    label={`Categoria: ${category}`}
+                    size="small"
+                    color="info"
+                    variant="outlined"
+                    onDelete={() => {
+                      setSelectedCategories((prev) =>
+                        prev.filter((c) => c !== category)
+                      );
+                    }}
+                  />
+                ))}
 
                 <Button size="small" onClick={clearAllFilters} sx={{ ml: 1 }}>
                   Limpar todos
@@ -764,7 +1019,7 @@ export default function MotoboysPage() {
               </Box>
             )}
 
-            {/* Lista de Motoboys */}
+            {/* Lista de estabelecimentos */}
             {loading ? (
               <Box
                 className="loading-spinner"
@@ -777,7 +1032,7 @@ export default function MotoboysPage() {
               >
                 <CircularProgress size={40} />
               </Box>
-            ) : filteredMotoboys.length === 0 ? (
+            ) : filteredStores.length === 0 ? (
               <Paper
                 className="empty-state"
                 sx={{
@@ -786,36 +1041,39 @@ export default function MotoboysPage() {
                   backgroundColor: "grey.50",
                 }}
               >
-                <MotoboyIcon sx={{ fontSize: 80, color: "grey.400", mb: 2 }} />
+                <StoreIcon sx={{ fontSize: 80, color: "grey.400", mb: 2 }} />
                 <Typography variant="h6" color="text.secondary" gutterBottom>
-                  Nenhum entregador encontrado
+                  Nenhum estabelecimento encontrado
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   {searchTerm.trim()
-                    ? `Nenhum entregador encontrado para "${searchTerm}". Tente uma pesquisa diferente.`
-                    : selectedStatuses.length > 0
-                    ? "Tente ajustar os filtros para ver mais entregadores."
-                    : "Os entregadores aparecerão aqui quando se cadastrarem."}
+                    ? `Nenhum estabelecimento encontrado para "${searchTerm}". Tente uma pesquisa diferente.`
+                    : selectedStatuses.length > 0 ||
+                      selectedCategories.length > 0
+                    ? "Tente ajustar os filtros para ver mais estabelecimentos."
+                    : "Os estabelecimentos aparecerão aqui quando se cadastrarem."}
                 </Typography>
               </Paper>
             ) : (
-              <Paper className="motoboys-table">
+              <Paper className="stores-table">
                 <Table>
                   <TableHead>
                     <TableRow>
-                      <TableCell>Entregador</TableCell>
+                      <TableCell>Estabelecimento</TableCell>
                       <TableCell>Status</TableCell>
+                      <TableCell>CNPJ</TableCell>
                       <TableCell>Telefone</TableCell>
-                      <TableCell>Veículo</TableCell>
                       <TableCell>Avaliação</TableCell>
+                      <TableCell>Taxa de Entrega</TableCell>
+                      <TableCell>Inscrição mensal</TableCell>
                       <TableCell>Situação</TableCell>
                       <TableCell>Ações</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {filteredMotoboys.map((motoboy, index) => (
+                    {filteredStores.map((store, index) => (
                       <TableRow
-                        key={motoboy._id || index}
+                        key={store._id || index}
                         hover
                         sx={{
                           cursor: "pointer",
@@ -823,12 +1081,12 @@ export default function MotoboysPage() {
                             backgroundColor: "action.hover",
                           },
                         }}
-                        onClick={() => openDetails(motoboy)}
+                        onClick={() => openDetails(store)}
                       >
                         <TableCell>
                           <Box sx={{ display: "flex", alignItems: "center" }}>
                             <Avatar
-                              src={motoboy.avatar || ""}
+                              src={store.avatar || ""}
                               sx={{
                                 bgcolor: "primary.light",
                                 color: "primary.contrastText",
@@ -837,32 +1095,36 @@ export default function MotoboysPage() {
                                 height: 32,
                               }}
                             >
-                              {motoboy.name?.charAt(0)?.toUpperCase() || "M"}
+                              {store.businessName?.charAt(0)?.toUpperCase() ||
+                                "E"}
                             </Avatar>
                             <Box>
                               <Typography variant="body2" fontWeight="medium">
-                                {motoboy.name || "Nome não informado"}
+                                {store.businessName || "Nome não informado"}
                               </Typography>
                               <Typography
                                 variant="caption"
                                 color="text.secondary"
                               >
-                                ID: {motoboy._id?.slice(-6) || "Não informado"}
+                                ID: {store._id?.slice(-6) || "Não informado"}
                               </Typography>
                             </Box>
                           </Box>
                         </TableCell>
                         <TableCell>
-                          {getStatusChip(motoboy.status || "offline")}
+                          {getStatusChip(store.status || "closed")}
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={store.cnpj || "Não informado"}
+                            size="small"
+                            variant="outlined"
+                            icon={<CategoryIcon fontSize="small" />}
+                          />
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2">
-                            {motoboy.phoneNumber || "Não informado"}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {motoboy.vehicle || "Não informado"}
+                            {store.phone || "Não informado"}
                           </Typography>
                         </TableCell>
                         <TableCell>
@@ -875,26 +1137,38 @@ export default function MotoboysPage() {
                               }}
                             />
                             <Typography variant="body2">
-                              {motoboy.score ? motoboy.score.toFixed(1) : "N/A"}
+                              {store.rating ? store.rating.toFixed(1) : "N/A"}
                             </Typography>
                           </Box>
                         </TableCell>
                         <TableCell>
-                          <Typography variant="body2" color="text.secondary">
-                            {motoboy.isApproved ? "Aprovado" : "Pendente"}
+                          <Typography variant="body2">
+                            {formatCurrency(store.billingOptions?.motoBoyFee)}
                           </Typography>
                         </TableCell>
                         <TableCell>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openDetails(motoboy);
-                            }}
-                          >
-                            Detalhes
-                          </Button>
+                          <Typography variant="body2">
+                            {formatCurrency(store.billingOptions?.monthlyFee)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {store.cnpj_approved ? "Aprovado" : "Pendente"}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: "flex", gap: 1 }}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDetails(store);
+                              }}
+                            >
+                              Detalhes
+                            </Button>
+                          </Box>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -903,7 +1177,7 @@ export default function MotoboysPage() {
               </Paper>
             )}
 
-            {/* Modal de Detalhes */}
+            {/* Modal de detalhes */}
             <Dialog
               open={detailsModal}
               onClose={closeDetails}
@@ -923,10 +1197,10 @@ export default function MotoboysPage() {
                 }}
               >
                 <Box sx={{ display: "flex", alignItems: "center" }}>
-                  <MotoboyIcon sx={{ mr: 1, color: "primary.main" }} />
+                  <StoreIcon sx={{ mr: 1, color: "primary.main" }} />
                   <Typography variant="h6" fontWeight="bold">
-                    Detalhes do Entregador -{" "}
-                    {selectedMotoboy?.name || "Sem nome"}
+                    Detalhes do Estabelecimento -{" "}
+                    {selectedStore?.businessName || "Sem nome"}
                   </Typography>
                 </Box>
                 <IconButton onClick={closeDetails} size="small">
@@ -935,9 +1209,9 @@ export default function MotoboysPage() {
               </DialogTitle>
 
               <DialogContent>
-                {selectedMotoboy && (
+                {selectedStore && (
                   <Box sx={{ mt: 2 }}>
-                    {/* Status e Avatar */}
+                    {/* Cabeçalho com informações básicas */}
                     <Box
                       sx={{
                         mb: 3,
@@ -948,7 +1222,7 @@ export default function MotoboysPage() {
                     >
                       <Box sx={{ display: "flex", alignItems: "center" }}>
                         <Avatar
-                          src={selectedMotoboy.avatar || ""}
+                          src={selectedStore.avatar || ""}
                           sx={{
                             width: 64,
                             height: 64,
@@ -956,18 +1230,28 @@ export default function MotoboysPage() {
                             bgcolor: "primary.light",
                           }}
                         >
-                          {selectedMotoboy.name?.charAt(0)?.toUpperCase() ||
-                            "M"}
+                          {selectedStore.businessName
+                            ?.charAt(0)
+                            ?.toUpperCase() || "E"}
                         </Avatar>
                         <Box>
                           <Typography variant="h6" fontWeight="bold">
-                            {selectedMotoboy.name || "Nome não informado"}
+                            {selectedStore.businessName || "Nome não informado"}
                           </Typography>
-                          {getStatusChip(selectedMotoboy.status || "offline")}
+                          {getStatusChip(selectedStore.status || "closed")}
+                          <Box sx={{ mt: 1 }}>
+                            <Chip
+                              label={selectedStore.category || "Outros"}
+                              size="small"
+                              variant="outlined"
+                              icon={<CategoryIcon fontSize="small" />}
+                              sx={{ mr: 1 }}
+                            />
+                          </Box>
                         </Box>
                       </Box>
                       <Typography variant="body2" color="text.secondary">
-                        Cadastrado em: {formatDate(selectedMotoboy.createdAt)}
+                        Cadastrado em: {formatDate(selectedStore.createdAt)}
                       </Typography>
                     </Box>
 
@@ -983,16 +1267,16 @@ export default function MotoboysPage() {
                                 mb: 2,
                               }}
                             >
-                              <PersonIcon
+                              <BusinessIcon
                                 sx={{ mr: 1, color: "primary.main" }}
                               />
                               <Typography variant="h6" fontWeight="bold">
-                                Informações Pessoais
+                                Informações do Estabelecimento
                               </Typography>
                             </Box>
 
                             <Stack spacing={1}>
-                              {selectedMotoboy.phoneNumber && (
+                              {selectedStore.phoneNumber && (
                                 <Box
                                   sx={{ display: "flex", alignItems: "center" }}
                                 >
@@ -1004,12 +1288,12 @@ export default function MotoboysPage() {
                                     }}
                                   />
                                   <Typography variant="body2">
-                                    {selectedMotoboy.phoneNumber}
+                                    {selectedStore.phoneNumber}
                                   </Typography>
                                 </Box>
                               )}
 
-                              {selectedMotoboy.email && (
+                              {selectedStore.email && (
                                 <Box
                                   sx={{ display: "flex", alignItems: "center" }}
                                 >
@@ -1021,12 +1305,12 @@ export default function MotoboysPage() {
                                     }}
                                   />
                                   <Typography variant="body2">
-                                    {selectedMotoboy.email}
+                                    {selectedStore.email}
                                   </Typography>
                                 </Box>
                               )}
 
-                              {selectedMotoboy.address && (
+                              {selectedStore.address && (
                                 <Box
                                   sx={{
                                     display: "flex",
@@ -1042,26 +1326,33 @@ export default function MotoboysPage() {
                                     }}
                                   />
                                   <Typography variant="body2">
-                                    {formatAddress(selectedMotoboy.address)}
+                                    {formatAddress(selectedStore.address)}
                                   </Typography>
                                 </Box>
                               )}
 
-                              {selectedMotoboy.birthDate && (
-                                <Typography
-                                  variant="body2"
-                                  color="text.secondary"
+                              {selectedStore.openingHours && (
+                                <Box
+                                  sx={{ display: "flex", alignItems: "center" }}
                                 >
-                                  Nascimento:{" "}
-                                  {formatDate(selectedMotoboy.birthDate)}
-                                </Typography>
+                                  <ScheduleIcon
+                                    sx={{
+                                      mr: 1,
+                                      fontSize: 16,
+                                      color: "text.secondary",
+                                    }}
+                                  />
+                                  <Typography variant="body2">
+                                    Horário: {selectedStore.openingHours}
+                                  </Typography>
+                                </Box>
                               )}
                             </Stack>
                           </CardContent>
                         </Card>
                       </Grid>
 
-                      {/* Informações do Veículo */}
+                      {/* Informações de Delivery */}
                       <Grid item xs={12} md={6}>
                         <Card variant="outlined" className="info-card">
                           <CardContent>
@@ -1072,40 +1363,40 @@ export default function MotoboysPage() {
                                 mb: 2,
                               }}
                             >
-                              <VehicleIcon
+                              <EarningsIcon
                                 sx={{ mr: 1, color: "primary.main" }}
                               />
                               <Typography variant="h6" fontWeight="bold">
-                                Informações do Veículo
+                                Informações de Delivery
                               </Typography>
                             </Box>
 
                             <Stack spacing={1}>
                               <Typography variant="body2">
-                                <strong>Tipo:</strong>{" "}
-                                {selectedMotoboy.vehicle || "Não informado"}
+                                <strong>Taxa de entrega:</strong>{" "}
+                                {formatCurrency(
+                                  selectedStore.billingOptions?.motoBoyFee
+                                )}
                               </Typography>
 
-                              {selectedMotoboy.licensePlate && (
-                                <Typography variant="body2">
-                                  <strong>Placa:</strong>{" "}
-                                  {selectedMotoboy.licensePlate}
-                                </Typography>
-                              )}
+                              <Typography variant="body2">
+                                <strong>Inscrição mensal:</strong>{" "}
+                                {formatCurrency(
+                                  selectedStore.billingOptions?.monthlyFee
+                                )}
+                              </Typography>
 
-                              {selectedMotoboy.vehicleModel && (
-                                <Typography variant="body2">
-                                  <strong>Modelo:</strong>{" "}
-                                  {selectedMotoboy.vehicleModel}
-                                </Typography>
-                              )}
-
-                              {selectedMotoboy.vehicleYear && (
-                                <Typography variant="body2">
-                                  <strong>Ano:</strong>{" "}
-                                  {selectedMotoboy.vehicleYear}
-                                </Typography>
-                              )}
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="primary"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openBillingModal(selectedStore);
+                                }}
+                              >
+                                Alterar
+                              </Button>
                             </Stack>
                           </CardContent>
                         </Card>
@@ -1133,23 +1424,21 @@ export default function MotoboysPage() {
                             <Stack spacing={1}>
                               <Typography variant="body2">
                                 <strong>Avaliação:</strong>{" "}
-                                {selectedMotoboy.score
-                                  ? `${selectedMotoboy.score.toFixed(1)} ⭐`
+                                {selectedStore.rating
+                                  ? `${selectedStore.rating.toFixed(1)} ⭐`
                                   : "Sem avaliações"}
                               </Typography>
 
                               <Typography variant="body2">
-                                <strong>Entregas realizadas:</strong>{" "}
-                                {selectedMotoboy?.travels?.length || 0}
+                                <strong>Pedidos realizados:</strong>{" "}
+                                {selectedStore.orders?.length || 0}
                               </Typography>
 
                               <Typography variant="body2">
-                                <strong>Última atividade:</strong>{" "}
-                                {formatDate(
-                                  selectedMotoboy?.travels?.[
-                                    selectedMotoboy?.travels?.length - 1
-                                  ]?.createdAt
-                                )}
+                                <strong>Status atual:</strong>{" "}
+                                {STORE_STATUS.find(
+                                  (s) => s.value === selectedStore.status
+                                )?.label || "Fechado"}
                               </Typography>
                             </Stack>
                           </CardContent>
@@ -1157,111 +1446,7 @@ export default function MotoboysPage() {
                       </Grid>
                     </Grid>
 
-                    <Grid item xs={12} md={6} mt={3}>
-                      <Card variant="outlined" className="info-card">
-                        <CardContent>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              mb: 2,
-                            }}
-                          >
-                            <RatingIcon sx={{ mr: 1, color: "primary.main" }} />
-                            <Typography variant="h6" fontWeight="bold">
-                              Informações da Corrida
-                            </Typography>
-                          </Box>
-
-                          <Stack spacing={1}>
-                            <Typography variant="body2">
-                              <strong>Em corrida:</strong>{" "}
-                              {selectedMotoboy.race?.active ? (
-                                <Chip
-                                  label="Sim"
-                                  color="success"
-                                  size="small"
-                                  sx={{ ml: 1 }}
-                                />
-                              ) : (
-                                <Chip
-                                  label="Não"
-                                  color="default"
-                                  size="small"
-                                  sx={{ ml: 1 }}
-                                />
-                              )}
-                            </Typography>
-
-                            {selectedMotoboy.race?.active &&
-                              selectedMotoboy.race?.orderId && (
-                                <Typography variant="body2">
-                                  <strong>ID do Pedido:</strong>{" "}
-                                  <code
-                                    style={{
-                                      backgroundColor: "#f5f5f5",
-                                      padding: "2px 6px",
-                                      borderRadius: "4px",
-                                      fontSize: "0.8rem",
-                                    }}
-                                  >
-                                    {selectedMotoboy.race.orderId}
-                                  </code>
-                                </Typography>
-                              )}
-
-                            <Typography variant="body2">
-                              <strong>Ver detalhes do pedido:</strong>{" "}
-                              {selectedMotoboy.race?.orderId ? (
-                                <RouterLink
-                                  to={`/pedidos`}
-                                  state={{
-                                    orderId: selectedMotoboy.race.orderId,
-                                  }}
-                                  style={{
-                                    textDecoration: "none",
-                                    color: "white",
-                                    backgroundColor: "#1976d2",
-                                    padding: "6px 12px",
-                                    borderRadius: "4px",
-                                    display: "inline-block",
-                                    fontSize: "0.875rem",
-                                    fontWeight: "500",
-                                    transition: "background-color 0.2s",
-                                    marginTop: "8px",
-                                  }}
-                                  onMouseOver={(e) => {
-                                    e.target.style.backgroundColor = "#1565c0";
-                                  }}
-                                  onMouseOut={(e) => {
-                                    e.target.style.backgroundColor = "#1976d2";
-                                  }}
-                                >
-                                  📋 Ver Pedido #
-                                  {selectedMotoboy.race.orderId?.slice(-6)}
-                                </RouterLink>
-                              ) : (
-                                <span
-                                  style={{
-                                    fontStyle: "italic",
-                                    color: "#666",
-                                    backgroundColor: "#f9f9f9",
-                                    padding: "6px 12px",
-                                    borderRadius: "4px",
-                                    display: "inline-block",
-                                    marginTop: "8px",
-                                  }}
-                                >
-                                  🚫 Nenhum pedido ativo
-                                </span>
-                              )}
-                            </Typography>
-                          </Stack>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-
-                    {/* Seção de Documentos */}
+                    {/* Documentos do estabelecimento */}
                     <Grid item xs={12} mt={3}>
                       <Card variant="outlined" className="info-card">
                         <CardContent>
@@ -1294,7 +1479,7 @@ export default function MotoboysPage() {
                                 Carregando documentos...
                               </Typography>
                             </Box>
-                          ) : motoboyDocuments.length === 0 ? (
+                          ) : storeDocuments.length === 0 ? (
                             <Box
                               sx={{
                                 textAlign: "center",
@@ -1310,7 +1495,7 @@ export default function MotoboysPage() {
                                 variant="body2"
                                 color="text.secondary"
                               >
-                                {selectedMotoboy?.firebaseUid
+                                {selectedStore?.firebaseUid
                                   ? "Nenhum documento encontrado"
                                   : "Conta Firebase não vinculada"}
                               </Typography>
@@ -1318,14 +1503,14 @@ export default function MotoboysPage() {
                                 variant="caption"
                                 color="text.secondary"
                               >
-                                {selectedMotoboy?.firebaseUid
-                                  ? "O entregador ainda não enviou nenhum documento"
-                                  : "Este entregador ainda não possui conta Firebase vinculada"}
+                                {selectedStore?.firebaseUid
+                                  ? "O estabelecimento ainda não enviou nenhum documento"
+                                  : "Este estabelecimento ainda não possui conta Firebase vinculada"}
                               </Typography>
                             </Box>
                           ) : (
                             <Grid container spacing={2}>
-                              {motoboyDocuments.map((document, index) => (
+                              {storeDocuments.map((document, index) => (
                                 <Grid item xs={12} sm={6} md={4} key={index}>
                                   <Paper
                                     variant="outlined"
@@ -1364,7 +1549,8 @@ export default function MotoboysPage() {
                                         }}
                                       >
                                         {formatDocumentName(
-                                          document.originalName || document.name
+                                          document.originalName ||
+                                            document.businessName
                                         )}
                                       </Typography>
                                     </Box>
@@ -1411,7 +1597,7 @@ export default function MotoboysPage() {
                                           downloadDocument(
                                             document.url,
                                             document.originalName ||
-                                              document.name
+                                              document.businessName
                                           )
                                         }
                                         sx={{
@@ -1445,15 +1631,15 @@ export default function MotoboysPage() {
                               color="text.secondary"
                               sx={{ fontWeight: "bold" }}
                             >
-                              Aprovar Entregador
+                              Aprovar Estabelecimento
                             </Typography>
                             <Box>
                               <Button
                                 variant="contained"
-                                color="primary"
-                                disabled={selectedMotoboy.isApproved === false}
+                                color="error"
+                                disabled={selectedStore.cnpj_approved === false}
                                 onClick={() => {
-                                  handleReprovarMotoboy(selectedMotoboy._id);
+                                  handleReproveStore(selectedStore._id);
                                 }}
                                 sx={{ textTransform: "none", mr: 1 }}
                               >
@@ -1462,15 +1648,15 @@ export default function MotoboysPage() {
                               </Button>
                               <Button
                                 variant="contained"
-                                color="primary"
-                                disabled={selectedMotoboy.isApproved === true}
+                                color="success"
+                                disabled={selectedStore.cnpj_approved === true}
                                 onClick={() => {
-                                  handleApproveMotoboy(selectedMotoboy._id);
+                                  handleApproveStore(selectedStore._id);
                                 }}
                                 sx={{ textTransform: "none" }}
                               >
                                 <CheckIcon sx={{ mr: 1 }} />
-                                {selectedMotoboy.isApproved
+                                {selectedStore.cnpj_approved
                                   ? "Aprovado"
                                   : "Aprovar"}
                               </Button>
@@ -1480,17 +1666,17 @@ export default function MotoboysPage() {
                       </Card>
                     </Grid>
 
-                    {/* Mapa da localização */}
-                    {selectedMotoboy.coordinates &&
-                      Array.isArray(selectedMotoboy.coordinates) &&
-                      selectedMotoboy.coordinates.length === 2 && (
+                    {/* Mapa */}
+                    {selectedStore.coordinates &&
+                      Array.isArray(selectedStore.coordinates) &&
+                      selectedStore.coordinates.length === 2 && (
                         <Box sx={{ mt: 3 }}>
                           <Typography
                             variant="h6"
                             fontWeight="bold"
                             sx={{ mb: 2 }}
                           >
-                            Localização Atual
+                            Localização do Estabelecimento
                           </Typography>
                           <Card variant="outlined">
                             <CardContent>
@@ -1509,10 +1695,10 @@ export default function MotoboysPage() {
                                     }}
                                     center={{
                                       lat: parseFloat(
-                                        selectedMotoboy.coordinates[1]
+                                        selectedStore.coordinates[1]
                                       ),
                                       lng: parseFloat(
-                                        selectedMotoboy.coordinates[0]
+                                        selectedStore.coordinates[0]
                                       ),
                                     }}
                                     zoom={15}
@@ -1559,6 +1745,131 @@ export default function MotoboysPage() {
               <DialogActions sx={{ p: 3, pt: 1 }}>
                 <Button onClick={closeDetails} color="inherit">
                   Fechar
+                </Button>
+              </DialogActions>
+            </Dialog>
+
+            {/* Modal de Billing */}
+            <Dialog
+              open={billingModal}
+              onClose={closeBillingModal}
+              maxWidth="md"
+              fullWidth
+              PaperProps={{
+                sx: { borderRadius: 2 },
+              }}
+            >
+              <DialogTitle
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  pb: 1,
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <EarningsIcon sx={{ mr: 1, color: "primary.main" }} />
+                  <Typography variant="h6" fontWeight="bold">
+                    Opções de Billing -{" "}
+                    {selectedStore?.name ||
+                      selectedStore?.businessName ||
+                      "Estabelecimento"}
+                  </Typography>
+                </Box>
+                <IconButton onClick={closeBillingModal} size="small">
+                  <CloseIcon />
+                </IconButton>
+              </DialogTitle>
+
+              <DialogContent>
+                {selectedStore && (
+                  <Box sx={{ mt: 2 }}>
+                    <Grid container spacing={3}>
+                      {/* Taxa de Entrega */}
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Taxa de Entrega (R$)"
+                          type="number"
+                          inputProps={{ min: 0, step: 0.01 }}
+                          value={billingOptions.deliveryFee}
+                          onChange={(e) =>
+                            handleBillingChange(
+                              "deliveryFee",
+                              parseFloat(e.target.value) || 0
+                            )
+                          }
+                          variant="outlined"
+                        />
+                      </Grid>
+
+                      {/* Taxa de Comissão */}
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Inscrição mensal (R$)"
+                          type="number"
+                          inputProps={{ min: 0, step: 0.01 }}
+                          value={billingOptions.commissionRate}
+                          onChange={(e) =>
+                            handleBillingChange(
+                              "commissionRate",
+                              parseFloat(e.target.value) || 0
+                            )
+                          }
+                          variant="outlined"
+                        />
+                      </Grid>
+
+                      {/* Resumo */}
+                      <Grid item xs={12}>
+                        <Card variant="outlined" sx={{ mt: 2 }}>
+                          <CardContent>
+                            <Typography variant="h6" gutterBottom>
+                              Resumo das Configurações
+                            </Typography>
+                            <Grid container spacing={2}>
+                              <Grid item xs={6}>
+                                <Typography variant="body2">
+                                  <strong>Taxa de Entrega:</strong>{" "}
+                                  {formatCurrency(billingOptions.deliveryFee)}
+                                </Typography>
+                              </Grid>
+
+                              <Grid item xs={6}>
+                                <Typography variant="body2">
+                                  <strong>Taxa de Comissão:</strong>{" "}
+                                  {formatCurrency(
+                                    billingOptions.commissionRate
+                                  )}
+                                </Typography>
+                              </Grid>
+                            </Grid>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    </Grid>
+                  </Box>
+                )}
+              </DialogContent>
+
+              <DialogActions sx={{ p: 3, pt: 1 }}>
+                <Button onClick={closeBillingModal} color="inherit">
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={saveBillingOptions}
+                  variant="contained"
+                  disabled={loadingBilling}
+                  startIcon={
+                    loadingBilling ? (
+                      <CircularProgress size={20} />
+                    ) : (
+                      <CheckIcon />
+                    )
+                  }
+                >
+                  {loadingBilling ? "Salvando..." : "Salvar"}
                 </Button>
               </DialogActions>
             </Dialog>

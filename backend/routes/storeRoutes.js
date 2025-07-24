@@ -359,4 +359,80 @@ router.get("/public/:id", async (req, res) => {
   }
 });
 
+router.post(`/billingOptions`, authenticateToken, async (req, res) => {
+  try {
+    const { storeId, billingOptions } = req.body;
+    if (!storeId || !billingOptions) {
+      return res.status(400).json({
+        message: "storeId e billingOptions são obrigatórios",
+      });
+    }
+    const store = await Store.findById(storeId);
+    if (!store) {
+      return res
+        .status(404)
+        .json({ message: "Estabelecimento não encontrado" });
+    }
+    // Atualizar as opções de faturamento do estabelecimento
+    store.billingOptions = billingOptions;
+    await store.save();
+    res.status(200).json({
+      message: "Opções de faturamento atualizadas com sucesso",
+      billingOptions: store.billingOptions,
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar opções de faturamento:", error);
+    res.status(500).json({
+      message: "Erro ao atualizar opções de faturamento",
+      error: error.message,
+    });
+  }
+});
+
+router.post(`/approve/:storeId`, authenticateToken, async (req, res) => {
+  try {
+    const storeId = req.params.storeId;
+    const store = await Store.findById(storeId);
+
+    if (!store) {
+      return res
+        .status(404)
+        .json({ message: "Estabelecimento não encontrado" });
+    }
+
+    store.cnpj_approved = true;
+    await store.save();
+
+    res.status(200).json({ message: "CNPJ aprovado com sucesso", store });
+  } catch (error) {
+    console.error("Erro ao aprovar CNPJ:", error);
+    res
+      .status(500)
+      .json({ message: "Erro ao aprovar CNPJ", error: error.message });
+  }
+});
+
+router.post(`/reprove/:storeId`, authenticateToken, async (req, res) => {
+  try {
+    const storeId = req.params.storeId;
+    const store = await Store.findById(storeId);
+
+    if (!store) {
+      return res
+        .status(404)
+        .json({ message: "Estabelecimento não encontrado" });
+    }
+
+    store.cnpj_approved = false;
+    await store.save();
+
+    res.status(200).json({ message: "CNPJ reprovado com sucesso", store });
+  } catch (error) {
+    console.error("Erro ao reprovar CNPJ:", error);
+    res
+      .status(500)
+      .json({ message: "Erro ao reprovar CNPJ", error: error.message });
+  }
+});
+
 module.exports = router;

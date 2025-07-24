@@ -174,6 +174,31 @@ router.get("/", authenticateToken, async (req, res) => {
   }
 });
 
+router.get(`/store/:storeId`, authenticateToken, async (req, res) => {
+  try {
+    const { storeId } = req.params;
+    const user = await Store.findById(storeId);
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+    // Verificar se o usuário tem um CNPJ aprovado
+    if (!user.cnpj || !user.cnpj_approved) {
+      return res
+        .status(403)
+        .json({ message: "CNPJ não aprovado ou não fornecido" });
+    }
+    const orders = await Order.find({ "store.cnpj": user.cnpj }).sort({
+      orderDate: -1,
+    });
+    res.status(200).json(orders);
+  } catch (error) {
+    console.error("Erro ao listar pedidos:", error);
+    res
+      .status(500)
+      .json({ message: "Erro ao listar pedidos", error: error.message });
+  }
+});
+
 // Obter pedido por ID
 router.get("/:id", authenticateToken, async (req, res) => {
   try {

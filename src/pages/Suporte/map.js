@@ -30,6 +30,7 @@ import {
 } from "@mui/material";
 import {
   Close as CloseIcon,
+  Report as ReportProblemIcon,
   Refresh as RefreshIcon,
   MyLocation as MyLocationIcon,
   Store as StoreIcon,
@@ -62,6 +63,10 @@ import api from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import SideDrawer from "../../components/SideDrawer/SideDrawer";
+import {
+  SUPPORT_MENU_ITEMS,
+  createSupportFooterItems,
+} from "../../config/menuConfig";
 
 const mapContainerStyle = {
   width: "100%",
@@ -878,35 +883,9 @@ export default function SupportMapPage() {
             logoUrl="https://i.imgur.com/8jOdfcO.png"
             logoAlt="Gringo Delivery"
             logoHeight={50}
-            menuItems={[
-              {
-                path: "/dashboard",
-                text: "Dashboard",
-                icon: <DashboardIcon />,
-              },
-              { path: "/produtos", text: "Produtos", icon: <ProductsIcon /> },
-              {
-                path: "/ocorrencias",
-                text: "Ocorrências",
-                icon: <ReportProblemIcon />,
-              },
-              { path: "/chat", text: "Chat", icon: <ChatIcon /> },
-              {
-                path: "/motoboys",
-                text: "Entregadores",
-                icon: <MotoboyIcon />,
-              },
-              { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
-            ]}
+            menuItems={SUPPORT_MENU_ITEMS}
             // Passa diretamente a função de logout
-            footerItems={[
-              {
-                text: "Sair",
-                icon: <LogoutIcon />,
-                onClick: handleLogout,
-                color: "error",
-              },
-            ]}
+            footerItems={createSupportFooterItems(handleLogout)}
           />
         ) : (
           <SideDrawer
@@ -916,29 +895,8 @@ export default function SupportMapPage() {
             logoUrl="https://i.imgur.com/8jOdfcO.png"
             logoAlt="Gringo Delivery"
             logoHeight={50}
-            menuItems={[
-              {
-                path: "/dashboard",
-                text: "Dashboard",
-                icon: <DashboardIcon />,
-              },
-              {
-                path: "/ocorrencias",
-                text: "Ocorrências",
-                icon: <OcorrenciasIcon />,
-              },
-              { path: "/chat", text: "Chat", icon: <ChatIcon /> },
-              { path: "/mapa", text: "Mapa", icon: <MapIcon /> },
-              { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
-            ]}
-            footerItems={[
-              {
-                text: "Sair",
-                icon: <LogoutIcon />,
-                onClick: handleLogout,
-                color: "error",
-              },
-            ]}
+            menuItems={SUPPORT_MENU_ITEMS}
+            footerItems={createSupportFooterItems(handleLogout)}
           />
         )}
 

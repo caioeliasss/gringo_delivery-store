@@ -63,6 +63,7 @@ import {
   Receipt as OrdersIcon,
   Person as ProfileIcon,
   Logout as LogoutIcon,
+  Report as ReportProblemIcon,
   Map as MapIcon,
   ReportProblem as OcorrenciasIcon,
 } from "@mui/icons-material";
@@ -73,6 +74,10 @@ import { ptBR } from "date-fns/locale";
 import { useAuth } from "../../contexts/AuthContext";
 import eventService from "../../services/eventService";
 import SideDrawer from "../../components/SideDrawer/SideDrawer";
+import {
+  SUPPORT_MENU_ITEMS,
+  createSupportFooterItems,
+} from "../../config/menuConfig";
 
 const TIPOS_OCORRENCIA = {
   CLIENTE: {
@@ -1695,27 +1700,9 @@ const Occurrences = () => {
           logoUrl="https://i.imgur.com/8jOdfcO.png"
           logoAlt="Gringo Delivery"
           logoHeight={50}
-          menuItems={[
-            { path: "/dashboard", text: "Dashboard", icon: <DashboardIcon /> },
-            { path: "/produtos", text: "Produtos", icon: <ProductsIcon /> },
-            {
-              path: "/ocorrencias",
-              text: "Ocorrências",
-              icon: <ReportProblemIcon />,
-            },
-            { path: "/chat", text: "Chat", icon: <ChatIcon /> },
-            { path: "/motoboys", text: "Entregadores", icon: <MotoboyIcon /> },
-            { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
-          ]}
+          menuItems={SUPPORT_MENU_ITEMS}
           // Passa diretamente a função de logout
-          footerItems={[
-            {
-              text: "Sair",
-              icon: <LogoutIcon />,
-              onClick: handleLogout,
-              color: "error",
-            },
-          ]}
+          footerItems={createSupportFooterItems(handleLogout)}
         />
       ) : (
         <SideDrawer
@@ -1725,29 +1712,8 @@ const Occurrences = () => {
           logoUrl="https://i.imgur.com/8jOdfcO.png"
           logoAlt="Gringo Delivery"
           logoHeight={50}
-          menuItems={[
-            {
-              path: "/dashboard",
-              text: "Dashboard",
-              icon: <DashboardIcon />,
-            },
-            {
-              path: "/ocorrencias",
-              text: "Ocorrências",
-              icon: <OcorrenciasIcon />,
-            },
-            { path: "/chat", text: "Chat", icon: <ChatIcon /> },
-            { path: "/mapa", text: "Mapa", icon: <MapIcon /> },
-            { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
-          ]}
-          footerItems={[
-            {
-              text: "Sair",
-              icon: <LogoutIcon />,
-              onClick: handleLogout,
-              color: "error",
-            },
-          ]}
+          menuItems={SUPPORT_MENU_ITEMS}
+          footerItems={createSupportFooterItems(handleLogout)}
         />
       )}
 

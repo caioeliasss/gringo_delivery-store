@@ -30,7 +30,8 @@ import { SuporteAuthProvider } from "./contexts/SuporteAuthContext";
 import LoginAdmin from "./pages/Admin/Login/login";
 import OrdersPage from "./pages/Orders/Orders";
 import MotoboysPage from "./pages/Motoboys";
-// Definir tema personalizado com a paleta de cores da Gringo Deli  very
+import EstabelecimentosPage from "./pages/Estabelecimentos";
+// Definir tema personalizado com a paleta de cores da Gringo Delivery
 const theme = createTheme({
   typography: {
     fontFamily: ["Poppins", "Roboto", "Arial", "sans-serif"].join(","),
@@ -329,6 +330,16 @@ function SuporteApp() {
               <SuporteAuthProvider>
                 <PrivateRoute>
                   <MotoboysPage />
+                </PrivateRoute>
+              </SuporteAuthProvider>
+            }
+          />
+          <Route
+            path="/estabelecimentos"
+            element={
+              <SuporteAuthProvider>
+                <PrivateRoute>
+                  <EstabelecimentosPage />
                 </PrivateRoute>
               </SuporteAuthProvider>
             }

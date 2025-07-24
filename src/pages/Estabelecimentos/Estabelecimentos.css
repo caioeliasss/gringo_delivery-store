@@ -1,0 +1,165 @@
+/* Estabelecimentos.css */
+
+.header-section {
+  border-left: 4px solid #1976d2;
+}
+
+.filter-section {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.empty-state {
+  border: 2px dashed #e0e0e0;
+}
+
+.stores-table {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.stores-table .MuiTableHead-root {
+  background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%);
+}
+
+.stores-table .MuiTableHead-root .MuiTableCell-root {
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-bottom: none;
+}
+
+.stores-table .MuiTableBody-root .MuiTableRow-root:nth-of-type(even) {
+  background-color: #f8f9fa;
+}
+
+.stores-table .MuiTableBody-root .MuiTableRow-root:hover {
+  background-color: #e3f2fd !important;
+  transform: scale(1.001);
+  transition: all 0.2s ease;
+}
+
+.details-modal .MuiDialog-paper {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.info-card {
+  transition: all 0.3s ease;
+  border-left: 4px solid transparent;
+}
+
+.info-card:hover {
+  border-left-color: #1976d2;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.loading-spinner {
+  background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+  border-radius: 8px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .header-section {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .filter-section .MuiGrid-container {
+    gap: 8px;
+  }
+
+  .stores-table {
+    font-size: 0.85rem;
+  }
+
+  .stores-table .MuiTableCell-root {
+    padding: 8px 4px;
+  }
+}
+
+/* Custom scrollbar for modal */
+.details-modal .MuiDialogContent-root::-webkit-scrollbar {
+  width: 8px;
+}
+
+.details-modal .MuiDialogContent-root::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.details-modal .MuiDialogContent-root::-webkit-scrollbar-thumb {
+  background: #1976d2;
+  border-radius: 4px;
+}
+
+.details-modal .MuiDialogContent-root::-webkit-scrollbar-thumb:hover {
+  background: #1565c0;
+}
+
+/* Animation for chips */
+.MuiChip-root {
+  transition: all 0.2s ease;
+}
+
+.MuiChip-root:hover {
+  transform: scale(1.05);
+}
+
+/* Enhanced table styling */
+.stores-table .MuiTableCell-root {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.stores-table .MuiAvatar-root {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Status-specific styling */
+.status-open {
+  background-color: #e8f5e8;
+  color: #2e7d32;
+}
+
+.status-closed {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+.status-busy {
+  background-color: #fff3e0;
+  color: #ef6c00;
+}
+
+/* Document card styling */
+.document-card {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.document-card:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  transform: translateY(-4px);
+}
+
+/* Map container */
+.map-container {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+/* Approval buttons styling */
+.approval-buttons .MuiButton-root {
+  min-width: 120px;
+  font-weight: 600;
+  text-transform: none;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.approval-buttons .MuiButton-contained:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}

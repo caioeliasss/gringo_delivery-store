@@ -72,6 +72,10 @@ import api, { getMotoboy, getMotoboys } from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import SideDrawer from "../../components/SideDrawer/SideDrawer";
+import {
+  SUPPORT_MENU_ITEMS,
+  createSupportFooterItems,
+} from "../../config/menuConfig";
 import { mockOrders } from "./mockData";
 import "./Orders.css";
 import {
@@ -635,24 +639,11 @@ export default function OrdersPage() {
     return "Endereço não informado";
   };
 
-  // Definir itens do menu para SideDrawer
-  const menuItems = [
-    { path: "/dashboard", text: "Dashboard", icon: <DashboardIcon /> },
-    { path: "/produtos", text: "Produtos", icon: <ProductsIcon /> },
-    { path: "/ocorrencias", text: "Ocorrências", icon: <ReportProblemIcon /> },
-    { path: "/chat", text: "Chat", icon: <ChatIcon /> },
-    { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
-  ];
+  // Usar configuração centralizada de menu
+  const menuItems = SUPPORT_MENU_ITEMS;
 
   // Definir itens de rodapé para SideDrawer
-  const footerItems = [
-    {
-      text: "Sair",
-      icon: <LogoutIcon />,
-      onClick: handleLogout,
-      color: "error",
-    },
-  ];
+  const footerItems = createSupportFooterItems(handleLogout);
 
   return (
     <LoadScript

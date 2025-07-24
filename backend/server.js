@@ -197,7 +197,7 @@ cronService.startAll(); // Iniciar serviço de cron
 
 app.use("/api/webhooks", express.raw({ type: "application/json" }));
 
-app.use("/api/stores", storeRoutes);
+app.use("/api/stores", authenticateToken, storeRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/motoboys", authenticateToken, motoboyRoutes);
