@@ -164,4 +164,17 @@ export const updateStoreBilling = async (storeId, billingOptions) => {
   return api.post(`/stores/billingOptions`, { storeId, billingOptions });
 };
 
+// Serviços de Precificação de Entrega
+export const getDeliveryPrice = async () => {
+  return api.get("/delivery-price");
+};
+
+export const updateDeliveryPrice = async (priceData) => {
+  return api.put("/delivery-price", priceData);
+};
+
+export const createDeliveryPrice = async (priceData) => {
+  return api.post("/delivery-price", priceData);
+};
+
 export default api;

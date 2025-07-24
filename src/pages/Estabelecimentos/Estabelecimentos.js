@@ -82,9 +82,9 @@ import api, {
 import { getFileURL, getUserDocuments } from "../../services/storageService";
 import {
   GoogleMap,
-  LoadScript,
   Marker,
   InfoWindow,
+  useJsApiLoader,
 } from "@react-google-maps/api";
 import {
   SUPPORT_MENU_ITEMS,
@@ -128,6 +128,12 @@ const STORE_CATEGORIES = [
 ];
 
 export default function EstabelecimentosPage() {
+  // Hook para carregar a API do Google Maps
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: "google-map-script",
+    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
+  });
+
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { user, logout } = useAuth();
@@ -142,7 +148,6 @@ export default function EstabelecimentosPage() {
   const [detailsModal, setDetailsModal] = useState(false);
   const [selectedStore, setSelectedStore] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [storeDocuments, setStoreDocuments] = useState([]);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
   const [billingModal, setBillingModal] = useState(false);
@@ -466,15 +471,9 @@ export default function EstabelecimentosPage() {
   const renderMarkers = () => {
     const markers = [];
 
-    // Verificar se Google Maps está disponível
-    if (!window.google || !window.google.maps) {
-      console.log("❌ Google Maps API não está disponível");
-      return markers;
-    }
-
-    // Só renderizar markers se o Google Maps estiver carregado
-    if (!isMapLoaded) {
-      console.log("❌ Mapa ainda não carregado");
+    // Verificar se Google Maps está disponível e carregado
+    if (!isLoaded || loadError) {
+      console.log("❌ Google Maps API não está disponível ou houve erro");
       return markers;
     }
 
@@ -675,16 +674,68 @@ export default function EstabelecimentosPage() {
   };
 
   return (
-    <LoadScript
-      googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
-      onLoad={() => {
-        setIsMapLoaded(true);
-        console.log("✅ Google Maps carregado com sucesso");
-      }}
-      onError={(error) => {
-        console.error("❌ Erro ao carregar Google Maps:", error);
-      }}
-    >
+    <>
+      {/* Tela de carregamento da API do Google Maps */}
+      {!isLoaded && !loadError && (
+        <Box
+          sx={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(255, 255, 255, 0.9)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+          }}
+        >
+          <Box sx={{ textAlign: "center" }}>
+            <CircularProgress size={60} sx={{ mb: 2 }} />
+            <Typography variant="h6" color="text.secondary">
+              Carregando Google Maps...
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Aguarde um momento
+            </Typography>
+          </Box>
+        </Box>
+      )}
+
+      {/* Erro de carregamento da API */}
+      {loadError && (
+        <Box
+          sx={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(255, 255, 255, 0.9)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+          }}
+        >
+          <Box sx={{ textAlign: "center", maxWidth: 400, p: 3 }}>
+            <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+              Erro ao carregar Google Maps
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Verifique sua conexão com a internet e recarregue a página.
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => window.location.reload()}
+            >
+              Recarregar Página
+            </Button>
+          </Box>
+        </Box>
+      )}
+
       <Box
         sx={{
           display: "flex",
@@ -1680,7 +1731,51 @@ export default function EstabelecimentosPage() {
                           </Typography>
                           <Card variant="outlined">
                             <CardContent>
-                              {isMapLoaded ? (
+                              {loadError && (
+                                <Box
+                                  sx={{
+                                    width: "100%",
+                                    height: "200px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    backgroundColor: "error.light",
+                                    borderRadius: 1,
+                                    mb: 2,
+                                  }}
+                                >
+                                  <Typography
+                                    variant="body2"
+                                    color="error.contrastText"
+                                  >
+                                    Erro ao carregar o Google Maps
+                                  </Typography>
+                                </Box>
+                              )}
+
+                              {!isLoaded ? (
+                                <Box
+                                  sx={{
+                                    width: "100%",
+                                    height: "400px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    backgroundColor: "grey.100",
+                                    borderRadius: 1,
+                                  }}
+                                >
+                                  <Box sx={{ textAlign: "center" }}>
+                                    <CircularProgress sx={{ mb: 2 }} />
+                                    <Typography
+                                      variant="body2"
+                                      color="text.secondary"
+                                    >
+                                      Carregando mapa...
+                                    </Typography>
+                                  </Box>
+                                </Box>
+                              ) : (
                                 <Box
                                   sx={{
                                     width: "100%",
@@ -1713,25 +1808,6 @@ export default function EstabelecimentosPage() {
                                   >
                                     {renderMarkers()}
                                   </GoogleMap>
-                                </Box>
-                              ) : (
-                                <Box
-                                  sx={{
-                                    width: "100%",
-                                    height: "200px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    backgroundColor: "grey.100",
-                                    borderRadius: 1,
-                                  }}
-                                >
-                                  <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                  >
-                                    Carregando mapa...
-                                  </Typography>
                                 </Box>
                               )}
                             </CardContent>
@@ -1876,6 +1952,6 @@ export default function EstabelecimentosPage() {
           </Container>
         </Box>
       </Box>
-    </LoadScript>
+    </>
   );
 }

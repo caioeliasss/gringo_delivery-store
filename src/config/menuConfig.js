@@ -8,6 +8,7 @@ import {
   Store as StoreIcon,
   Logout as LogoutIcon,
   Inventory as ProductsIcon,
+  PriceChange as PriceChangeIcon,
 } from "@mui/icons-material";
 
 // Configuração centralizada dos itens de menu para o sistema de suporte
@@ -41,6 +42,11 @@ export const SUPPORT_MENU_ITEMS = [
     path: "/pedidos",
     text: "Pedidos",
     icon: <OrdersIcon />,
+  },
+  {
+    path: "/precificacao",
+    text: "Precificação",
+    icon: <PriceChangeIcon />,
   },
 ];
 

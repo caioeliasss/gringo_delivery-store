@@ -31,6 +31,7 @@ import LoginAdmin from "./pages/Admin/Login/login";
 import OrdersPage from "./pages/Orders/Orders";
 import MotoboysPage from "./pages/Motoboys";
 import EstabelecimentosPage from "./pages/Estabelecimentos";
+import PrecificacaoPage from "./pages/Precificacao/Precificacao";
 // Definir tema personalizado com a paleta de cores da Gringo Delivery
 const theme = createTheme({
   typography: {
@@ -340,6 +341,16 @@ function SuporteApp() {
               <SuporteAuthProvider>
                 <PrivateRoute>
                   <EstabelecimentosPage />
+                </PrivateRoute>
+              </SuporteAuthProvider>
+            }
+          />
+          <Route
+            path="/precificacao"
+            element={
+              <SuporteAuthProvider>
+                <PrivateRoute>
+                  <PrecificacaoPage />
                 </PrivateRoute>
               </SuporteAuthProvider>
             }

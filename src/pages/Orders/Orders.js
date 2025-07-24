@@ -65,6 +65,7 @@ import {
   AddCircleOutline,
   RestartAlt,
   AttachMoney,
+  Add as AddIcon,
 } from "@mui/icons-material";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -80,10 +81,11 @@ import { mockOrders } from "./mockData";
 import "./Orders.css";
 import {
   GoogleMap,
-  LoadScript,
   Marker,
   InfoWindow,
+  useJsApiLoader,
 } from "@react-google-maps/api";
+import CreateOrderDialog from "./CreateOrderDialog";
 
 const ORDER_STATUS = [
   {
@@ -115,6 +117,12 @@ const ORDER_STATUS = [
 ];
 //TODO criar visual de motoboy aguardando
 export default function OrdersPage() {
+  // Hook para carregar a API do Google Maps
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: "google-map-script",
+    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
+  });
+
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { user, logout } = useAuth();
@@ -134,7 +142,7 @@ export default function OrdersPage() {
   const [motoboys, setMotoboys] = useState([]);
   const [priceModal, setPriceModal] = useState(false);
   const [newPrice, setNewPrice] = useState("");
-  const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const [openCreateOrderDialog, setOpenCreateOrderDialog] = useState(false);
 
   useEffect(() => {
     fetchOrders();
@@ -490,15 +498,9 @@ export default function OrdersPage() {
   const renderMarkers = () => {
     const markers = [];
 
-    // Verificar se Google Maps está disponível
-    if (!window.google || !window.google.maps) {
-      console.log("❌ Google Maps API não está disponível");
-      return markers;
-    }
-
-    // Só renderizar markers se o Google Maps estiver carregado
-    if (!isMapLoaded) {
-      console.log("❌ Mapa ainda não carregado");
+    // Verificar se Google Maps está disponível e carregado
+    if (!isLoaded || loadError) {
+      console.log("❌ Google Maps API não está disponível ou houve erro");
       return markers;
     }
 
@@ -646,16 +648,68 @@ export default function OrdersPage() {
   const footerItems = createSupportFooterItems(handleLogout);
 
   return (
-    <LoadScript
-      googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
-      onLoad={() => {
-        setIsMapLoaded(true);
-        console.log("✅ Google Maps carregado com sucesso");
-      }}
-      onError={(error) => {
-        console.error("❌ Erro ao carregar Google Maps:", error);
-      }}
-    >
+    <>
+      {/* Tela de carregamento da API do Google Maps */}
+      {!isLoaded && !loadError && (
+        <Box
+          sx={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(255, 255, 255, 0.9)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+          }}
+        >
+          <Box sx={{ textAlign: "center" }}>
+            <CircularProgress size={60} sx={{ mb: 2 }} />
+            <Typography variant="h6" color="text.secondary">
+              Carregando Google Maps...
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Aguarde um momento
+            </Typography>
+          </Box>
+        </Box>
+      )}
+
+      {/* Erro de carregamento da API */}
+      {loadError && (
+        <Box
+          sx={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(255, 255, 255, 0.9)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+          }}
+        >
+          <Box sx={{ textAlign: "center", maxWidth: 400, p: 3 }}>
+            <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+              Erro ao carregar Google Maps
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Verifique sua conexão com a internet e recarregue a página.
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => window.location.reload()}
+            >
+              Recarregar Página
+            </Button>
+          </Box>
+        </Box>
+      )}
+
       <Box
         sx={{
           display: "flex",
@@ -740,6 +794,19 @@ export default function OrdersPage() {
               <Typography variant="h4" fontWeight="bold" sx={{ flexGrow: 1 }}>
                 Pedidos
               </Typography>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<AddIcon />}
+                onClick={() => setOpenCreateOrderDialog(true)}
+                sx={{
+                  borderRadius: 2,
+                  fontWeight: "bold",
+                  px: 3,
+                }}
+              >
+                Adicionar Corrida
+              </Button>
             </Box>
 
             {/* Filtros */}
@@ -1587,8 +1654,7 @@ export default function OrdersPage() {
                             <Typography variant="body2" color="text.secondary">
                               Mapa da entrega
                             </Typography>
-                            {isMapLoaded &&
-                              selectedOrder &&
+                            {selectedOrder &&
                               (selectedOrder?.store?.coordinates ||
                                 selectedOrder?.store?.address?.coordinates) && (
                                 <Box
@@ -1638,7 +1704,7 @@ export default function OrdersPage() {
                                   </GoogleMap>
                                 </Box>
                               )}
-                            {!isMapLoaded && (
+                            {true && (
                               <Box
                                 sx={{
                                   width: "100%",
@@ -1752,9 +1818,21 @@ export default function OrdersPage() {
                 </Button>
               </DialogActions>
             </Dialog>
+
+            {/* Dialog de Criação de Corrida */}
+            <CreateOrderDialog
+              open={openCreateOrderDialog}
+              onClose={() => setOpenCreateOrderDialog(false)}
+              onOrderCreated={(newOrder) => {
+                // Adicionar o novo pedido à lista
+                setOrders((prevOrders) => [newOrder, ...prevOrders]);
+                // Mostrar mensagem de sucesso (opcional)
+                console.log("Nova corrida criada:", newOrder);
+              }}
+            />
           </Container>
         </Box>
       </Box>
-    </LoadScript>
+    </>
   );
 }

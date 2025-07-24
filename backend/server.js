@@ -192,6 +192,7 @@ const motoboyRoutes = require("./routes/motoboyRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const travelRoutes = require("./routes/travelRoutes");
 const occurrenceRoutes = require("./routes/occurrenceRoutes");
+const deliveryPricesRoutes = require("./routes/deliveryPricesRoutes");
 const cronService = require("./services/cronService");
 cronService.startAll(); // Iniciar serviço de cron
 
@@ -203,6 +204,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/motoboys", authenticateToken, motoboyRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/travels", travelRoutes);
+app.use("/api/delivery-price", authenticateToken, deliveryPricesRoutes);
 app.use("/api/avaliates", require("./routes/avaliateRoute"));
 app.use("/api/files", authenticateToken, require("./routes/fileRoutes"));
 app.use("/api/occurrences", authenticateToken, occurrenceRoutes);
