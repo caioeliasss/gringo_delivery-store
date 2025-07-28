@@ -264,81 +264,166 @@ router.put("/status", authenticateToken, async (req, res) => {
     const previousStatus = order.status;
 
     if (status === "em_preparo") {
-      //TODO arrumar
-      // verificar se ja deu quinze minutos e ver se o motoboy ja chegou
+      // Verificar se ja deu quinze minutos e ver se o motoboy ja chegou
       if (order.motoboy && order.motoboy.motoboyId) {
         const motoboy = await Motoboy.findById(order.motoboy.motoboyId);
         if (motoboy && motoboy.race?.travelId) {
+          console.log(
+            `⏰ Iniciando timer de 15min para pedido ${order._id}, motoboy ${motoboy._id}, travel ${motoboy.race.travelId}`
+          );
+
           // Executar em background de forma não-bloqueante
           setImmediate(() => {
             setTimeout(async () => {
               try {
+                console.log(
+                  `⏰ Timer de 15min executando para pedido ${order._id}`
+                );
+
                 // Buscar dados atualizados
                 const orderAtual = await Order.findById(id);
                 const motoboyAtual = await Motoboy.findById(
                   order.motoboy.motoboyId
                 );
-                const travelAtual = await Travel.findById(
-                  motoboy.race.travelId
-                );
+
+                if (!orderAtual) {
+                  console.log(`⏰ Pedido ${id} não encontrado no timer`);
+                  return;
+                }
+
+                if (!motoboyAtual) {
+                  console.log(
+                    `⏰ Motoboy ${order.motoboy.motoboyId} não encontrado no timer`
+                  );
+                  return;
+                }
+
+                let travelAtual = null;
+                if (motoboyAtual.race?.travelId) {
+                  travelAtual = await Travel.findById(
+                    motoboyAtual.race.travelId
+                  );
+                  if (!travelAtual) {
+                    console.log(
+                      `⏰ Travel ${motoboyAtual.race.travelId} não encontrado no timer`
+                    );
+                  }
+                }
 
                 // Verificações de segurança
-                if (
+                const shouldRemoveMotoboy =
                   orderAtual &&
                   motoboyAtual &&
-                  travelAtual &&
-                  !travelAtual.arrival_store &&
-                  !travelAtual.arrival_store_manually &&
-                  orderAtual.status !== "cancelado" &&
-                  orderAtual.status !== "entregue" &&
-                  orderAtual.motoboy.motoboyId?.toString() ===
-                    motoboyAtual._id.toString()
-                ) {
-                  // Executar remoção sem esperar
-                  await motoboyServices
-                    .removeMotoboyFromOrder(orderAtual._id, motoboyAtual._id)
-                    .catch((error) =>
-                      console.error("Erro ao remover motoboy:", error)
+                  orderAtual.status === "em_preparo" && // Confirmar que ainda está em preparo
+                  orderAtual.motoboy?.motoboyId?.toString() ===
+                    motoboyAtual._id.toString() &&
+                  (!travelAtual ||
+                    (!travelAtual.arrival_store &&
+                      !travelAtual.arrival_store_manually));
+
+                console.log(`⏰ Verificações do timer:`, {
+                  orderId: orderAtual._id,
+                  status: orderAtual.status,
+                  hasTravel: !!travelAtual,
+                  arrivedStore: travelAtual?.arrival_store || false,
+                  arrivedManually: travelAtual?.arrival_store_manually || false,
+                  motoboyMatch:
+                    orderAtual.motoboy?.motoboyId?.toString() ===
+                    motoboyAtual._id.toString(),
+                  shouldRemove: shouldRemoveMotoboy,
+                });
+
+                if (shouldRemoveMotoboy) {
+                  console.log(
+                    `🚫 Removendo motoboy ${motoboyAtual._id} do pedido ${orderAtual._id} após 15min`
+                  );
+
+                  // Executar remoção
+                  const removeResult =
+                    await motoboyServices.removeMotoboyFromOrder(
+                      orderAtual._id,
+                      motoboyAtual._id
                     );
 
+                  if (removeResult?.error) {
+                    console.error(
+                      "Erro ao remover motoboy:",
+                      removeResult.error
+                    );
+                    return;
+                  }
+
+                  console.log(
+                    `🔍 Buscando novos motoboys para pedido ${orderAtual._id}`
+                  );
                   const motoboys = await motoboyServices.findBestMotoboys(
                     orderAtual.store.coordinates
                   );
-                  await motoboyServices.processMotoboyQueue(
-                    motoboys,
-                    orderAtual
+
+                  if (motoboys && motoboys.length > 0) {
+                    await motoboyServices.processMotoboyQueue(
+                      motoboys,
+                      orderAtual
+                    );
+                    console.log(
+                      `✅ Processou ${motoboys.length} motoboys para pedido ${orderAtual._id}`
+                    );
+                  } else {
+                    console.log(
+                      `⚠️ Nenhum motoboy encontrado para pedido ${orderAtual._id}`
+                    );
+                  }
+                } else {
+                  console.log(
+                    `✅ Timer de 15min não executou ação - condições não atendidas`
                   );
                 }
               } catch (error) {
                 console.error("Erro no background 15m timer:", error);
               }
             }, 900000); // 15 minutos
+            // Para teste, use 30 segundos: }, 30000);
           });
+        } else {
+          console.log(
+            `⚠️ Motoboy ${order.motoboy.motoboyId} não tem travel ativo`
+          );
         }
+      } else {
+        console.log(`⚠️ Pedido não tem motoboy atribuído`);
       }
     }
 
     if (status === "cancelado") {
+      // Salvar ID do motoboy antes de limpar
+      const currentMotoboyId = order.motoboy?.motoboyId;
+
+      // Limpar dados do motoboy
       order.motoboy = {
         motoboyId: null,
         name: "",
         phone: null,
+        blacklist: order.motoboy?.blacklist || [],
       };
-      if (!order.motoboy.blacklist) {
-        order.motoboy.blacklist = [];
-      }
-      order.motoboy.blacklist.push(order.motoboy.motoboyId);
 
-      const motoboy = await Motoboy.findById(order.motoboy.motoboyId);
-      if (motoboy && motoboy.race.orderId === order._id.toString()) {
-        // Marcar motoboy como disponível novamente
-        motoboy.race = {
-          travelId: null,
-          orderId: null,
-          active: false,
-        };
-        motoboy.isAvailable = true;
-        await motoboy.save();
+      // Adicionar motoboy atual à blacklist se existir
+      if (currentMotoboyId) {
+        order.motoboy.blacklist.push(currentMotoboyId);
+
+        // Buscar motoboy e liberar se estava ocupado com este pedido
+        const motoboy = await Motoboy.findById(currentMotoboyId);
+        if (motoboy && motoboy.race?.orderId === order._id.toString()) {
+          console.log(`🚫 Liberando motoboy ${motoboy._id} - pedido cancelado`);
+
+          // Marcar motoboy como disponível novamente
+          motoboy.race = {
+            travelId: null,
+            orderId: null,
+            active: false,
+          };
+          motoboy.isAvailable = true;
+          await motoboy.save();
+        }
       }
     }
 
@@ -407,7 +492,290 @@ router.put("/status", authenticateToken, async (req, res) => {
     });
   }
 });
-// Função auxiliar para geocodificar um endereço usando Google Maps API
+
+// Rota para preview do custo da viagem antes de criar o pedido
+router.post("/preview-cost", async (req, res) => {
+  try {
+    const { store, customer, driveBack } = req.body;
+
+    // Validar dados obrigatórios
+    if (!store || !customer) {
+      return res.status(400).json({
+        message: "Dados da loja e cliente são obrigatórios",
+      });
+    }
+
+    // Validar coordenadas da loja
+    if (
+      !store.coordinates ||
+      !Array.isArray(store.coordinates) ||
+      store.coordinates.length !== 2
+    ) {
+      return res.status(400).json({
+        message: "Coordenadas da loja são obrigatórias",
+      });
+    }
+
+    // Validar se customer é array
+    if (!Array.isArray(customer)) {
+      return res.status(400).json({
+        message: "Customer deve ser um array",
+      });
+    }
+
+    // Validar coordenadas dos clientes
+    for (let i = 0; i < customer.length; i++) {
+      const customerItem = customer[i];
+      if (
+        !customerItem.customerAddress ||
+        !customerItem.customerAddress.coordinates
+      ) {
+        return res.status(400).json({
+          message: `Coordenadas do cliente ${i + 1} são obrigatórias`,
+        });
+      }
+    }
+
+    // Função para calcular distância e custo do ponto de origem para o primeiro cliente
+    const calculateOriginToFirstCustomer = async (
+      coordFrom,
+      coordTo,
+      driveBack
+    ) => {
+      let distance = geolib.getDistance(
+        { latitude: coordFrom[1], longitude: coordFrom[0] },
+        { latitude: coordTo[1], longitude: coordTo[0] }
+      );
+      distance = distance / 1000;
+
+      const priceList = await DeliveryPrice.findOne();
+
+      if (!priceList) {
+        throw new Error("Lista de preços não encontrada");
+      }
+
+      let cost;
+      let valorFixo;
+
+      // Verificar clima (chuva)
+      try {
+        const getWeather = require("../services/weatherService").getWeather;
+        const weatherResponse = getWeather(coordTo.latitude, coordTo.longitude);
+        const weatherData = await weatherResponse;
+        if (weatherData.current.weather_code > 60) {
+          priceList.isRain = true;
+        }
+      } catch (error) {
+        console.error("Erro ao obter dados do clima:", error.message);
+        priceList.isRain = false;
+      }
+
+      // Determinar valor fixo baseado nas condições
+      if (priceList.isRain) {
+        valorFixo = priceList.priceRain;
+      } else if (priceList.isHighDemand) {
+        valorFixo = priceList.fixedPriceHigh;
+      } else {
+        valorFixo = priceList.fixedPrice;
+      }
+
+      // Calcular custo baseado na distância
+      if (distance > priceList.fixedKm) {
+        let bonusDistance = distance - priceList.fixedKm;
+        cost = bonusDistance * priceList.bonusKm;
+        cost = cost + valorFixo;
+      } else {
+        cost = valorFixo;
+      }
+
+      // Adicionar custo de volta se solicitado
+      if (driveBack) {
+        cost = distance * priceList.driveBack + cost;
+      }
+
+      let distanceOrigin = distance;
+
+      return { cost, distance, distanceOrigin, priceList };
+    };
+
+    // Função para calcular distância entre clientes
+    const calculateCustomerToCustomer = async (customers) => {
+      let totalDistance = 0;
+
+      for (let i = 0; i < customers.length - 1; i++) {
+        const coordFrom = customers[i].customerAddress.coordinates;
+        const coordTo = customers[i + 1].customerAddress.coordinates;
+
+        totalDistance += geolib.getDistance(
+          { latitude: coordFrom[1], longitude: coordFrom[0] },
+          { latitude: coordTo[1], longitude: coordTo[0] }
+        );
+      }
+
+      totalDistance = totalDistance / 1000;
+
+      const priceList = await DeliveryPrice.findOne();
+
+      if (!priceList) {
+        throw new Error("Lista de preços não encontrada");
+      }
+
+      let cost;
+      if (totalDistance > priceList.fixedKm) {
+        let bonusDistance = totalDistance - priceList.fixedKm;
+        cost = bonusDistance * priceList.bonusKm + priceList.fixedPrice;
+      } else {
+        cost = priceList.fixedPrice;
+      }
+
+      let distanceCustomers = totalDistance;
+      return { cost, distance: totalDistance, priceList, distanceCustomers };
+    };
+
+    // Função principal para calcular o preço total
+    const calculateTotalPrice = async (coordFrom, customers, driveBack) => {
+      if (!coordFrom || !customers || customers.length === 0) {
+        throw new Error("Coordenadas de origem ou clientes não fornecidos");
+      }
+
+      // Calcular distância e custo do ponto de origem para o primeiro cliente
+      const firstCustomer = customers[0].customerAddress.coordinates;
+      let { distanceOrigin, priceList } = await calculateOriginToFirstCustomer(
+        coordFrom,
+        firstCustomer,
+        driveBack
+      );
+
+      let distanceCustomers = 0;
+      if (customers.length > 1) {
+        const customerToCustomerResult = await calculateCustomerToCustomer(
+          customers
+        );
+        distanceCustomers = customerToCustomerResult.distanceCustomers;
+      }
+
+      let totalDistance = distanceOrigin + distanceCustomers;
+
+      let cost;
+      let valorFixo;
+
+      // Verificar clima novamente para o cálculo final
+      try {
+        const getWeather = require("../services/weatherService").getWeather;
+        const weatherResponse = getWeather(
+          customers[0].customerAddress.coordinates[1],
+          customers[0].customerAddress.coordinates[0]
+        );
+        const weatherData = await weatherResponse;
+        if (weatherData.current.weather_code > 60) {
+          priceList.isRain = true;
+        }
+      } catch (error) {
+        console.error("Erro ao obter dados do clima:", error.message);
+        priceList.isRain = false;
+      }
+
+      // Determinar valor fixo
+      if (priceList.isRain) {
+        valorFixo = priceList.priceRain;
+      } else if (priceList.isHighDemand) {
+        valorFixo = priceList.fixedPriceHigh;
+      } else {
+        valorFixo = priceList.fixedPrice;
+      }
+
+      // Calcular custo total
+      if (totalDistance > priceList.fixedKm) {
+        let bonusDistance = totalDistance - priceList.fixedKm;
+        cost = bonusDistance * priceList.bonusKm;
+        cost = cost + valorFixo;
+      } else {
+        cost = valorFixo;
+      }
+
+      // Adicionar custo de volta
+      if (driveBack) {
+        cost = totalDistance * priceList.driveBack + cost;
+      }
+
+      // Adicionar custo adicional para múltiplos clientes
+      if (customers.length > 1) {
+        cost = valorFixo * (customers.length - 1) + cost;
+      }
+
+      return {
+        cost,
+        totalDistance,
+        distanceOrigin,
+        distanceCustomers,
+        priceList: {
+          fixedPrice: priceList.fixedPrice,
+          fixedPriceHigh: priceList.fixedPriceHigh,
+          priceRain: priceList.priceRain,
+          bonusKm: priceList.bonusKm,
+          driveBack: priceList.driveBack,
+          fixedKm: priceList.fixedKm,
+          isRain: priceList.isRain,
+          isHighDemand: priceList.isHighDemand,
+        },
+      };
+    };
+
+    // Executar cálculo
+    const result = await calculateTotalPrice(
+      store.coordinates,
+      customer,
+      driveBack
+    );
+
+    // Resposta com detalhes do cálculo
+    res.status(200).json({
+      success: true,
+      preview: {
+        totalCost: parseFloat(result.cost.toFixed(2)),
+        totalDistance: parseFloat(result.totalDistance.toFixed(2)),
+        distanceOrigin: parseFloat(result.distanceOrigin.toFixed(2)),
+        distanceCustomers: parseFloat(result.distanceCustomers.toFixed(2)),
+        driveBack: driveBack,
+        numberOfCustomers: customer.length,
+        priceList: result.priceList,
+        breakdown: {
+          baseCost: result.priceList.isRain
+            ? result.priceList.priceRain
+            : result.priceList.isHighDemand
+            ? result.priceList.fixedPriceHigh
+            : result.priceList.fixedPrice,
+          extraDistanceCost:
+            result.totalDistance > result.priceList.fixedKm
+              ? (result.totalDistance - result.priceList.fixedKm) *
+                result.priceList.bonusKm
+              : 0,
+          driveBackCost: driveBack
+            ? result.totalDistance * result.priceList.driveBack
+            : 0,
+          multipleCustomersCost:
+            customer.length > 1
+              ? (result.priceList.isRain
+                  ? result.priceList.priceRain
+                  : result.priceList.isHighDemand
+                  ? result.priceList.fixedPriceHigh
+                  : result.priceList.fixedPrice) *
+                (customer.length - 1)
+              : 0,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Erro ao calcular preview do custo:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erro ao calcular preview do custo",
+      error: error.message,
+    });
+  }
+});
+
+// Criar novo pedido (para uso do app do cliente)
 const geocodeAddress = async (address) => {
   try {
     // Em ambiente de produção, você deve usar um serviço como Google Maps API
@@ -479,6 +847,7 @@ router.post("/", async (req, res) => {
       notes,
       driveBack,
       findDriverAuto,
+      preview,
     } = req.body;
 
     if (!store.cnpj || !customer || !items || !total || !payment) {
@@ -680,13 +1049,14 @@ router.post("/", async (req, res) => {
       return { cost, distance, priceList };
     };
 
-    const { cost, distance, priceList } = await calculatePrice(
-      store.coordinates,
-      //buscar a ultima coordenada da lista customer
-      customer[0].customerAddress.coordinates,
-      driveBack || false
-    );
+    // const { cost, distance, priceList } = await calculatePrice(
+    //   store.coordinates,
+    //   //buscar a ultima coordenada da lista customer
+    //   customer[0].customerAddress.coordinates,
+    //   driveBack || false
+    // );
 
+    const { cost, distance, priceList } = preview;
     console.log(store);
 
     const newOrder = new Order({
@@ -1098,6 +1468,132 @@ router.post("/:id/rated", authenticateToken, async (req, res) => {
     console.error("Erro ao enviar avaliação:", error);
     res.status(500).json({
       message: "Erro ao enviar avaliação",
+      error: error.message,
+    });
+  }
+});
+
+// Rota de teste para verificar o timer de 15 minutos
+router.post("/:id/test-timer", authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { testSeconds = 30 } = req.body; // Padrão 30 segundos para teste
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ message: "Pedido não encontrado" });
+    }
+
+    if (!order.motoboy?.motoboyId) {
+      return res
+        .status(400)
+        .json({ message: "Pedido não tem motoboy atribuído" });
+    }
+
+    const motoboy = await Motoboy.findById(order.motoboy.motoboyId);
+    if (!motoboy) {
+      return res.status(404).json({ message: "Motoboy não encontrado" });
+    }
+
+    console.log(
+      `🧪 Teste do timer iniciado para pedido ${id} - ${testSeconds}s`
+    );
+
+    // Executar timer de teste
+    setTimeout(async () => {
+      try {
+        console.log(`⏰ Timer de teste executando para pedido ${id}`);
+
+        // Buscar dados atualizados
+        const orderAtual = await Order.findById(id);
+        const motoboyAtual = await Motoboy.findById(order.motoboy.motoboyId);
+
+        if (!orderAtual) {
+          console.log(`⏰ Pedido ${id} não encontrado no timer de teste`);
+          return;
+        }
+
+        if (!motoboyAtual) {
+          console.log(`⏰ Motoboy não encontrado no timer de teste`);
+          return;
+        }
+
+        let travelAtual = null;
+        if (motoboyAtual.race?.travelId) {
+          travelAtual = await Travel.findById(motoboyAtual.race.travelId);
+        }
+
+        // Verificações de segurança
+        const shouldRemoveMotoboy =
+          orderAtual &&
+          motoboyAtual &&
+          orderAtual.status === "em_preparo" &&
+          orderAtual.motoboy?.motoboyId?.toString() ===
+            motoboyAtual._id.toString() &&
+          (!travelAtual ||
+            (!travelAtual.arrival_store &&
+              !travelAtual.arrival_store_manually));
+
+        console.log(`🧪 Verificações do timer de teste:`, {
+          orderId: orderAtual._id,
+          status: orderAtual.status,
+          hasTravel: !!travelAtual,
+          arrivedStore: travelAtual?.arrival_store || false,
+          arrivedManually: travelAtual?.arrival_store_manually || false,
+          shouldRemove: shouldRemoveMotoboy,
+        });
+
+        if (shouldRemoveMotoboy) {
+          console.log(
+            `🧪 TESTE: Removendo motoboy ${motoboyAtual._id} do pedido ${orderAtual._id}`
+          );
+
+          const removeResult = await motoboyServices.removeMotoboyFromOrder(
+            orderAtual._id,
+            motoboyAtual._id
+          );
+
+          if (removeResult?.error) {
+            console.error(
+              "🧪 TESTE: Erro ao remover motoboy:",
+              removeResult.error
+            );
+            return;
+          }
+
+          console.log(
+            `🧪 TESTE: Buscando novos motoboys para pedido ${orderAtual._id}`
+          );
+          const motoboys = await motoboyServices.findBestMotoboys(
+            orderAtual.store.coordinates
+          );
+
+          if (motoboys && motoboys.length > 0) {
+            await motoboyServices.processMotoboyQueue(motoboys, orderAtual);
+            console.log(`🧪 TESTE: Processou ${motoboys.length} motoboys`);
+          } else {
+            console.log(`🧪 TESTE: Nenhum motoboy encontrado`);
+          }
+        } else {
+          console.log(
+            `🧪 TESTE: Timer não executou ação - condições não atendidas`
+          );
+        }
+      } catch (error) {
+        console.error("🧪 TESTE: Erro no timer:", error);
+      }
+    }, testSeconds * 1000);
+
+    res.status(200).json({
+      message: `Timer de teste iniciado - ${testSeconds} segundos`,
+      orderId: id,
+      motoboyId: motoboy._id,
+      travelId: motoboy.race?.travelId,
+    });
+  } catch (error) {
+    console.error("Erro no teste do timer:", error);
+    res.status(500).json({
+      message: "Erro no teste do timer",
       error: error.message,
     });
   }

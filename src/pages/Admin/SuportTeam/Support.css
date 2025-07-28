@@ -1,0 +1,170 @@
+.header-section {
+  background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.header-section:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(25, 118, 210, 0.3);
+}
+
+.filter-section {
+  background: #fafafa;
+  border: 1px solid #e0e0e0;
+  transition: all 0.3s ease;
+}
+
+.filter-section:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.loading-spinner {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(5px);
+}
+
+.empty-state {
+  background: linear-gradient(135deg, #f5f5f5 0%, #eeeeee 100%);
+  border: 2px dashed #cccccc;
+  transition: all 0.3s ease;
+}
+
+.empty-state:hover {
+  border-color: #1976d2;
+  background: linear-gradient(135deg, #e3f2fd 0%, #e1f5fe 100%);
+}
+
+.support-table {
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.support-table .MuiTableHead-root {
+  background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+}
+
+.support-table .MuiTableHead-root .MuiTableCell-root {
+  color: white;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.support-table .MuiTableBody-root .MuiTableRow-root:hover {
+  background-color: #f8f9fa;
+  transform: translateX(2px);
+  transition: all 0.2s ease;
+}
+
+.details-modal .MuiDialog-paper {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+.info-card {
+  transition: all 0.3s ease;
+  border-radius: 12px;
+  background: white;
+}
+
+.info-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+}
+
+.info-card .MuiCardContent-root {
+  padding: 20px;
+}
+
+/* Animações personalizadas */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.support-table .MuiTableRow-root {
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+.support-table .MuiTableRow-root:nth-child(even) {
+  animation-delay: 0.1s;
+}
+
+.support-table .MuiTableRow-root:nth-child(odd) {
+  animation-delay: 0.2s;
+}
+
+/* Responsividade aprimorada */
+@media (max-width: 768px) {
+  .header-section {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .support-table {
+    font-size: 0.875rem;
+  }
+
+  .support-table .MuiTableCell-root {
+    padding: 8px;
+  }
+}
+
+/* Estilo para chips de status */
+.MuiChip-colorSuccess {
+  background-color: #e8f5e8;
+  color: #2e7d32;
+}
+
+.MuiChip-colorWarning {
+  background-color: #fff8e1;
+  color: #f57c00;
+}
+
+.MuiChip-colorError {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+/* Estilo para avatares */
+.MuiAvatar-root {
+  background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
+}
+
+/* Botões personalizados */
+.MuiButton-contained {
+  border-radius: 8px;
+  text-transform: none;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+  transition: all 0.3s ease;
+}
+
+.MuiButton-contained:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(25, 118, 210, 0.4);
+}
+
+.MuiButton-outlined {
+  border-radius: 8px;
+  text-transform: none;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.MuiButton-outlined:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}

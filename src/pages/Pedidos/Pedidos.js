@@ -83,6 +83,7 @@ import Avaliate from "../../components/Avaliate";
 import BuscandoMotoboy from "../../components/BuscandoMotoboy/BuscandoMotoboy";
 import GoogleMapReact from "google-map-react";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
+import CreateOrderDialog from "../Orders/CreateOrderDialog";
 
 const SearchField = ({
   placeholder,
@@ -169,6 +170,8 @@ const Pedidos = () => {
   const [searchAddress, setSearchAddress] = useState("");
   const [activeCustomerIndex, setActiveCustomerIndex] = useState(0); // Índice do cliente ativo
   const [storeOrigin, setStoreOrigin] = useState(null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [storeId, setStoreId] = useState(null); // ID da loja atual
   // Estado para o formulário de novo pedido
   const [novoPedido, setNovoPedido] = useState({
     store: {
@@ -243,6 +246,11 @@ const Pedidos = () => {
   const [statusBuscandoMotoboy, setStatusBuscandoMotoboy] =
     useState("pendente");
   // Removido em favor de activeCustomerIndex
+
+  // Estados para preview de custo
+  const [previewCost, setPreviewCost] = useState(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [driveBack, setDriveBack] = useState(false);
 
   useEffect(() => {
     // Só conectar o SSE se o usuário estiver autenticado
@@ -361,6 +369,8 @@ const Pedidos = () => {
       try {
         const userProfileResponse = await api.get("/stores/me");
         const userProfile = userProfileResponse.data;
+        console.log("userProfile:", userProfile._id);
+        setStoreId(userProfile._id);
         setStoreOrigin({
           name:
             userProfile.name ||
@@ -400,6 +410,25 @@ const Pedidos = () => {
       fetchProdutos();
     }
   }, [openCreateDialog]);
+
+  // Calcular preview automaticamente quando endereços mudarem
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (
+        storeOrigin &&
+        storeOrigin.coordinates &&
+        novoPedido.customer.some(
+          (c) =>
+            c.customerAddress.coordinates &&
+            c.customerAddress.coordinates.length === 2
+        )
+      ) {
+        calculatePreviewCost();
+      }
+    }, 1000); // Debounce de 1 segundo
+
+    return () => clearTimeout(timer);
+  }, [storeOrigin, novoPedido.customer, driveBack]);
 
   // Efeito para aplicar filtros
   useEffect(() => {
@@ -839,6 +868,79 @@ const Pedidos = () => {
     }));
   };
 
+  // Função para calcular preview do custo
+  const calculatePreviewCost = async () => {
+    if (!storeOrigin || !storeOrigin.coordinates) {
+      setSnackbar({
+        open: true,
+        message: "Selecione uma loja primeiro",
+        severity: "warning",
+      });
+      return;
+    }
+
+    // Verificar se todos os clientes têm coordenadas
+    const customersWithCoords = novoPedido.customer.filter(
+      (customer) =>
+        customer.customerAddress.coordinates &&
+        customer.customerAddress.coordinates.length === 2
+    );
+
+    if (customersWithCoords.length === 0) {
+      setSnackbar({
+        open: true,
+        message: "Adicione pelo menos um endereço de entrega no mapa",
+        severity: "warning",
+      });
+      return;
+    }
+
+    try {
+      setLoadingPreview(true);
+
+      const previewData = {
+        store: {
+          coordinates: storeOrigin.coordinates,
+        },
+        customer: customersWithCoords,
+        driveBack: driveBack,
+      };
+
+      console.log("Enviando dados para preview:", previewData);
+
+      const response = await api.post("/orders/preview-cost", previewData);
+
+      console.log("Resposta do preview:", response.data);
+
+      if (response.data.success) {
+        setPreviewCost(response.data.preview);
+        setSnackbar({
+          open: true,
+          message: `Custo calculado: ${new Intl.NumberFormat("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+          }).format(response.data.preview.totalCost)}`,
+          severity: "success",
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message: "Erro ao calcular custo: " + response.data.message,
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao calcular preview do custo:", error);
+      setSnackbar({
+        open: true,
+        message: "Erro ao calcular custo da viagem",
+        severity: "error",
+      });
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
   // Criar novo pedido com suporte a múltiplos clientes
   const handleCreatePedido = async () => {
     // Validação para múltiplos clientes
@@ -919,9 +1021,7 @@ const Pedidos = () => {
           },
           coordinates: novoPedido.store.coordinates,
         },
-        driveBack:
-          novoPedido.payment.method === "maquina" ||
-          novoPedido.payment.method === "dinheiro",
+        driveBack: driveBack, // Usar o estado driveBack
         findDriverAuto: false,
       };
 
@@ -1024,7 +1124,17 @@ const Pedidos = () => {
 
   // Formatação de data e hora
   const formatDateTime = (dateString) => {
+    if (!dateString) {
+      return "Data não informada";
+    }
+
     const date = new Date(dateString);
+
+    // Verificar se a data é válida
+    if (isNaN(date.getTime())) {
+      return "Data inválida";
+    }
+
     return new Intl.DateTimeFormat("pt-BR", {
       day: "2-digit",
       month: "2-digit",
@@ -1639,7 +1749,7 @@ const Pedidos = () => {
               variant="contained"
               color="primary"
               startIcon={<AddIcon />}
-              onClick={handleOpenCreateDialog}
+              onClick={() => setCreateDialogOpen(true)}
             >
               Novo Pedido
             </Button>
@@ -2524,936 +2634,21 @@ const Pedidos = () => {
           />
 
           {/* Dialog para criação de novo pedido */}
-          <Dialog
-            open={openCreateDialog}
-            onClose={handleCloseCreateDialog}
-            maxWidth="md"
-            fullWidth
-          >
-            <DialogTitle
-              sx={{
-                bgcolor: "primary.main",
-                color: "white",
-                fontWeight: "bold",
-              }}
-            >
-              Criar Novo Pedido
-            </DialogTitle>
-            <DialogContent sx={{ p: 3, mt: 2 }}>
-              {/* Formulário de Pedido */}
-              {/* Seção de Localização com Tabs */}
-              <Grid item xs={12} width="100%">
-                <Paper elevation={1} sx={{ p: 2 }}>
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      mb: 2,
-                      color: "primary.main",
-                      fontWeight: "bold",
-                      display: "flex",
-                      alignItems: "center",
-                    }}
-                  >
-                    <LocationIcon sx={{ mr: 1 }} /> Localização
-                  </Typography>
-
-                  {/* Tabs para alternar entre Origem e Destino */}
-                  <Tabs
-                    value={locationTab}
-                    onChange={handleLocationTabChange}
-                    sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}
-                  >
-                    <Tab label="Local 1 (Retirada)" />
-                    <Tab label="Local 2 (Entrega)" />
-                  </Tabs>
-
-                  {/* Alternador entre mapa e entrada manual de endereço */}
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "flex-end",
-                      mb: 2,
-                    }}
-                  >
-                    <Button
-                      startIcon={useMap ? <Edit /> : <LocationIcon />}
-                      onClick={toggleAddressInputMethod}
-                      color="primary"
-                    >
-                      {useMap ? "Usar Endereço Manual" : "Usar Mapa"}
-                    </Button>
-                  </Box>
-
-                  {/* Conteúdo baseado na tab selecionada */}
-                  {locationTab === 0 ? (
-                    // Local 1 (Origem / Retirada)
-                    <>
-                      {useMap ? (
-                        // Para Local 1 (Origem)
-                        <Box
-                          sx={{
-                            height: 400,
-                            width: "100%",
-                            position: "relative",
-                            mb: 2,
-                          }}
-                        >
-                          <SearchField
-                            placeholder="Digite o endereço de retirada e pressione Enter ou clique na lupa"
-                            color="primary"
-                            searchAddress={searchAddress}
-                            setSearchAddress={setSearchAddress}
-                            onSearch={handleAddressSearch}
-                          />
-
-                          <GoogleMapReact
-                            bootstrapURLKeys={{
-                              key: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
-                            }}
-                            defaultCenter={mapCenter}
-                            center={mapCenter}
-                            defaultZoom={15}
-                            onClick={handleMapClick}
-                          >
-                            {/* Marcador para Local 1 (Origem) */}
-                            {originLocation && (
-                              <LocationIcon
-                                color="primary"
-                                fontSize="large"
-                                lat={originLocation.lat}
-                                lng={originLocation.lng}
-                                style={{
-                                  transform: "translate(-50%, -100%)",
-                                }}
-                              />
-                            )}
-
-                            {/* Marcadores para Locais de Destino (Clientes) - opacos quando não são o cliente ativo */}
-                            {destinationLocation.map((location, index) => (
-                              <LocationIcon
-                                key={`destination-${location.customerIndex}`}
-                                color="secondary"
-                                fontSize="large"
-                                lat={location.lat}
-                                lng={location.lng}
-                                style={{
-                                  transform: "translate(-50%, -100%)",
-                                  opacity:
-                                    location.customerIndex ===
-                                    activeCustomerIndex
-                                      ? 1.0
-                                      : 0.4,
-                                  // Destaque visual para o cliente ativo
-                                  filter:
-                                    location.customerIndex ===
-                                    activeCustomerIndex
-                                      ? "drop-shadow(0 0 5px rgba(255, 255, 255, 0.7))"
-                                      : "none",
-                                  zIndex:
-                                    location.customerIndex ===
-                                    activeCustomerIndex
-                                      ? 2
-                                      : 1,
-                                }}
-                              />
-                            ))}
-                          </GoogleMapReact>
-
-                          <Fab
-                            size="small"
-                            color="primary"
-                            onClick={getCurrentLocation}
-                            sx={{
-                              position: "absolute",
-                              bottom: 16,
-                              right: 16,
-                            }}
-                          >
-                            <MyLocationIcon />
-                          </Fab>
-                        </Box>
-                      ) : (
-                        // Entrada manual para Local 1
-                        <Grid container spacing={2}>
-                          <Grid item xs={12} sm={4}>
-                            <TextField
-                              fullWidth
-                              label="CEP"
-                              name="cep"
-                              value={novoPedido.store.address.cep || ""}
-                              onChange={(e) => {
-                                const value = e.target.value.replace(/\D/g, "");
-                                setNovoPedido((prev) => ({
-                                  ...prev,
-                                  store: {
-                                    ...prev.store,
-                                    address: {
-                                      ...prev.store.address,
-                                      cep: value ? Number(value) : null,
-                                    },
-                                  },
-                                }));
-                              }}
-                              InputProps={{
-                                startAdornment: (
-                                  <InputAdornment position="start">
-                                    <LocationIcon color="primary" />
-                                  </InputAdornment>
-                                ),
-                              }}
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={8}>
-                            <TextField
-                              fullWidth
-                              label="Logradouro"
-                              name="logradouro"
-                              value={novoPedido.store.address.logradouro || ""}
-                              onChange={(e) => {
-                                setNovoPedido((prev) => ({
-                                  ...prev,
-                                  store: {
-                                    ...prev.store,
-                                    address: {
-                                      ...prev.store.address,
-                                      logradouro: e.target.value,
-                                    },
-                                  },
-                                }));
-                              }}
-                              required
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={3}>
-                            <TextField
-                              fullWidth
-                              label="Número"
-                              name="numero"
-                              value={novoPedido.store.address.numero || ""}
-                              onChange={(e) => {
-                                setNovoPedido((prev) => ({
-                                  ...prev,
-                                  store: {
-                                    ...prev.store,
-                                    address: {
-                                      ...prev.store.address,
-                                      numero: e.target.value,
-                                    },
-                                  },
-                                }));
-                              }}
-                              required
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={3}>
-                            <TextField
-                              fullWidth
-                              label="Bairro"
-                              name="bairro"
-                              value={novoPedido.store.address.bairro || ""}
-                              onChange={(e) => {
-                                setNovoPedido((prev) => ({
-                                  ...prev,
-                                  store: {
-                                    ...prev.store,
-                                    address: {
-                                      ...prev.store.address,
-                                      bairro: e.target.value,
-                                    },
-                                  },
-                                }));
-                              }}
-                              required
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={3}>
-                            <TextField
-                              fullWidth
-                              label="Cidade"
-                              name="cidade"
-                              value={novoPedido.store.address.cidade || ""}
-                              onChange={(e) => {
-                                setNovoPedido((prev) => ({
-                                  ...prev,
-                                  store: {
-                                    ...prev.store,
-                                    address: {
-                                      ...prev.store.address,
-                                      cidade: e.target.value,
-                                    },
-                                  },
-                                }));
-                              }}
-                              required
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={3}>
-                            <TextField
-                              fullWidth
-                              label="Estado"
-                              name="estado"
-                              value={novoPedido.store.address.estado || ""}
-                              onChange={(e) => {
-                                setNovoPedido((prev) => ({
-                                  ...prev,
-                                  store: {
-                                    ...prev.store,
-                                    address: {
-                                      ...prev.store.address,
-                                      estado: e.target.value,
-                                    },
-                                  },
-                                }));
-                              }}
-                              required
-                            />
-                          </Grid>
-                        </Grid>
-                      )}
-                    </>
-                  ) : (
-                    // Local 2 (Destino / Entrega)
-                    <>
-                      {useMap ? (
-                        // Para Local 2 (Destino)
-                        <Box
-                          sx={{
-                            height: 400,
-                            width: "100%",
-                            position: "relative",
-                            mb: 2,
-                          }}
-                        >
-                          <SearchField
-                            placeholder="Digite o endereço de entrega e pressione Enter ou clique na lupa"
-                            color="secondary"
-                            searchAddress={searchAddress}
-                            setSearchAddress={setSearchAddress}
-                            onSearch={handleAddressSearch}
-                          />
-
-                          <GoogleMapReact
-                            bootstrapURLKeys={{
-                              key: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
-                            }}
-                            defaultCenter={mapCenter}
-                            center={mapCenter}
-                            defaultZoom={15}
-                            onClick={handleMapClick}
-                          >
-                            {/* Marcador para Local 1 (Origem) - opaco quando não é a aba ativa */}
-                            {originLocation && (
-                              <LocationIcon
-                                color="primary"
-                                fontSize="large"
-                                lat={originLocation.lat}
-                                lng={originLocation.lng}
-                                style={{
-                                  transform: "translate(-50%, -100%)",
-                                  opacity: 0.4,
-                                }}
-                              />
-                            )}
-
-                            {/* Marcadores para Locais de Destino (Clientes) */}
-                            {destinationLocation.map((location, index) => (
-                              <LocationIcon
-                                key={`destination-${location.customerIndex}`}
-                                color="secondary"
-                                fontSize="large"
-                                lat={location.lat}
-                                lng={location.lng}
-                                style={{
-                                  transform: "translate(-50%, -100%)",
-                                  opacity:
-                                    location.customerIndex ===
-                                    activeCustomerIndex
-                                      ? 1.0
-                                      : 0.4,
-                                  // Destaque visual para o cliente ativo
-                                  filter:
-                                    location.customerIndex ===
-                                    activeCustomerIndex
-                                      ? "drop-shadow(0 0 5px rgba(255, 255, 255, 0.7))"
-                                      : "none",
-                                  zIndex:
-                                    location.customerIndex ===
-                                    activeCustomerIndex
-                                      ? 2
-                                      : 1,
-                                }}
-                              />
-                            ))}
-                          </GoogleMapReact>
-
-                          <Fab
-                            size="small"
-                            color="primary"
-                            onClick={getCurrentLocation}
-                            sx={{
-                              position: "absolute",
-                              bottom: 16,
-                              right: 16,
-                            }}
-                          >
-                            <MyLocationIcon />
-                          </Fab>
-                        </Box>
-                      ) : (
-                        // Entrada manual para Local 2 - CORRIGIR ESTA PARTE
-                        <Grid container spacing={2}>
-                          <Grid item xs={12} sm={4}>
-                            <TextField
-                              fullWidth
-                              label="CEP"
-                              name="cep"
-                              value={
-                                novoPedido.customer.customerAddress.cep || ""
-                              }
-                              onChange={handleCustomerChange}
-                              inputProps={{
-                                inputMode: "numeric",
-                                pattern: "[0-9]*",
-                              }}
-                              InputProps={{
-                                startAdornment: (
-                                  <InputAdornment position="start">
-                                    <LocationIcon color="primary" />
-                                  </InputAdornment>
-                                ),
-                              }}
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={8}>
-                            <TextField
-                              fullWidth
-                              label="Logradouro"
-                              name="address"
-                              value={
-                                novoPedido.customer.customerAddress.address
-                              }
-                              onChange={handleCustomerChange}
-                              required
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={3}>
-                            <TextField
-                              fullWidth
-                              label="Número"
-                              name="addressNumber"
-                              value={
-                                novoPedido.customer.customerAddress
-                                  .addressNumber
-                              }
-                              onChange={handleCustomerChange}
-                              required
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={3}>
-                            <TextField
-                              fullWidth
-                              label="Bairro"
-                              name="bairro"
-                              value={novoPedido.customer.customerAddress.bairro}
-                              onChange={handleCustomerChange}
-                              required
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={3}>
-                            <TextField
-                              fullWidth
-                              label="Cidade"
-                              name="cidade"
-                              value={novoPedido.customer.customerAddress.cidade}
-                              onChange={handleCustomerChange}
-                              required
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={3}>
-                            <TextField
-                              fullWidth
-                              label="Estado"
-                              name="estado"
-                              value={
-                                novoPedido.customer.customerAddress.estado || ""
-                              }
-                              onChange={handleCustomerChange}
-                            />
-                          </Grid>
-                        </Grid>
-                      )}
-                    </>
-                  )}
-
-                  {/* Exibição das coordenadas selecionadas */}
-                  <Box sx={{ mt: 2 }}>
-                    {locationTab === 0 &&
-                      novoPedido.store.coordinates &&
-                      novoPedido.store.coordinates.length === 2 && (
-                        <Chip
-                          label={`Coordenadas: ${novoPedido.store.coordinates[1].toFixed(
-                            6
-                          )}, ${novoPedido.store.coordinates[0].toFixed(6)}`}
-                          color="white"
-                          variant="outlined"
-                          sx={{ mr: 1 }}
-                        />
-                      )}
-
-                    {locationTab === 1 &&
-                      novoPedido.customer[activeCustomerIndex]?.customerAddress
-                        ?.coordinates &&
-                      novoPedido.customer[activeCustomerIndex]?.customerAddress
-                        ?.coordinates.length === 2 && (
-                        <Chip
-                          label={`Coordenadas: ${novoPedido.customer[
-                            activeCustomerIndex
-                          ]?.customerAddress?.coordinates[1].toFixed(
-                            6
-                          )}, ${novoPedido.customer[
-                            activeCustomerIndex
-                          ]?.customerAddress?.coordinates[0].toFixed(6)}`}
-                          color="white"
-                          variant="outlined"
-                          sx={{ mr: 1 }}
-                        />
-                      )}
-                  </Box>
-                </Paper>
-              </Grid>
-              <Grid container spacing={3} mt={3}>
-                {/* Dados do Cliente */}
-                <Grid item xs={12} width="100%">
-                  <Paper elevation={1} sx={{ p: 2 }}>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        mb: 2,
-                      }}
-                    >
-                      <Typography
-                        variant="h6"
-                        sx={{
-                          color: "primary.main",
-                          fontWeight: "bold",
-                          display: "flex",
-                          alignItems: "center",
-                        }}
-                      >
-                        <PersonIcon sx={{ mr: 1 }} /> Dados do Cliente
-                      </Typography>
-
-                      <Box>
-                        <Button
-                          variant="outlined"
-                          color="primary"
-                          size="small"
-                          onClick={handleAddCustomer}
-                          startIcon={<AddIcon />}
-                          sx={{ mr: 1 }}
-                        >
-                          Adicionar Cliente
-                        </Button>
-
-                        <Button
-                          variant="outlined"
-                          color="error"
-                          size="small"
-                          onClick={() =>
-                            handleRemoveCustomer(activeCustomerIndex)
-                          }
-                          startIcon={<CloseIcon />}
-                          disabled={novoPedido.customer.length <= 1}
-                        >
-                          Remover Cliente
-                        </Button>
-                      </Box>
-                    </Box>
-
-                    {/* Navegação entre clientes */}
-                    <Box
-                      sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}
-                    >
-                      <Tabs
-                        value={activeCustomerIndex}
-                        onChange={(e, newValue) =>
-                          setActiveCustomerIndex(newValue)
-                        }
-                        variant="scrollable"
-                        scrollButtons="auto"
-                        aria-label="clientes tabs"
-                      >
-                        {novoPedido.customer.map((cliente, index) => (
-                          <Tab
-                            key={index}
-                            label={
-                              cliente.name
-                                ? `Cliente: ${cliente.name}`
-                                : `Cliente ${index + 1}`
-                            }
-                            sx={{
-                              textTransform: "none",
-                              minWidth: "120px",
-                              maxWidth: "200px",
-                            }}
-                          />
-                        ))}
-                      </Tabs>
-                    </Box>
-
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          fullWidth
-                          label="Nome do Cliente"
-                          name="name"
-                          value={
-                            novoPedido.customer[activeCustomerIndex]?.name || ""
-                          }
-                          onChange={handleCustomerChange}
-                          required
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          fullWidth
-                          label="Telefone"
-                          name="phone"
-                          value={
-                            novoPedido.customer[activeCustomerIndex]?.phone ||
-                            ""
-                          }
-                          onChange={handleCustomerChange}
-                          required
-                          placeholder="(XX) XXXXX-XXXX"
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <PhoneIcon color="primary" />
-                              </InputAdornment>
-                            ),
-                          }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          fullWidth
-                          label="CEP"
-                          name="cep"
-                          value={
-                            novoPedido.customer[activeCustomerIndex]
-                              ?.customerAddress?.cep || ""
-                          }
-                          onChange={handleCustomerChange}
-                          required
-                          inputProps={{
-                            inputMode: "numeric",
-                            pattern: "[0-9]*",
-                          }}
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <LocationIcon color="primary" />
-                              </InputAdornment>
-                            ),
-                          }}
-                        />
-                      </Grid>
-                      <Grid item xs={12}>
-                        <Box sx={{ p: 0, display: "flex" }} columnGap={1}>
-                          <TextField
-                            fullWidth
-                            label="Logradouro"
-                            name="address"
-                            value={
-                              novoPedido.customer[activeCustomerIndex]
-                                ?.customerAddress?.address || ""
-                            }
-                            onChange={handleCustomerChange}
-                            required
-                          />
-
-                          <TextField
-                            label="Número"
-                            name="addressNumber"
-                            value={
-                              novoPedido.customer[activeCustomerIndex]
-                                ?.customerAddress?.addressNumber || ""
-                            }
-                            onChange={handleCustomerChange}
-                            required
-                          />
-
-                          <TextField
-                            label="Bairro"
-                            name="bairro"
-                            value={
-                              novoPedido.customer[activeCustomerIndex]
-                                ?.customerAddress?.bairro || ""
-                            }
-                            onChange={handleCustomerChange}
-                            required
-                          />
-
-                          <TextField
-                            label="Cidade"
-                            name="cidade"
-                            value={
-                              novoPedido.customer[activeCustomerIndex]
-                                ?.customerAddress?.cidade || ""
-                            }
-                            onChange={handleCustomerChange}
-                            required
-                          />
-
-                          <TextField
-                            label="Estado"
-                            name="estado"
-                            value={
-                              novoPedido.customer[activeCustomerIndex]
-                                ?.customerAddress?.estado || ""
-                            }
-                            onChange={handleCustomerChange}
-                          />
-                        </Box>
-                      </Grid>
-                    </Grid>
-                  </Paper>
-                </Grid>
-
-                {/* Itens do Pedido */}
-                <Grid item xs={12} width="100%">
-                  <Paper elevation={1} sx={{ p: 2 }}>
-                    <Typography
-                      variant="h6"
-                      sx={{
-                        mb: 2,
-                        color: "primary.main",
-                        fontWeight: "bold",
-                        display: "flex",
-                        alignItems: "center",
-                      }}
-                    >
-                      <ShoppingBagIcon sx={{ mr: 1 }} /> Itens do Pedido
-                    </Typography>
-
-                    {/* Adicionar Novo Item */}
-                    <Grid container spacing={2} sx={{ mb: 2 }}>
-                      <Grid item xs={12} sm={6} width="300px">
-                        <Autocomplete
-                          options={produtos}
-                          getOptionLabel={(option) => option.productName || ""}
-                          onChange={handleProductSelect}
-                          renderInput={(params) => (
-                            <TextField
-                              {...params}
-                              label="Selecionar Produto"
-                              variant="outlined"
-                              fullWidth
-                            />
-                          )}
-                          loading={loadingProdutos}
-                          isOptionEqualToValue={(option, value) =>
-                            option._id === value._id
-                          }
-                        />
-                      </Grid>
-                      <Grid item xs={6} sm={3}>
-                        <TextField
-                          fullWidth
-                          label="Quantidade"
-                          type="number"
-                          value={currentItem.quantity}
-                          onChange={handleQuantityChange}
-                          InputProps={{
-                            inputProps: { min: 1 },
-                          }}
-                        />
-                      </Grid>
-                      <Grid item xs={6} sm={3}>
-                        <Button
-                          fullWidth
-                          variant="contained"
-                          color="primary"
-                          onClick={handleAddItem}
-                          sx={{ height: "100%" }}
-                        >
-                          Adicionar Item
-                        </Button>
-                      </Grid>
-                    </Grid>
-
-                    {/* Lista de Itens */}
-                    {novoPedido.items.length > 0 ? (
-                      <TableContainer>
-                        <Table size="small">
-                          <TableHead>
-                            <TableRow>
-                              <TableCell>Produto</TableCell>
-                              <TableCell align="center">Quantidade</TableCell>
-                              <TableCell align="right">Preço Unit.</TableCell>
-                              <TableCell align="right">Subtotal</TableCell>
-                              <TableCell align="center">Ações</TableCell>
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {novoPedido.items.map((item, index) => (
-                              <TableRow key={index}>
-                                <TableCell>{item.productName}</TableCell>
-                                <TableCell align="center">
-                                  {item.quantity}
-                                </TableCell>
-                                <TableCell align="right">
-                                  {formatCurrency(item.price)}
-                                </TableCell>
-                                <TableCell align="right">
-                                  {formatCurrency(item.price * item.quantity)}
-                                </TableCell>
-                                <TableCell align="center">
-                                  <IconButton
-                                    size="small"
-                                    color="error"
-                                    onClick={() => handleRemoveItem(index)}
-                                  >
-                                    <CloseIcon />
-                                  </IconButton>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                            <TableRow>
-                              <TableCell
-                                colSpan={3}
-                                align="right"
-                                sx={{ fontWeight: "bold" }}
-                              >
-                                Total:
-                              </TableCell>
-                              <TableCell
-                                align="right"
-                                sx={{ fontWeight: "bold" }}
-                              >
-                                {formatCurrency(novoPedido.total)}
-                              </TableCell>
-                              <TableCell />
-                            </TableRow>
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
-                    ) : (
-                      <Box sx={{ p: 2, textAlign: "center" }}>
-                        <Typography color="text.secondary">
-                          Nenhum item adicionado ao pedido
-                        </Typography>
-                      </Box>
-                    )}
-                  </Paper>
-                </Grid>
-
-                {/* Forma de Pagamento */}
-                <Grid item xs={12} md={6}>
-                  <Paper elevation={1} sx={{ p: 2, height: "100%" }}>
-                    <Typography
-                      variant="h6"
-                      sx={{
-                        mb: 2,
-                        color: "primary.main",
-                        fontWeight: "bold",
-                        display: "flex",
-                        alignItems: "center",
-                      }}
-                    >
-                      <MoneyIcon sx={{ mr: 1 }} /> Forma de Pagamento
-                    </Typography>
-                    <FormControl fullWidth sx={{ mb: 2 }}>
-                      <InputLabel>Método de Pagamento</InputLabel>
-                      <Select
-                        value={novoPedido.payment.method}
-                        onChange={handlePaymentMethodChange}
-                        label="Método de Pagamento"
-                      >
-                        <MenuItem value="dinheiro">Dinheiro</MenuItem>
-                        {/* <MenuItem value="cartao">Cartão</MenuItem> */}
-                        <MenuItem value="pix">PIX</MenuItem>
-                        <MenuItem value="maquina">Maquina de Cartão</MenuItem>
-                      </Select>
-                    </FormControl>
-
-                    {novoPedido.payment.method === "dinheiro" && (
-                      <TextField
-                        fullWidth
-                        label="Troco para"
-                        type="number"
-                        value={novoPedido.payment.change}
-                        onChange={handleChangeValueChange}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">R$</InputAdornment>
-                          ),
-                          inputProps: { step: "0.01", min: "0" },
-                        }}
-                      />
-                    )}
-
-                    {novoPedido.payment.method === "dinheiro" && (
-                      <Typography
-                        variant="body2"
-                        color="textSecondary"
-                        sx={{ mt: 1 }}
-                      >
-                        Taxa de retorno será aplicada de R$0,40
-                      </Typography>
-                    )}
-                    {novoPedido.payment.method === "maquina" && (
-                      <Typography
-                        variant="body2"
-                        color="textSecondary"
-                        sx={{ mt: 1 }}
-                      >
-                        Taxa de retorno será aplicada de R$0,40
-                      </Typography>
-                    )}
-                  </Paper>
-                </Grid>
-
-                {/* Observações */}
-                <Grid item xs={12} md={6}>
-                  <Paper elevation={1} sx={{ p: 2, height: "100%" }}>
-                    <Typography
-                      variant="h6"
-                      sx={{ mb: 2, color: "primary.main", fontWeight: "bold" }}
-                    >
-                      Observações
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      multiline
-                      rows={4}
-                      placeholder="Observações sobre o pedido..."
-                      value={novoPedido.notes}
-                      onChange={handleNotesChange}
-                    />
-                  </Paper>
-                </Grid>
-              </Grid>
-            </DialogContent>
-            <DialogActions sx={{ p: 3 }}>
-              <Button onClick={handleCloseCreateDialog}>Cancelar</Button>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleCreatePedido}
-                disabled={loading}
-              >
-                {loading ? (
-                  <CircularProgress size={24} color="inherit" />
-                ) : (
-                  "Criar Pedido"
-                )}
-              </Button>
-            </DialogActions>
-          </Dialog>
+          <CreateOrderDialog
+            open={createDialogOpen}
+            onClose={() => setCreateDialogOpen(false)}
+            onOrderCreated={(newOrder) => {
+              // Adicionar o novo pedido à lista
+              setPedidos((prevOrders) => [newOrder, ...prevOrders]);
+              setSnackbar({
+                open: true,
+                message: "Pedido criado com sucesso!",
+                severity: "success",
+              });
+              setCreateDialogOpen(false);
+            }}
+            storeId={storeId}
+          />
 
           {/* Snackbar para mensagens */}
           <Snackbar

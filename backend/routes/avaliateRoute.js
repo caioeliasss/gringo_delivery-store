@@ -1,5 +1,6 @@
 const Avaliate = require("../models/Avaliate");
 const express = require("express");
+const Motoboy = require("../models/Motoboy");
 const router = express.Router();
 
 const createAvaliate = async (req, res) => {
@@ -23,7 +24,27 @@ const createAvaliate = async (req, res) => {
       storeName: storeName || null,
     });
     await avaliate.save();
-    res.json(avaliate);
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const ratings = await Avaliate.find({
+      motoboyId: motoboyId,
+      createdAt: { $gte: sevenDaysAgo },
+    });
+
+    const averageRating =
+      ratings.length > 0
+        ? ratings.reduce((acc, curr) => acc + curr.rating, 0) / ratings.length
+        : 0;
+
+    const updatedMotoboy = await Motoboy.findByIdAndUpdate(
+      motoboyId,
+      { score: averageRating },
+      { new: true }
+    );
+
+    res.json({ avaliate, updatedMotoboy });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

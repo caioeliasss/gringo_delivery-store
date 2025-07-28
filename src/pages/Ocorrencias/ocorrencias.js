@@ -64,6 +64,10 @@ import api from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import SideDrawer from "../../components/SideDrawer/SideDrawer";
+import {
+  SUPPORT_MENU_ITEMS,
+  createSupportFooterItems,
+} from "../../config/menuConfig";
 
 const ASSUNTOS_OCORRENCIA = [
   { label: "Problema com pedido", value: "PEDIDO", icon: ShoppingCartIcon },
@@ -104,7 +108,7 @@ export default function OcorrenciasPage() {
 
   const fetchEstabelecimento = async () => {
     try {
-      const response = await api.get("/estabelecimento/me");
+      const response = await api.get("/stores/me");
       setEstabelecimento(response.data);
     } catch (error) {
       console.error("Erro ao buscar dados do estabelecimento:", error);
@@ -235,23 +239,10 @@ export default function OcorrenciasPage() {
   };
 
   // Definir itens do menu para SideDrawer
-  const menuItems = [
-    { path: "/dashboard", text: "Dashboard", icon: <DashboardIcon /> },
-    { path: "/produtos", text: "Produtos", icon: <ProductsIcon /> },
-    { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
-    { path: "/ocorrencias", text: "Ocorrências", icon: <ReportProblemIcon /> },
-    { path: "/chat", text: "Chat", icon: <ChatIcon /> },
-  ];
+  const menuItems = SUPPORT_MENU_ITEMS;
 
   // Definir itens de rodapé para SideDrawer
-  const footerItems = [
-    {
-      text: "Sair",
-      icon: <LogoutIcon />,
-      onClick: handleLogout,
-      color: "error",
-    },
-  ];
+  const footerItems = createSupportFooterItems(handleLogout);
 
   return (
     <Box

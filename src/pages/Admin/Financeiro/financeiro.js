@@ -72,11 +72,19 @@ import { UseAdminAuth } from "../../../contexts/AdminAuthContext";
 import { adminService } from "../../../services/adminService";
 import DrawerAdmin from "../../../components/drawerAdmin";
 import api from "../../../services/api";
+import SideDrawer from "../../../components/SideDrawer/SideDrawer";
+import {
+  SUPPORT_MENU_ITEMS,
+  createAdminFooterItems,
+} from "../../../config/menuConfig";
 
 const AdminFinanceiro = () => {
   const { AdminUser, logoutAdmin } = UseAdminAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+
+  // Configuração do menu
+  const menuItems = SUPPORT_MENU_ITEMS;
 
   // Estados principais
   const [loading, setLoading] = useState(true);
@@ -340,74 +348,7 @@ const AdminFinanceiro = () => {
     </Card>
   );
 
-  // Menu lateral
-  const drawerItems = (
-    <Box sx={{ width: 250 }}>
-      <Box sx={{ p: 2, textAlign: "center" }}>
-        <img
-          src="https://i.imgur.com/8jOdfcO.png"
-          alt="Gringo Delivery"
-          style={{ height: 50, marginBottom: 16 }}
-        />
-        <Typography
-          variant="h6"
-          sx={{ color: "primary.main", fontWeight: "bold" }}
-        >
-          Admin Panel
-        </Typography>
-      </Box>
-      <Divider />
-      <List>
-        <ListItem button component={Link} to="/dashboard">
-          <ListItemIcon>
-            <DashboardIcon />
-          </ListItemIcon>
-          <ListItemText primary="Dashboard" />
-        </ListItem>
-        <ListItem
-          button
-          selected={true}
-          sx={{
-            bgcolor: "primary.main",
-            color: "white",
-            "&:hover": { bgcolor: "primary.dark" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <MoneyIcon />
-          </ListItemIcon>
-          <ListItemText primary="Financeiro" />
-        </ListItem>
-        <ListItem button component={Link} to="/stores">
-          <ListItemIcon>
-            <StoreIcon />
-          </ListItemIcon>
-          <ListItemText primary="Lojas" />
-        </ListItem>
-        <ListItem button component={Link} to="/drivers">
-          <ListItemIcon>
-            <MotoboyIcon />
-          </ListItemIcon>
-          <ListItemText primary="Motoboys" />
-        </ListItem>
-        <ListItem button component={Link} to="/settings">
-          <ListItemIcon>
-            <SettingsIcon />
-          </ListItemIcon>
-          <ListItemText primary="Configurações" />
-        </ListItem>
-      </List>
-      <Divider />
-      <List>
-        <ListItem button onClick={logoutAdmin}>
-          <ListItemIcon>
-            <LogoutIcon />
-          </ListItemIcon>
-          <ListItemText primary="Sair" />
-        </ListItem>
-      </List>
-    </Box>
-  );
+  // Menu lateral removido - agora usando SideDrawer component
 
   return (
     <Box
@@ -435,7 +376,8 @@ const AdminFinanceiro = () => {
               component="div"
               sx={{ flexGrow: 1, fontWeight: "bold" }}
             >
-              Financeiro
+              {menuItems.find((item) => item.path === "/financeiro")?.title ||
+                "Financeiro"}
             </Typography>
             <IconButton color="inherit" onClick={fetchFinancialData}>
               <RefreshIcon />
@@ -445,19 +387,14 @@ const AdminFinanceiro = () => {
       )}
 
       {/* Drawer */}
-      <Drawer
-        anchor="left"
+      <SideDrawer
         open={isMobile ? drawerOpen : true}
         onClose={() => setDrawerOpen(false)}
         variant={isMobile ? "temporary" : "permanent"}
-        sx={{
-          width: 250,
-          flexShrink: 0,
-          "& .MuiDrawer-paper": { width: 250, boxSizing: "border-box" },
-        }}
-      >
-        <DrawerAdmin />
-      </Drawer>
+        menuItems={menuItems}
+        currentPath="/financeiro"
+        onLogout={logoutAdmin}
+      />
 
       {/* Main Content */}
       <Box

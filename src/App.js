@@ -32,6 +32,7 @@ import OrdersPage from "./pages/Orders/Orders";
 import MotoboysPage from "./pages/Motoboys";
 import EstabelecimentosPage from "./pages/Estabelecimentos";
 import PrecificacaoPage from "./pages/Precificacao/Precificacao";
+import SupportPage from "./pages/Admin/SuportTeam/SupportPage";
 // Definir tema personalizado com a paleta de cores da Gringo Delivery
 const theme = createTheme({
   typography: {
@@ -379,14 +380,15 @@ function AdminApp() {
                 <Routes>
                   <Route path="/" element={<AdminDashboard />} />
                   <Route path="/dashboard" element={<AdminDashboard />} />
-                  <Route path="/stores" element={<AdminDashboard />} />
-                  <Route path="/orders" element={<AdminDashboard />} />
-                  <Route path="/drivers" element={<AdminDashboard />} />
-                  <Route path="/occurrences" element={<AdminDashboard />} />
+                  <Route path="/stores" element={<EstabelecimentosPage />} />
+                  <Route path="/orders" element={<OrdersPage />} />
+                  <Route path="/drivers" element={<MotoboysPage />} />
+                  <Route path="/occurrences" element={<OcorrenciasPage />} />
                   <Route path="/financeiro" element={<AdminFinanceiro />} />
-                  <Route path="/settings" element={<AdminDashboard />} />
+                  <Route path="/settings" element={<PrecificacaoPage />} />
                   <Route path="/mapa" element={<SupportMapPage />} />
                   <Route path="*" element={<Navigate to="/dashboard" />} />
+                  <Route path="/suporte" element={<SupportPage />} />
                 </Routes>
               </AdminAuthProvider>
             }

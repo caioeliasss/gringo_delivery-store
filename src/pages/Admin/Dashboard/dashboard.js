@@ -42,7 +42,11 @@ import {
 } from "@mui/icons-material";
 import { adminService } from "../../../services/adminService";
 import { buscarGenero } from "../../../services/gender";
-import DrawerAdmin from "../../../components/drawerAdmin";
+import SideDrawer from "../../../components/SideDrawer/SideDrawer";
+import {
+  SUPPORT_MENU_ITEMS,
+  createAdminFooterItems,
+} from "../../../config/menuConfig";
 
 const AdminDashboard = () => {
   const { AdminUser, logoutAdmin } = UseAdminAuth();
@@ -122,173 +126,11 @@ const AdminDashboard = () => {
     }
   };
 
-  const toggleDrawer = (open) => (event) => {
-    if (
-      event.type === "keydown" &&
-      (event.key === "Tab" || event.key === "Shift")
-    ) {
-      return;
-    }
-    setDrawerOpen(open);
-  };
+  // Definir itens do menu para SideDrawer
+  const menuItems = SUPPORT_MENU_ITEMS;
 
-  const drawerItems = (
-    <Box sx={{ width: 250 }}>
-      <Box sx={{ p: 2, textAlign: "center" }}>
-        <img
-          src="https://i.imgur.com/8jOdfcO.png"
-          alt="Gringo Delivery"
-          style={{ height: 50, marginBottom: 16 }}
-        />
-        <Typography
-          variant="h6"
-          sx={{ color: "primary.main", fontWeight: "bold" }}
-        >
-          Painel Administrativo
-        </Typography>
-      </Box>
-      <Divider />
-      <List>
-        <ListItem
-          button
-          component={Link}
-          to="/dashboard"
-          selected={true}
-          sx={{
-            color: "text.primary",
-            "&.Mui-selected": {
-              bgcolor: "primary.main",
-              color: "white",
-              "&:hover": { bgcolor: "primary.dark" },
-            },
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <DashboardIcon />
-          </ListItemIcon>
-          <ListItemText primary="Dashboard" />
-        </ListItem>
-
-        <ListItem
-          button
-          component={Link}
-          to="/stores"
-          sx={{
-            color: "text.primary",
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <StoreIcon />
-          </ListItemIcon>
-          <ListItemText primary="Lojas" />
-        </ListItem>
-
-        <ListItem
-          button
-          component={Link}
-          to="/orders"
-          sx={{
-            color: "text.primary",
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <OrdersIcon />
-          </ListItemIcon>
-          <ListItemText primary="Pedidos" />
-        </ListItem>
-
-        <ListItem
-          button
-          component={Link}
-          to="/drivers"
-          sx={{
-            color: "text.primary",
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <MotoboyIcon />
-          </ListItemIcon>
-          <ListItemText primary="Motoboys" />
-        </ListItem>
-
-        <ListItem
-          button
-          component={Link}
-          to="/occurrences"
-          sx={{
-            color: "text.primary",
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <OccurrenceIcon />
-          </ListItemIcon>
-          <ListItemText primary="Ocorrências" />
-        </ListItem>
-
-        <ListItem
-          button
-          component={Link}
-          to="/financeiro"
-          sx={{
-            color: "text.primary",
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <ReportIcon />
-          </ListItemIcon>
-          <ListItemText primary="Financeiro" />
-        </ListItem>
-
-        <ListItem
-          button
-          component={Link}
-          to="/settings"
-          sx={{
-            color: "text.primary",
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <SettingsIcon />
-          </ListItemIcon>
-          <ListItemText primary="Configurações" />
-        </ListItem>
-        <ListItem
-          button
-          component={Link}
-          to="/mapa"
-          sx={{
-            color: "text.primary",
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <MapIcon />
-          </ListItemIcon>
-          <ListItemText primary="Mapa" />
-        </ListItem>
-      </List>
-      <Divider />
-      <List>
-        <ListItem
-          button
-          onClick={handleLogout}
-          sx={{ "&:hover": { bgcolor: "error.light", color: "white" } }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <LogoutIcon />
-          </ListItemIcon>
-          <ListItemText primary="Sair" />
-        </ListItem>
-      </List>
-    </Box>
-  );
+  // Definir itens de rodapé para SideDrawer
+  const footerItems = createAdminFooterItems(handleLogout);
 
   // Componente StatCard com cores específicas para cada categoria
   const StatCard = ({ title, value, icon, color = "primary", subtitle }) => {
@@ -380,45 +222,54 @@ const AdminDashboard = () => {
     >
       {/* AppBar para dispositivos móveis */}
       {isMobile && (
-        <AppBar position="fixed">
+        <AppBar position="fixed" sx={{ bgcolor: "primary.main" }}>
           <Toolbar>
             <IconButton
               color="inherit"
               edge="start"
-              onClick={toggleDrawer(true)}
+              onClick={() => setDrawerOpen(true)}
               sx={{ mr: 2 }}
             >
               <MenuIcon />
             </IconButton>
-            <AdminIcon sx={{ mr: 1 }} />
             <Typography
               variant="h6"
               component="div"
               sx={{ flexGrow: 1, fontWeight: "bold" }}
             >
-              Admin Panel
+              Gringo Delivery - Admin
             </Typography>
           </Toolbar>
         </AppBar>
       )}
 
-      {/* Drawer */}
-      <Drawer
-        anchor="left"
-        open={isMobile ? drawerOpen : true}
-        onClose={toggleDrawer(false)}
-        variant={isMobile ? "temporary" : "permanent"}
-        sx={{
-          width: 250,
-          flexShrink: 0,
-          "& .MuiDrawer-paper": {
-            width: 250,
-            boxSizing: "border-box",
-          },
-        }}
-      >
-        <DrawerAdmin />
-      </Drawer>
+      {/* SideDrawer */}
+      {isMobile ? (
+        <SideDrawer
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          variant="temporary"
+          title="Gringo Delivery"
+          logoUrl="https://i.imgur.com/8jOdfcO.png"
+          logoAlt="Gringo Delivery"
+          logoHeight={50}
+          menuItems={menuItems}
+          footerItems={footerItems}
+          subtitle="Painel Administrativo"
+        />
+      ) : (
+        <SideDrawer
+          open={true}
+          variant="permanent"
+          title="Gringo Delivery"
+          logoUrl="https://i.imgur.com/8jOdfcO.png"
+          logoAlt="Gringo Delivery"
+          logoHeight={50}
+          menuItems={menuItems}
+          footerItems={footerItems}
+          subtitle="Painel Administrativo"
+        />
+      )}
 
       {/* Main content */}
       <Box
