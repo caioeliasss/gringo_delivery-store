@@ -1084,6 +1084,13 @@ router.post("/", async (req, res) => {
         motoboyId: null,
         name: "",
         phone: null,
+        blacklist: [],
+        rated: false,
+        queue: {
+          motoboys: [],
+          motoboy_status: [],
+          status: "pendente",
+        },
         location: {
           distance: 0,
           estimatedTime: 0,
@@ -1093,38 +1100,136 @@ router.post("/", async (req, res) => {
 
     await newOrder.save();
 
-    // NOVO: Automaticamente iniciar busca por motoboys após criar o pedido
-    if (findDriverAuto) {
-      try {
-        // Importar o serviço de motoboys
-        const motoboyServices = require("../services/motoboyServices");
-
-        // Buscar motoboys próximos usando as coordenadas da loja
-        const motoboys = await motoboyServices.findBestMotoboys(
-          store.coordinates
-        );
-
-        // console.log(`Encontrados ${motoboys}`);
-
-        if (motoboys && motoboys.length > 0) {
-          // Processar a fila de motoboys para enviar notificações
-          await motoboyServices.processMotoboyQueue(motoboys, newOrder);
-        } else {
-        }
-      } catch (motoboyError) {
-        // Se houver erro na busca de motoboys, apenas logar mas não falhar a criação do pedido
-        console.error("Erro ao buscar motoboys:", motoboyError);
-      }
-    }
-
+    // Responder imediatamente com o pedido criado
     res
       .status(201)
       .json({ message: "Pedido criado com sucesso", order: newOrder });
+
+    // NOVO: Iniciar busca por motoboys de forma assíncrona (não bloqueia a resposta)
+    console.log(
+      `🔍 [OrderRoute] findDriverAuto = ${findDriverAuto} (tipo: ${typeof findDriverAuto})`
+    );
+
+    if (findDriverAuto) {
+      console.log(
+        `🚀 [OrderRoute] Iniciando busca assíncrona por motoboys para pedido ${newOrder.orderNumber}`
+      );
+      // Executar de forma assíncrona sem await para não bloquear a resposta
+      setImmediate(async () => {
+        try {
+          // Importar o serviço de motoboys
+          const motoboyServices = require("../services/motoboyServices");
+
+          console.log(`🔍 [OrderRoute] Buscando motoboys próximos...`);
+          // Buscar motoboys próximos usando as coordenadas da loja
+          const motoboys = await motoboyServices.findBestMotoboys(
+            store.coordinates
+          );
+
+          console.log(
+            `📍 [OrderRoute] Encontrados ${motoboys.length} motoboys`
+          );
+          if (motoboys && motoboys.length > 0) {
+            console.log(`🏍️ [OrderRoute] Iniciando processamento da fila...`);
+            // Processar a fila de motoboys para enviar notificações
+            await motoboyServices.processMotoboyQueue(motoboys, newOrder);
+          } else {
+            console.log(
+              `⚠️ Nenhum motoboy encontrado para pedido ${newOrder.orderNumber}`
+            );
+          }
+        } catch (motoboyError) {
+          // Se houver erro na busca de motoboys, apenas logar
+          console.error(
+            `❌ Erro ao buscar motoboys para pedido ${newOrder.orderNumber}:`,
+            motoboyError
+          );
+        }
+      });
+    } else {
+      console.log(
+        `⏭️ [OrderRoute] findDriverAuto = false, não buscando motoboys automaticamente`
+      );
+    }
   } catch (error) {
     console.error("Erro ao criar pedido:", error);
     res
       .status(500)
       .json({ message: "Erro ao criar pedido", error: error.message });
+  }
+});
+
+// Nova rota para iniciar busca por motoboy manualmente
+router.post("/:id/find-driver", authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ message: "Pedido não encontrado" });
+    }
+
+    // Verificar se o pedido já tem motoboy atribuído
+    if (order.motoboy?.motoboyId) {
+      return res
+        .status(400)
+        .json({ message: "Pedido já tem motoboy atribuído" });
+    }
+
+    // Verificar se o pedido está em status válido para buscar motoboy
+    if (!["pendente", "em_preparo"].includes(order.status)) {
+      return res
+        .status(400)
+        .json({ message: "Status do pedido não permite busca por motoboy" });
+    }
+
+    // Iniciar busca por motoboys de forma assíncrona
+    setImmediate(async () => {
+      try {
+        console.log(
+          `🔍 Iniciando busca manual por motoboys para pedido ${order.orderNumber}`
+        );
+
+        const motoboyServices = require("../services/motoboyServices");
+        const motoboys = await motoboyServices.findBestMotoboys(
+          order.store.coordinates
+        );
+
+        console.log(
+          `📍 Encontrados ${motoboys?.length || 0} motoboys para pedido ${
+            order.orderNumber
+          }`
+        );
+
+        if (motoboys && motoboys.length > 0) {
+          await motoboyServices.processMotoboyQueue(motoboys, order);
+          console.log(
+            `✅ Notificações enviadas para motoboys - pedido ${order.orderNumber}`
+          );
+        } else {
+          console.log(
+            `⚠️ Nenhum motoboy encontrado para pedido ${order.orderNumber}`
+          );
+        }
+      } catch (motoboyError) {
+        console.error(
+          `❌ Erro ao buscar motoboys para pedido ${order.orderNumber}:`,
+          motoboyError
+        );
+      }
+    });
+
+    res.status(200).json({
+      message: "Busca por motoboy iniciada em segundo plano",
+      orderId: id,
+      orderNumber: order.orderNumber,
+    });
+  } catch (error) {
+    console.error("Erro ao iniciar busca por motoboy:", error);
+    res.status(500).json({
+      message: "Erro ao iniciar busca por motoboy",
+      error: error.message,
+    });
   }
 });
 

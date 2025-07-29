@@ -381,7 +381,7 @@ function AdminApp() {
                   <Route path="/" element={<AdminDashboard />} />
                   <Route path="/dashboard" element={<AdminDashboard />} />
                   <Route path="/stores" element={<EstabelecimentosPage />} />
-                  <Route path="/orders" element={<OrdersPage />} />
+                  <Route path="/pedidos" element={<OrdersPage />} />
                   <Route path="/drivers" element={<MotoboysPage />} />
                   <Route path="/occurrences" element={<OcorrenciasPage />} />
                   <Route path="/financeiro" element={<AdminFinanceiro />} />

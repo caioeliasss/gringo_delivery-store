@@ -114,6 +114,24 @@ const ORDER_STATUS = [
     color: "success",
   },
   { label: "Cancelado", value: "cancelado", icon: CancelIcon, color: "error" },
+  {
+    label: "Erro na Fila",
+    value: "fila_cancelada",
+    icon: CancelIcon,
+    color: "error",
+  },
+  {
+    label: "Confirmado",
+    value: "confirmado",
+    icon: CheckCircleIcon,
+    color: "success",
+  },
+  {
+    label: "Buscando",
+    value: "buscando",
+    icon: PendingIcon,
+    color: "warning",
+  },
 ];
 //TODO criar visual de motoboy aguardando
 export default function OrdersPage() {
@@ -223,7 +241,11 @@ export default function OrdersPage() {
       setFilteredOrders(orders);
     } else {
       setFilteredOrders(
-        orders.filter((order) => selectedStatuses.includes(order.status))
+        orders.filter(
+          (order) =>
+            selectedStatuses.includes(order.status) ||
+            selectedStatuses.includes(order.motoboy?.queue?.status)
+        )
       );
     }
   };
@@ -338,6 +360,11 @@ export default function OrdersPage() {
 
   const handleFindMotoboys = async (orderId) => {
     try {
+      if (selectedOrder?.motoboy?.queue?.status !== "cancelado") {
+        alert("A fila do motoboy não está cancelada.");
+        return;
+      }
+      alert("Buscando motoboys disponíveis...");
       const response = await api.get(`/motoboys/find?order_id=${orderId}`);
       if (response.status === 200) {
         setOrders((prevOrders) =>
@@ -888,6 +915,7 @@ export default function OrdersPage() {
                       <TableCell>Pedido</TableCell>
                       <TableCell>Cliente</TableCell>
                       <TableCell>Status</TableCell>
+                      <TableCell>Status Fila</TableCell>
                       <TableCell>Total</TableCell>
                       <TableCell>Entregador</TableCell>
                       <TableCell>Data</TableCell>
@@ -932,7 +960,14 @@ export default function OrdersPage() {
                               : order.customer?.name || "Cliente não informado"}
                           </Typography>
                         </TableCell>
-                        <TableCell>{getStatusChip(order.status)}</TableCell>
+                        <TableCell>
+                          {order.motoboy?.queue?.status === "cancelado"
+                            ? getStatusChip("fila_cancelada")
+                            : getStatusChip(order.status)}
+                        </TableCell>
+                        <TableCell>
+                          {getStatusChip(order.motoboy?.queue?.status)}
+                        </TableCell>
                         <TableCell>
                           <Typography variant="body2" fontWeight="bold">
                             {formatCurrency(order.total || 0)}
@@ -940,7 +975,9 @@ export default function OrdersPage() {
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2">
-                            {order.motoboy?.name || "Não atribuído"}
+                            {order.motoboy?.queue?.status === "cancelado"
+                              ? "Erro na fila"
+                              : order.motoboy?.name || "Não atribuído"}
                           </Typography>
                         </TableCell>
                         <TableCell>

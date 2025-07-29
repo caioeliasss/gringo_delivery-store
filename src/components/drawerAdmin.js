@@ -107,7 +107,7 @@ const DrawerAdmin = () => {
         <ListItem
           button
           component={Link}
-          to="/orders"
+          to="/pedidos"
           sx={{
             color: "text.primary",
             "&:hover": { bgcolor: "primary.light", color: "white" },

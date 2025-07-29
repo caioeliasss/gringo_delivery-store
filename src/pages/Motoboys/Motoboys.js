@@ -89,7 +89,7 @@ import {
 
 const MOTOBOY_STATUS = [
   {
-    value: "available",
+    value: true,
     label: "Disponível",
     color: "success",
     icon: OnlineIcon,
@@ -101,7 +101,7 @@ const MOTOBOY_STATUS = [
     icon: MotoboyIcon,
   },
   {
-    value: "offline",
+    value: false,
     label: "Offline",
     color: "error",
     icon: OfflineIcon,
@@ -895,7 +895,7 @@ export default function MotoboysPage() {
                           </Box>
                         </TableCell>
                         <TableCell>
-                          {getStatusChip(motoboy.status || "offline")}
+                          {getStatusChip(motoboy.isAvailable)}
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2">
@@ -1005,7 +1005,7 @@ export default function MotoboysPage() {
                           <Typography variant="h6" fontWeight="bold">
                             {selectedMotoboy.name || "Nome não informado"}
                           </Typography>
-                          {getStatusChip(selectedMotoboy.status || "offline")}
+                          {getStatusChip(selectedMotoboy.isAvailable)}
                         </Box>
                       </Box>
                       <Typography variant="body2" color="text.secondary">

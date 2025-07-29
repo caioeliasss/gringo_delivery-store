@@ -67,7 +67,7 @@ export const ADMIN_MENU_ITEMS = [
     icon: <StoreIcon />,
   },
   {
-    path: "/orders",
+    path: "/pedidos",
     text: "Pedidos",
     icon: <OrdersIcon />,
   },

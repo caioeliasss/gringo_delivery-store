@@ -116,9 +116,14 @@ class MotoboyService {
    * @returns {Promise<Object>} - Result of the assignment attempt
    */
   async processMotoboyQueue(motoboys, order) {
+    console.log(`🔄 [QUEUE DEBUG] Método processMotoboyQueue CHAMADO!`);
+    console.log(`📋 [QUEUE DEBUG] Pedido ID: ${order._id}`);
+    console.log(`🏍️ [QUEUE DEBUG] ${motoboys.length} motoboys recebidos`);
+
     // If no motoboys left, return failure
     if (motoboys.length === 0) {
-      order.queue.status = "cancelado";
+      console.log(`❌ [QUEUE DEBUG] Nenhum motoboy na lista`);
+      order.motoboy.queue.status = "cancelado";
       await order.save();
       return {
         success: false,
@@ -126,13 +131,29 @@ class MotoboyService {
       };
     }
 
-    //TODO testar lista queue
-    if (order.queue && order.queue.motoboys.length === 0) {
-      order.queue = {
-        motoboys: motoboys,
-        status: "pendente",
+    console.warn(
+      "🔍 [QUEUE DEBUG] Estado atual da queue:",
+      JSON.stringify(order.motoboy.queue, null, 2)
+    );
+
+    if (
+      !order.motoboy.queue.motoboys ||
+      order.motoboy.queue.motoboys.length === 0
+    ) {
+      console.log("✅ [QUEUE DEBUG] Criando nova fila de motoboys");
+      order.motoboy.queue = {
+        motoboys: motoboys || [],
+        motoboy_status: [],
+        status: "buscando",
       };
       await order.save();
+      console.log("💾 [QUEUE DEBUG] Fila salva no banco");
+    } else {
+      console.log("🔄 [QUEUE DEBUG] Atualizando fila de motoboys existente");
+      order.motoboy.queue = {
+        ...order.motoboy.queue,
+        status: "buscando",
+      };
     }
 
     const motoboy = motoboys[0];
@@ -144,9 +165,10 @@ class MotoboyService {
       const accepted = await this.requestMotoboy(motoboy, order);
 
       if (accepted) {
-        order.queue.status = "aceito";
+        order.motoboy.queue.status = "aceito";
         // Motoboy accepted, assign to order
         order.motoboy = {
+          ...order.motoboy,
           motoboyId: motoboy._id,
           name: motoboy.name,
           phone: motoboy.phoneNumber,
@@ -167,6 +189,17 @@ class MotoboyService {
         };
       } else {
         // This motoboy rejected, try the next one
+        if (motoboys.length === 1) {
+          console.warn(
+            `All motoboys rejected the delivery for order ${order._id}`
+          );
+          order.motoboy.queue.status = "cancelado";
+          await order.save();
+          return {
+            success: false,
+            message: "All motoboys rejected the delivery",
+          };
+        }
         return this.processMotoboyQueue(motoboys.slice(1), order);
       }
     } catch (error) {
@@ -281,34 +314,6 @@ class MotoboyService {
     }
   }
 
-  // Método para processar fila de motoboys (simplificado)
-  async processMotoboyQueue(motoboys, order) {
-    if (motoboys.length === 0) {
-      return { success: false };
-    }
-
-    const motoboy = motoboys[0];
-    const aceito = await this.requestMotoboy(motoboy, order);
-
-    if (aceito) {
-      // Atribuir motoboy ao pedido
-
-      order.motoboy = {
-        ...order.motoboy,
-        motoboyId: motoboy._id,
-        name: motoboy.name,
-        phone: motoboy.phoneNumber,
-        updatedAt: new Date(),
-      };
-      // console.log("salvando agora");
-      await order.save();
-      return { success: true, order, motoboy };
-    } else {
-      // Tentar próximo motoboy
-      return this.processMotoboyQueue(motoboys.slice(1), order);
-    }
-  }
-
   async removeMotoboyFromOrder(orderId, motoboyId) {
     try {
       const motoboy = await Motoboy.findById(motoboyId);
@@ -353,6 +358,11 @@ class MotoboyService {
       order.motoboy.name = "";
       order.motoboy.phone = null;
       order.motoboy.rated = false;
+
+      order.motoboy.queue = {
+        ...order.motoboy.queue,
+        status: "cancelado",
+      };
 
       await order.save();
 

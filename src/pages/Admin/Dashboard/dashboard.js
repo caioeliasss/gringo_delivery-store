@@ -546,7 +546,7 @@ const AdminDashboard = () => {
                 <Button
                   variant="outlined"
                   component={Link}
-                  to="/orders"
+                  to="/pedidos"
                   startIcon={<OrdersIcon />}
                   fullWidth
                   sx={{

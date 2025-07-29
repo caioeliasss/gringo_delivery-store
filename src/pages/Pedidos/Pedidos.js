@@ -1960,7 +1960,12 @@ const Pedidos = () => {
                         {pedido.orderNumber}
                       </TableCell>
                       <TableCell>{formatDateTime(pedido.orderDate)}</TableCell>
-                      <TableCell>{pedido.customer.name}</TableCell>
+                      <TableCell>
+                        {(pedido.customer &&
+                          pedido.customer.length > 0 &&
+                          pedido.customer[0]?.name) ||
+                          "Não identificado"}
+                      </TableCell>
                       <TableCell>{formatCurrency(pedido.total)}</TableCell>
                       <TableCell>{getStatusChip(pedido.status)}</TableCell>
                       <TableCell>

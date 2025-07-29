@@ -124,7 +124,7 @@ const queueSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ["pendente", "buscando", "confirmado", "cancelado"],
-    default: "pendente",
+    required: true,
   },
 });
 

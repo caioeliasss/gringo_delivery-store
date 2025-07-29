@@ -208,8 +208,10 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
     setSelectedStore(store);
     if (store && store.address?.coordinates) {
       setMapCenter({
-        lat: store.address.coordinates[1],
-        lng: store.address.coordinates[0],
+        lat:
+          store.address.coordinates[1] || store.geolocation.coordinates[1] || 0,
+        lng:
+          store.address.coordinates[0] || store.geolocation.coordinates[0] || 0,
       });
     }
   };
@@ -556,7 +558,9 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
           name: selectedStore.businessName || selectedStore.name,
           cnpj: selectedStore.cnpj,
           coordinates:
-            selectedStore.address?.coordinates || selectedStore.coordinates,
+            selectedStore.address?.coordinates ||
+            selectedStore.coordinates ||
+            selectedStore.geolocation.coordinates,
           address: selectedStore.address,
         },
         customer: customers,
@@ -565,7 +569,7 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
         notes: notes,
         total: total,
         driveBack: driveBack,
-        findDriverAuto: true,
+        findDriverAuto: true, // Usar o estado do checkbox
         preview: {
           cost: previewCost?.cost || 0,
           distance: previewCost?.distance || 0,
@@ -576,7 +580,7 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
       const response = await api.post("/orders", orderData);
 
       if (onOrderCreated) {
-        onOrderCreated(response.data);
+        onOrderCreated(response.data.order);
       }
 
       handleClose();
@@ -966,7 +970,7 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                         <TextField
                           label="Nome"
                           fullWidth
-                          value={customer[0].name}
+                          value={customer.name}
                           onChange={(e) =>
                             handleCustomerChange("name", e.target.value, index)
                           }
@@ -976,7 +980,7 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                         <TextField
                           label="Telefone"
                           fullWidth
-                          value={customer[0].phone}
+                          value={customer.phone}
                           onChange={(e) =>
                             handleCustomerChange("phone", e.target.value, index)
                           }
@@ -991,7 +995,7 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                         <TextField
                           label="CEP"
                           fullWidth
-                          value={customer[0].customerAddress.cep}
+                          value={customer.customerAddress.cep}
                           onChange={(e) =>
                             handleCustomerChange(
                               "customerAddress.cep",
@@ -1005,7 +1009,7 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                         <TextField
                           label="Endereço"
                           fullWidth
-                          value={customer[0].customerAddress.address}
+                          value={customer.customerAddress.address}
                           onChange={(e) =>
                             handleCustomerChange(
                               "customerAddress.address",
@@ -1019,7 +1023,7 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                         <TextField
                           label="Número"
                           fullWidth
-                          value={customer[0].customerAddress.addressNumber}
+                          value={customer.customerAddress.addressNumber}
                           onChange={(e) =>
                             handleCustomerChange(
                               "customerAddress.addressNumber",
@@ -1033,7 +1037,7 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                         <TextField
                           label="Bairro"
                           fullWidth
-                          value={customer[0].customerAddress.bairro}
+                          value={customer.customerAddress.bairro}
                           onChange={(e) =>
                             handleCustomerChange(
                               "customerAddress.bairro",
@@ -1047,7 +1051,7 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                         <TextField
                           label="Cidade"
                           fullWidth
-                          value={customer[0].customerAddress.cidade}
+                          value={customer.customerAddress.cidade}
                           onChange={(e) =>
                             handleCustomerChange(
                               "customerAddress.cidade",

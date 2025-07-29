@@ -337,9 +337,13 @@ class CronService {
       const motoboyFee = store.billingOptions?.motoBoyFee || 0;
       const totalAmount = deliveredOrders.length * motoboyFee;
 
-      // Data de vencimento (5 dias após criação)
+      // Data de vencimento (próxima quarta-feira às 12h)
       const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + 2);
+      const currentDay = dueDate.getDay(); // 0 = domingo, 1 = segunda, 2 = terça, 3 = quarta, etc.
+      const daysUntilWednesday =
+        currentDay <= 3 ? 3 - currentDay : 7 - currentDay + 3;
+      dueDate.setDate(dueDate.getDate() + daysUntilWednesday);
+      dueDate.setHours(12, 0, 0, 0); // 12:00:00.000
 
       // Criar descrição detalhada
       const description = this.generateMotoboyFeeDescription(
