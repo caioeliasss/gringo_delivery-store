@@ -201,7 +201,7 @@ app.use("/api/webhooks", express.raw({ type: "application/json" }));
 app.use("/api/stores", authenticateToken, storeRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
-app.use("/api/motoboys", authenticateToken, motoboyRoutes);
+app.use("/api/motoboys", motoboyRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/travels", travelRoutes);
 app.use("/api/delivery-price", authenticateToken, deliveryPricesRoutes);

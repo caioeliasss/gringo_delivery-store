@@ -7,6 +7,7 @@ const { sendNotification } = require("../services/fcmService");
 const NotificationService = require("../services/notificationService");
 const OccurrenceService = require("../services/OccurrenceService");
 const Travel = require("../models/Travel");
+const FullScreenNotificationService = require("../services/fullScreenNotificationService");
 
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -93,6 +94,7 @@ const getMotoboyById = async (req, res) => {
 // Create user //TODO add Authentication
 const createMotoboy = async (req, res) => {
   try {
+    const { name, email, phoneNumber, cpf, firebaseUid } = req.body;
     // Check if user with firebaseUid already exists
     const existingMotoboy = await Motoboy.findOne({
       firebaseUid: req.body.firebaseUid,
@@ -102,17 +104,19 @@ const createMotoboy = async (req, res) => {
     }
 
     const user = new Motoboy({
-      name: req.body.name,
-      email: req.body.email,
-      phoneNumber: req.body.phoneNumber,
-      cpf: req.body.cpf,
-      firebaseUid: req.body.firebaseUid,
+      name: name,
+      email: email,
+      phoneNumber: phoneNumber,
+      cpf: cpf,
+      firebaseUid: firebaseUid,
     });
 
     const newMotoboy = await user.save();
 
-    createNotificationGeneric({
+    FullScreenNotificationService.createFullScreenNotification({
       motoboyId: newMotoboy._id,
+      recipientId: newMotoboy._id,
+      recipientType: "motoboy",
       type: "SYSTEM",
       title: "Documentos pendentes",
       message:
@@ -614,17 +618,21 @@ router.delete(
   "/removeMotoboyFromOrder/:orderId/:motoboyId",
   removeMotoboyFromOrder
 );
-router.put("/update-push-token", updatePushToken);
-router.get("/id/:id", getMotoboyById);
-router.get("/firebase/:firebaseUid", getMotoboyByFirebaseUid);
-router.get("/find", findMotoboys);
+router.put("/update-push-token", authenticateToken, updatePushToken);
+router.get("/id/:id", authenticateToken, getMotoboyById);
+router.get(
+  "/firebase/:firebaseUid",
+  authenticateToken,
+  getMotoboyByFirebaseUid
+);
+router.get("/find", authenticateToken, findMotoboys);
 // router.get("/", getMotoboys);
-router.get("/me", getMotoboyMe);
+router.get("/me", authenticateToken, getMotoboyMe);
 router.post("/", createMotoboy);
-router.put("/", updateMotoboy);
-router.put("/updateFCMToken", updateFCMToken);
-router.put("/assign", assignMotoboy);
-router.post("/approve/:motoboyId", approveMotoboy);
-router.post("/repprove/:motoboyId", repproveMotoboy);
+router.put("/", authenticateToken, updateMotoboy);
+router.put("/updateFCMToken", authenticateToken, updateFCMToken);
+router.put("/assign", authenticateToken, assignMotoboy);
+router.post("/approve/:motoboyId", authenticateToken, approveMotoboy);
+router.post("/repprove/:motoboyId", authenticateToken, repproveMotoboy);
 
 module.exports = router;
