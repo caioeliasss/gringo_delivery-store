@@ -129,7 +129,9 @@ api.interceptors.request.use(
     const user = auth.currentUser;
     if (user) {
       const token = await user.getIdToken();
-      console.log(token);
+      if (process.env.NODE_ENV !== "production") {
+        console.log("Token de autenticação:", token);
+      }
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;

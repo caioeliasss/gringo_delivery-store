@@ -1,15 +1,38 @@
 // backend/socket/socketHandler.js
 const Motoboy = require("../models/Motoboy");
 
-module.exports = (io) => {
+module.exports = (io, socketManager) => {
   io.on("connection", (socket) => {
     const motoboyId = socket.handshake.query.motoboyId;
-    // console.log(`Motoboy conectado: ${motoboyId}, Socket ID: ${socket.id}`);
+    const firebaseUid = socket.handshake.query.firebaseUid;
+    const userType = socket.handshake.query.userType || "motoboy"; // motoboy, store, support
 
-    // Juntar o motoboy a uma sala específica
+    console.log(
+      `Usuario conectado via socket: ${
+        firebaseUid || motoboyId
+      }, Tipo: ${userType}`
+    );
+
+    // Registrar usuário no SocketManager
+    if (firebaseUid) {
+      socketManager.registerUser(firebaseUid, socket.id, userType);
+      socket.join(`user:${firebaseUid}`);
+    }
+
+    // Juntar o usuário às salas apropriadas
     if (motoboyId) {
       socket.join(`motoboy:${motoboyId}`);
     }
+
+    // Sala por tipo de usuário
+    socket.join(`${userType}s`);
+
+    // Confirmar conexão
+    socket.emit("connection:success", {
+      message: "Conectado com sucesso",
+      timestamp: new Date().toISOString(),
+      socketId: socket.id,
+    });
 
     // Receber atualização de localização
     socket.on("updateLocation", async (locationData) => {
@@ -27,6 +50,7 @@ module.exports = (io) => {
           {
             coordinates: [locationData.longitude, locationData.latitude],
             lastLocationUpdate: new Date(),
+            isOnline: true, // Marcar como online quando atualiza localização
             // Se você quiser armazenar mais informações
             currentLocation: {
               latitude: locationData.latitude,
@@ -65,6 +89,104 @@ module.exports = (io) => {
       }
     });
 
+    // Aceitar pedido via socket
+    socket.on("acceptOrder", async (data) => {
+      try {
+        const { orderId, motoboyId } = data;
+        console.log(`Pedido ${orderId} aceito pelo motoboy ${motoboyId}`);
+
+        // Notificar loja sobre aceite
+        io.emit("orderAccepted", {
+          orderId,
+          motoboyId,
+          timestamp: new Date().toISOString(),
+        });
+
+        socket.emit("acceptOrder:success", {
+          orderId,
+          message: "Pedido aceito com sucesso",
+        });
+      } catch (error) {
+        socket.emit("acceptOrder:error", {
+          message: error.message,
+        });
+      }
+    });
+
+    // Recusar pedido via socket
+    socket.on("declineOrder", async (data) => {
+      try {
+        const { orderId, motoboyId, reason } = data;
+        console.log(`Pedido ${orderId} recusado pelo motoboy ${motoboyId}`);
+
+        // Notificar sistema sobre recusa
+        io.emit("orderDeclined", {
+          orderId,
+          motoboyId,
+          reason,
+          timestamp: new Date().toISOString(),
+        });
+
+        socket.emit("declineOrder:success", {
+          orderId,
+          message: "Pedido recusado",
+        });
+      } catch (error) {
+        socket.emit("declineOrder:error", {
+          message: error.message,
+        });
+      }
+    });
+
+    // Responder notificação estilo chamada
+    socket.on("respondCallNotification", async (data) => {
+      try {
+        const { callId, action, firebaseUid } = data;
+
+        // Emitir resposta para sistema
+        io.emit("callNotificationResponse", {
+          callId,
+          action,
+          firebaseUid,
+          timestamp: new Date().toISOString(),
+        });
+
+        socket.emit("respondCallNotification:success", {
+          callId,
+          action,
+          message: `Chamada ${action === "accept" ? "aceita" : "recusada"}`,
+        });
+      } catch (error) {
+        socket.emit("respondCallNotification:error", {
+          message: error.message,
+        });
+      }
+    });
+
+    // Marcar notificação como lida
+    socket.on("markNotificationRead", async (data) => {
+      try {
+        const { notificationId } = data;
+
+        // Emitir para outros dispositivos do mesmo usuário
+        if (firebaseUid) {
+          socket.to(`user:${firebaseUid}`).emit("notificationMarkedRead", {
+            notificationId,
+            timestamp: new Date().toISOString(),
+          });
+        }
+
+        socket.emit("markNotificationRead:success", {
+          notificationId,
+          message: "Notificação marcada como lida",
+        });
+      } catch (error) {
+        socket.emit("markNotificationRead:error", {
+          message: error.message,
+        });
+      }
+    });
+
     // Lidar com eventos de pedidos
     socket.on("orderStatusUpdate", async (data) => {
       try {
@@ -94,8 +216,15 @@ module.exports = (io) => {
     // Desconexão
     socket.on("disconnect", () => {
       console.log(
-        `Motoboy desconectado: ${motoboyId}, Socket ID: ${socket.id}`
+        `Usuario desconectado: ${firebaseUid || motoboyId}, Socket ID: ${
+          socket.id
+        }`
       );
+
+      // Remover usuário do SocketManager
+      if (firebaseUid) {
+        socketManager.unregisterUser(firebaseUid);
+      }
 
       // Opcional: Atualizar status do motoboy para offline
       if (motoboyId) {
@@ -107,5 +236,50 @@ module.exports = (io) => {
         );
       }
     });
+
+    // Eventos de heartbeat para manter conexão
+    socket.on("heartbeat", () => {
+      socket.emit("heartbeat:response", {
+        timestamp: new Date().toISOString(),
+      });
+    });
+
+    // Entrar em sala específica
+    socket.on("joinRoom", (roomName) => {
+      socket.join(roomName);
+      socket.emit("joinRoom:success", {
+        room: roomName,
+        message: "Entrou na sala com sucesso",
+      });
+    });
+
+    // Sair de sala específica
+    socket.on("leaveRoom", (roomName) => {
+      socket.leave(roomName);
+      socket.emit("leaveRoom:success", {
+        room: roomName,
+        message: "Saiu da sala com sucesso",
+      });
+    });
   });
+
+  // Retornar função para enviar notificações
+  return {
+    sendNotification: global.sendSocketNotification,
+
+    // Função para broadcast para todos os motoboys
+    broadcastToMotoboys: (eventType, data) => {
+      io.to("motoboys").emit(eventType, data);
+    },
+
+    // Função para broadcast para todas as lojas
+    broadcastToStores: (eventType, data) => {
+      io.to("stores").emit(eventType, data);
+    },
+
+    // Função para broadcast para suporte
+    broadcastToSupport: (eventType, data) => {
+      io.to("supports").emit(eventType, data);
+    },
+  };
 };

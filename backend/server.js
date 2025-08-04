@@ -172,12 +172,26 @@ app.get("/", (req, res) => {
   res.send("API está funcionando");
 });
 
-// Configurar Socket.io handlers
-require("./socket/socketHandler")(io);
+// Configurar SocketManager e handlers
+const SocketManager = require("./utils/socketManager");
+const socketManager = new SocketManager(io);
 
-// Middleware para adicionar io às requisições
+// Configurar socketHandler com o gerenciador
+const socketHandler = require("./socket/socketHandler");
+socketHandler(io, socketManager); // Passando socketManager como parâmetro
+
+// Fazer o socketManager disponível globalmente
+global.socketManager = socketManager;
+
+// Função global para compatibilidade com código existente (substitui SSE)
+global.sendSocketNotification = (firebaseUid, eventType, data) => {
+  return socketManager.sendNotificationToUser(firebaseUid, eventType, data);
+};
+
+// Middleware para adicionar socketManager ao req
 app.use((req, res, next) => {
-  req.io = io;
+  req.socketManager = socketManager;
+  req.io = io; // Manter para compatibilidade
   next();
 });
 
@@ -215,6 +229,82 @@ app.use(
 app.use("/api/billing", require("./routes/billingRoutes"));
 app.use("/api/webhooks", require("./routes/webhookRoutes"));
 app.use("/api/admin", require("./routes/adminRoutes"));
+
+// Rotas de monitoramento WebSocket
+app.get("/api/socket/stats", (req, res) => {
+  res.json(socketManager.getConnectionStats());
+});
+
+app.get("/api/socket/user/:firebaseUid/status", (req, res) => {
+  const { firebaseUid } = req.params;
+  const isOnline = socketManager.isUserOnline(firebaseUid);
+  res.json({
+    firebaseUid,
+    isOnline,
+    connectedUsers: Array.from(socketManager.connectedUsers.keys()),
+    connectionStats: socketManager.getConnectionStats(),
+  });
+});
+
+// Rota de teste para notificações WebSocket (sem autenticação para debug)
+app.post("/api/socket/test-notification-debug", (req, res) => {
+  const { firebaseUid, eventType, data } = req.body;
+
+  if (!firebaseUid || !eventType) {
+    return res.status(400).json({
+      success: false,
+      message: "firebaseUid e eventType são obrigatórios",
+    });
+  }
+
+  console.log(
+    `🧪 [TEST DEBUG] Testando notificação para ${firebaseUid}, evento: ${eventType}`
+  );
+
+  const sent = global.sendSocketNotification(
+    firebaseUid,
+    eventType,
+    data || { message: "Teste de notificação" }
+  );
+
+  res.json({
+    success: sent,
+    message: sent
+      ? "Notificação enviada com sucesso"
+      : "Usuário não está conectado ou erro ao enviar",
+    debug: {
+      firebaseUid,
+      eventType,
+      isOnline: global.socketManager.isUserOnline(firebaseUid),
+      connectedUsers: Array.from(global.socketManager.connectedUsers.keys()),
+      connectionStats: global.socketManager.getConnectionStats(),
+    },
+  });
+});
+
+// Rota para testar notificação WebSocket
+app.post("/api/socket/test-notification", authenticateToken, (req, res) => {
+  const { firebaseUid, eventType, data } = req.body;
+
+  if (!firebaseUid || !eventType) {
+    return res.status(400).json({
+      message: "firebaseUid e eventType são obrigatórios",
+    });
+  }
+
+  const sent = global.sendSocketNotification(
+    firebaseUid,
+    eventType,
+    data || {}
+  );
+
+  res.json({
+    success: sent,
+    message: sent
+      ? "Notificação enviada com sucesso"
+      : "Usuário não está conectado ou erro ao enviar",
+  });
+});
 // app.use("/api/webhook/ifood", (req, res) => {
 //   const WebhookController = require("./controllers/webhookController");
 //   const OrderService = require("./services/orderService");
@@ -229,11 +319,21 @@ app.use((req, res, next) => {
   next();
 });
 
+// Limpeza periódica de conexões inativas (a cada 15 minutos)
+setInterval(() => {
+  socketManager.cleanupInactiveConnections(30); // Remove conexões inativas há mais de 30 segundos
+}, 15 * 60 * 1000);
+
 // IMPORTANTE: Usar server.listen em vez de app.listen para Socket.io funcionar
 server.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT} com Socket.io`);
+  console.log("✅ WebSocket configurado e funcionando");
+  console.log("✅ SocketManager inicializado");
 });
 
 process.on("unhandledRejection", (err) => {
   console.log(`Erro: ${err.message}`);
 });
+
+// Exportar para testes e uso externo
+module.exports = { app, server, io, socketManager };

@@ -98,6 +98,19 @@ class NotificationService {
       }
     }
     // Enviar evento SSE se disponível
+
+    const notificationSent = global.sendSocketNotification(
+      motoboy.firebaseUid,
+      "deliveryRequest",
+      {
+        order: order,
+        notificationId: notification._id,
+        type: "deliveryRequest",
+        title: notification.title,
+        message: notification.message,
+      }
+    );
+
     if (app?.locals?.sendEventToStore) {
       try {
         const notifyData = {
@@ -152,6 +165,13 @@ class NotificationService {
     await notification.save();
 
     // Enviar evento SSE se disponível
+
+    const notificationSent = global.sendSocketNotification(
+      motoboy.firebaseUid,
+      "notificationUpdateBell",
+      notification.status !== "READ"
+    );
+
     if (app?.locals?.sendEventToStore && motoboy) {
       app.locals.sendEventToStore(
         motoboy.firebaseUid,
@@ -237,6 +257,12 @@ class NotificationService {
         hasFcmToken: motoboy?.fcmToken ? true : false,
       });
     }
+
+    const notificationSent = global.sendSocketNotification(
+      motoboy.firebaseUid,
+      "genericNotification",
+      notifyData
+    );
 
     // Enviar evento SSE se disponível
     if (app?.locals?.sendEventToStore && firebaseUid) {

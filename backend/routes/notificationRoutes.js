@@ -51,8 +51,8 @@ const createNotification = async (req, res) => {
         fullscreen,
       });
 
-    // Enviar evento SSE se disponível na aplicação
-    if (req.app.locals.sendEventToStore) {
+    // Enviar evento via Socket se disponível na aplicação
+    if (global.sendSocketNotification) {
       try {
         const notifyData = {
           notificationId: notification._id,
@@ -62,19 +62,19 @@ const createNotification = async (req, res) => {
           data: notification.data,
         };
 
-        const notified = req.app.locals.sendEventToStore(
+        const notified = global.sendSocketNotification(
           motoboy.firebaseUid,
-          "notificationUpdate",
-          notification
+          "deliveryRequest",
+          notifyData
         );
 
         console.log(
-          `Notificação SSE ${notified ? "ENVIADA" : "FALHOU"} para motoboy ${
+          `Notificação Socket ${notified ? "ENVIADA" : "FALHOU"} para motoboy ${
             motoboy.name
           }`
         );
       } catch (notifyError) {
-        console.error("Erro ao enviar notificação SSE:", notifyError);
+        console.error("Erro ao enviar notificação Socket:", notifyError);
       }
     }
 
@@ -155,11 +155,13 @@ const updateNotification = async (req, res) => {
     notification.status = status;
     await notification.save();
 
-    req.app.locals.sendEventToStore(
-      motoboy.firebaseUid,
-      "notificationUpdateBell",
-      notification.status !== "READ"
-    );
+    if (global.sendSocketNotification) {
+      global.sendSocketNotification(
+        motoboy.firebaseUid,
+        "notificationUpdateBell",
+        notification.status !== "READ"
+      );
+    }
 
     res.status(200).json({ message: "Atualizado com sucesso", notification });
   } catch (error) {
@@ -215,7 +217,7 @@ const createNotificationGeneric = async (req, res) => {
       }
     }
 
-    if (req.app.locals.sendEventToStore) {
+    if (global.sendSocketNotification) {
       try {
         const notifyData = {
           notificationId: notification._id,
@@ -225,13 +227,13 @@ const createNotificationGeneric = async (req, res) => {
           chatId: chatId || null,
         };
 
-        req.app.locals.sendEventToStore(
+        global.sendSocketNotification(
           firebaseUid,
           notification.type || "genericNotification",
           notifyData
         );
       } catch (notifyError) {
-        console.error(`Erro ao enviar notificação SSE para:`, notifyError);
+        console.error(`Erro ao enviar notificação Socket para:`, notifyError);
       }
     }
 
@@ -280,8 +282,8 @@ const notifySupport = async (req, res) => {
       notifications.push(notification);
       notificationPromises.push(notification.save());
 
-      // Enviar evento SSE para este membro específico do suporte
-      if (req.app.locals.sendEventToStore) {
+      // Enviar evento Socket para este membro específico do suporte
+      if (global.sendSocketNotification) {
         try {
           const notifyData = {
             notificationId: notification._id,
@@ -292,7 +294,7 @@ const notifySupport = async (req, res) => {
           };
 
           // Enviar notificação para o UID do Firebase deste membro do suporte
-          req.app.locals.sendEventToStore(
+          global.sendSocketNotification(
             supportMember.firebaseUid,
             "supportNotification",
             notifyData
@@ -303,7 +305,7 @@ const notifySupport = async (req, res) => {
           );
         } catch (notifyError) {
           console.error(
-            `Erro ao enviar notificação SSE para ${supportMember.name}:`,
+            `Erro ao enviar notificação Socket para ${supportMember.name}:`,
             notifyError
           );
         }
@@ -347,8 +349,8 @@ const notifyOccurrence = async (req, res) => {
 
     await notification.save();
 
-    // Enviar evento SSE para o motoboy
-    if (req.app.locals.sendEventToStore) {
+    // Enviar evento Socket para o motoboy
+    if (global.sendSocketNotification) {
       try {
         const notifyData = {
           notificationId: notification._id,
@@ -358,13 +360,13 @@ const notifyOccurrence = async (req, res) => {
           data: notification.data,
         };
 
-        req.app.locals.sendEventToStore(
+        global.sendSocketNotification(
           firebaseUid,
           "occurrenceNotification",
           notifyData
         );
       } catch (notifyError) {
-        console.error("Erro ao enviar notificação SSE:", notifyError);
+        console.error("Erro ao enviar notificação Socket:", notifyError);
       }
     }
 

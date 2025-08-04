@@ -5,7 +5,7 @@ const mongoose = require("mongoose");
 const axios = require("axios");
 const Order = require("../models/Order");
 const Travel = require("../models/Travel");
-
+const NotificationService = require("./notificationService");
 /**
  * Service for handling motoboy operations
  */
@@ -25,6 +25,8 @@ class MotoboyService {
     this.requestQueue = new Map();
     // Map to track which orders are being processed
     this.processingOrders = new Map();
+    // Map to store active timers for cancellation
+    this.activeTimers = new Map();
 
     this.apiBaseUrl = process.env.API_URL || "http://localhost:8080/api";
   }
@@ -42,7 +44,7 @@ class MotoboyService {
         .sort({ score: -1 }) // First sort by availability and score
         .limit(parseInt(limit))
         .select(
-          "name phoneNumber coordinates score profileImage isAvailable lastActive"
+          "name phoneNumber coordinates score profileImage isAvailable lastActive firebaseUid"
         );
 
       //   console.log(nearbyMotoboys.length);
@@ -71,6 +73,7 @@ class MotoboyService {
           profileImage: motoboy.profileImage,
           isAvailable: motoboy.isAvailable,
           lastActive: motoboy.lastActive,
+          firebaseUid: motoboy.firebaseUid,
           distance: distanceMeters,
           estimatedTimeMinutes: this.estimateTravelTime(distanceMeters),
         };
@@ -116,10 +119,6 @@ class MotoboyService {
    * @returns {Promise<Object>} - Result of the assignment attempt
    */
   async processMotoboyQueue(motoboys, order) {
-    console.log(`🔄 [QUEUE DEBUG] Método processMotoboyQueue CHAMADO!`);
-    console.log(`📋 [QUEUE DEBUG] Pedido ID: ${order._id}`);
-    console.log(`🏍️ [QUEUE DEBUG] ${motoboys.length} motoboys recebidos`);
-
     // If no motoboys left, return failure
     if (motoboys.length === 0) {
       console.log(`❌ [QUEUE DEBUG] Nenhum motoboy na lista`);
@@ -131,25 +130,17 @@ class MotoboyService {
       };
     }
 
-    console.warn(
-      "🔍 [QUEUE DEBUG] Estado atual da queue:",
-      JSON.stringify(order.motoboy.queue, null, 2)
-    );
-
     if (
       !order.motoboy.queue.motoboys ||
       order.motoboy.queue.motoboys.length === 0
     ) {
-      console.log("✅ [QUEUE DEBUG] Criando nova fila de motoboys");
       order.motoboy.queue = {
         motoboys: motoboys || [],
         motoboy_status: [],
         status: "buscando",
       };
       await order.save();
-      console.log("💾 [QUEUE DEBUG] Fila salva no banco");
     } else {
-      console.log("🔄 [QUEUE DEBUG] Atualizando fila de motoboys existente");
       order.motoboy.queue = {
         ...order.motoboy.queue,
         status: "buscando",
@@ -172,6 +163,7 @@ class MotoboyService {
           motoboyId: motoboy._id,
           name: motoboy.name,
           phone: motoboy.phoneNumber,
+          timer: Date.now(),
           location: {
             estimatedTime: motoboy.estimatedTimeMinutes,
             distance: motoboy.distance,
@@ -181,6 +173,9 @@ class MotoboyService {
 
         // Save the updated order
         await order.save();
+
+        // Iniciar timer de 15 minutos para verificar se o motoboy chegou
+        this.timerCounting(order._id);
 
         return {
           success: true,
@@ -358,6 +353,7 @@ class MotoboyService {
       order.motoboy.name = "";
       order.motoboy.phone = null;
       order.motoboy.rated = false;
+      order.motoboy.hasArrived = false;
 
       order.motoboy.queue = {
         ...order.motoboy.queue,
@@ -366,11 +362,163 @@ class MotoboyService {
 
       await order.save();
 
+      console.log(
+        `🔔 [DEBUG] Enviando notificação DeAssignedMotoboy para firebaseUid: ${motoboy.firebaseUid}`
+      );
+      const notificationSent = global.sendSocketNotification(
+        motoboy.firebaseUid,
+        "DeAssignedMotoboy",
+        order
+      );
+
+      if (motoboy.fcmToken) {
+        NotificationService.createGenericNotification({
+          motoboyId: motoboy._id,
+          token: motoboy.fcmToken,
+          title: "Removido do pedido",
+          message: `Você foi removido do pedido ${order.orderNumber}.`,
+          data: {
+            orderId: order._id,
+            travelId: travel._id,
+            type: "SYSTEM",
+            screen: "/(tabs)",
+          },
+        });
+      } else {
+        console.warn("Motoboy não possui token FCM");
+      }
+
       return order;
     } catch (error) {
       console.error("❌ Erro ao remover motoboy:", error);
       return { error: error.message };
     }
+  }
+
+  timerCounting(orderId) {
+    try {
+      console.log(`🕐 Iniciando timer de 15 minutos para pedido ${orderId}`);
+
+      // Cancelar timer existente se houver
+      this.clearTimer(orderId);
+
+      const timer = setTimeout(async () => {
+        try {
+          console.log(`⏰ Timer expirado! Verificando pedido ${orderId}`);
+
+          const order = await Order.findById(orderId);
+
+          if (!order) {
+            console.log(`❌ Pedido ${orderId} não encontrado`);
+            this.activeTimers.delete(orderId);
+            return;
+          }
+
+          if (!order.motoboy || !order.motoboy.motoboyId) {
+            console.log(`❌ Pedido ${orderId} não tem motoboy atribuído`);
+            this.activeTimers.delete(orderId);
+            return;
+          }
+
+          // Verificar se o motoboy ainda não chegou
+          if (!order.motoboy.hasArrived) {
+            console.log(
+              `🚫 Motoboy ${order.motoboy.motoboyId} não chegou a tempo no pedido ${orderId}. Removendo...`
+            );
+
+            await this.removeMotoboyFromOrder(orderId, order.motoboy.motoboyId);
+
+            console.log(
+              `✅ Motoboy removido automaticamente do pedido ${orderId}`
+            );
+
+            setImmediate(async () => {
+              try {
+                const motoboys = await this.findBestMotoboys(
+                  order.store.address.coordinates || order.store.coordinates
+                );
+
+                await this.processMotoboyQueue(motoboys, order);
+              } catch (error) {
+                console.error(
+                  `❌ Erro ao tentar reatribuir motoboy: ${error.message}`
+                );
+              }
+            });
+          } else {
+            console.log(`✅ Motoboy já chegou no pedido ${orderId}`);
+          }
+
+          // Remover timer da lista ativa
+          this.activeTimers.delete(orderId);
+        } catch (error) {
+          console.error(
+            `❌ Erro ao processar timer para pedido ${orderId}:`,
+            error
+          );
+          this.activeTimers.delete(orderId);
+        }
+      }, 900000); // 15 minutos em millisegundos
+
+      // Armazenar o timer para possível cancelamento
+      this.activeTimers.set(orderId, {
+        timer,
+        startTime: Date.now(),
+        orderId,
+      });
+
+      console.log(`✅ Timer configurado para pedido ${orderId}`);
+      return { timerStarted: true, orderId };
+    } catch (error) {
+      console.error("Erro ao iniciar contagem do timer:", error);
+      return { error: error.message };
+    }
+  }
+
+  /**
+   * Cancela o timer ativo para um pedido
+   * @param {String} orderId - ID do pedido
+   */
+  clearTimer(orderId) {
+    const timerData = this.activeTimers.get(orderId);
+
+    if (timerData) {
+      clearTimeout(timerData.timer);
+      this.activeTimers.delete(orderId);
+      console.log(`🗑️ Timer cancelado para pedido ${orderId}`);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Marca motoboy como chegado e cancela o timer
+   * @param {String} orderId - ID do pedido
+   */
+  markMotoboyAsArrived(orderId) {
+    console.log(`📍 Motoboy chegou no pedido ${orderId}, cancelando timer`);
+    return this.clearTimer(orderId);
+  }
+
+  /**
+   * Lista todos os timers ativos
+   */
+  getActiveTimers() {
+    const timers = [];
+    for (const [orderId, timerData] of this.activeTimers.entries()) {
+      const elapsed = Date.now() - timerData.startTime;
+      const remaining = 900000 - elapsed; // 15 min - tempo decorrido
+
+      timers.push({
+        orderId,
+        startTime: new Date(timerData.startTime),
+        elapsedMs: elapsed,
+        remainingMs: Math.max(0, remaining),
+        remainingMinutes: Math.max(0, Math.ceil(remaining / 60000)),
+      });
+    }
+    return timers;
   }
 }
 

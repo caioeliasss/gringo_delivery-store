@@ -171,7 +171,15 @@ const orderSchema = new mongoose.Schema({
     },
     updatedAt: {
       type: Date,
-      required: false,
+      default: Date.now,
+    },
+    timer: {
+      type: Date,
+      default: Date.now,
+    },
+    hasArrived: {
+      type: Boolean,
+      default: false,
     },
     queue: {
       type: queueSchema,
@@ -279,6 +287,23 @@ const orderSchema = new mongoose.Schema({
 // Middleware para atualizar o campo updatedAt antes de salvar
 orderSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
+  this.motoboy.updatedAt = Date.now();
+
+  // Verificar se um motoboy foi atribuído (motoboyId foi definido)
+  if (this.isModified("motoboy.motoboyId") && this.motoboy.motoboyId) {
+    console.log(
+      `🔄 Motoboy atribuído ao pedido ${this._id}, iniciando timer...`
+    );
+
+    // Importar o serviço de motoboy e iniciar o timer
+    const motoboyServices = require("../services/motoboyServices");
+
+    // Usar setImmediate para executar após o save
+    setImmediate(() => {
+      motoboyServices.timerCounting(this._id.toString());
+    });
+  }
+
   next();
 });
 

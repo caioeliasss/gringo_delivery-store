@@ -319,42 +319,16 @@ const updateFCMToken = async (req, res) => {
 const removeMotoboyFromOrder = async (req, res) => {
   try {
     const { orderId, motoboyId } = req.params;
-
-    const motoboy = await Motoboy.findById(motoboyId);
-    if (!motoboy) {
-      return res.status(404).json({ message: "Motoboy não encontrado" });
+    if (!orderId || !motoboyId) {
+      return res
+        .status(400)
+        .json({ message: "Order ID e Motoboy ID são necessários" });
     }
-
-    const travel = await Travel.findById(motoboy.race.travelId);
-    if (travel) {
-      // Cancel the travel if it exists
-      await travel.updateOne({ status: "cancelado" });
-    }
-
-    motoboy.race = {
-      active: false,
-      orderId: null,
-      travelId: null,
-    };
-
-    await motoboy.save();
-
-    const order = await Order.findById(orderId);
-    if (!order) {
-      return res.status(404).json({ message: "Pedido não encontrado" });
-    }
-
-    if (order.motoboy && !order.motoboy.blacklist) {
-      order.motoboy.blacklist = [];
-    }
-
-    order.motoboy.blacklist.push(motoboyId);
-    order.motoboy.motoboyId = null;
-    order.motoboy.rated = false;
-    order.motoboy.name = null;
-
-    await order.save();
-    res.status(200).json({ message: "Motoboy removido do pedido com sucesso" });
+    const result = await motoboyServices.removeMotoboyFromOrder(
+      orderId,
+      motoboyId
+    );
+    res.status(200).json(result);
   } catch (error) {
     res.status(500).json({
       message: "Erro ao remover motoboy do pedido",
@@ -480,6 +454,7 @@ const assignMotoboy = async (req, res) => {
       name: motoboy.name,
       phone: motoboy.phoneNumber,
       rated: false,
+      timer: Date.now(),
     };
 
     // Alterar status do pedido para "em_preparo" quando motoboy é atribuído
@@ -530,6 +505,12 @@ const assignMotoboy = async (req, res) => {
     } else {
       console.warn("Motoboy não possui token FCM");
     }
+
+    const notificationSent = global.sendSocketNotification(
+      motoboy.firebaseUid,
+      "AssignedMotoboy",
+      order
+    );
 
     res.status(200).json({
       message: "Motoboy atribuído ao pedido com sucesso",
@@ -656,8 +637,216 @@ router.get("/me", authenticateToken, getMotoboyMe);
 router.post("/", createMotoboy);
 router.put("/", authenticateToken, updateMotoboy);
 router.put("/updateFCMToken", authenticateToken, updateFCMToken);
+// Rota para marcar motoboy como chegado
+const markMotoboyArrived = async (req, res) => {
+  try {
+    const { orderId } = req.body;
+
+    if (!orderId) {
+      return res.status(400).json({ message: "orderId é obrigatório" });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: "Pedido não encontrado" });
+    }
+
+    if (!order.motoboy || !order.motoboy.motoboyId) {
+      return res
+        .status(400)
+        .json({ message: "Pedido não tem motoboy atribuído" });
+    }
+
+    // Marcar como chegado
+    order.motoboy.hasArrived = true;
+    await order.save();
+
+    // Cancelar timer ativo
+    motoboyServices.markMotoboyAsArrived(orderId);
+
+    res.json({
+      message: "Motoboy marcado como chegado",
+      orderId,
+      hasArrived: true,
+    });
+  } catch (error) {
+    console.error("Erro ao marcar motoboy como chegado:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Rotas de teste para o timer
+const testTimer = async (req, res) => {
+  try {
+    const { orderId } = req.body;
+
+    if (!orderId) {
+      return res.status(400).json({ message: "orderId é obrigatório" });
+    }
+
+    const result = motoboyServices.timerCounting(orderId);
+
+    res.json({
+      message: "Timer de teste iniciado",
+      result,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getActiveTimers = (req, res) => {
+  try {
+    const timers = motoboyServices.getActiveTimers();
+
+    res.json({
+      message: "Timers ativos",
+      count: timers.length,
+      timers,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const clearTimer = async (req, res) => {
+  try {
+    const { orderId } = req.body;
+
+    if (!orderId) {
+      return res.status(400).json({ message: "orderId é obrigatório" });
+    }
+
+    const cleared = motoboyServices.clearTimer(orderId);
+
+    res.json({
+      message: cleared ? "Timer cancelado" : "Timer não encontrado",
+      orderId,
+      cleared,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Endpoint de debug para verificar usuários conectados via socket
+const getConnectedUsers = async (req, res) => {
+  try {
+    if (!global.socketManager) {
+      return res.status(500).json({
+        message: "SocketManager não disponível",
+      });
+    }
+
+    const connectedUsers = global.socketManager.getConnectedUsers();
+    const stats = global.socketManager.getConnectionStats();
+
+    res.json({
+      stats,
+      connectedUsers,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Função de teste para simular atribuição de motoboy
+const testAssignMotoboy = async (req, res) => {
+  try {
+    const { orderId, motoboyId } = req.body;
+
+    if (!orderId || !motoboyId) {
+      return res.status(400).json({
+        message: "orderId e motoboyId são obrigatórios",
+      });
+    }
+
+    // Buscar ou criar um pedido de teste
+    let order = await Order.findById(orderId);
+    if (!order) {
+      // Criar um pedido de teste se não existir
+      order = new Order({
+        _id: orderId,
+        store: {
+          name: "Loja Teste",
+          cnpj: "12345678000199",
+          coordinates: [-46.6333, -23.5505],
+        },
+        orderNumber: "TEST" + Date.now(),
+        customer: [
+          {
+            name: "Cliente Teste",
+            phone: "11999999999",
+            customerAddress: {
+              cep: "01234567",
+              address: "Rua Teste",
+              addressNumber: "123",
+              bairro: "Bairro Teste",
+              cidade: "São Paulo",
+              coordinates: [-46.6333, -23.5505],
+            },
+          },
+        ],
+        items: [
+          {
+            productName: "Produto Teste",
+            quantity: 1,
+            price: 10.0,
+          },
+        ],
+        total: 10.0,
+        payment: {
+          method: "dinheiro",
+          change: 0,
+        },
+        motoboy: {
+          price: 5.0,
+          blacklist: [],
+          queue: {
+            motoboys: [],
+            motoboy_status: [],
+            status: "pendente",
+          },
+        },
+      });
+    }
+
+    console.log(
+      `🧪 Teste: Atribuindo motoboy ${motoboyId} ao pedido ${orderId}`
+    );
+
+    // Atribuir o motoboy - isso deve disparar o middleware do Order.js
+    order.motoboy.motoboyId = motoboyId;
+    order.motoboy.name = "Motoboy Teste";
+    order.motoboy.phone = "11888888888";
+
+    await order.save();
+
+    res.json({
+      message:
+        "Motoboy atribuído com sucesso - timer deve ter sido iniciado automaticamente",
+      orderId: order._id,
+      motoboyId: motoboyId,
+      testNote:
+        "Verifique os logs do servidor para confirmar se o timer foi iniciado",
+    });
+  } catch (error) {
+    console.error("Erro no teste de atribuição:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 router.put("/assign", authenticateToken, assignMotoboy);
 router.post("/approve/:motoboyId", authenticateToken, approveMotoboy);
 router.post("/repprove/:motoboyId", authenticateToken, repproveMotoboy);
+
+// Novas rotas
+router.post("/mark-arrived", markMotoboyArrived);
+router.post("/test/timer", testTimer);
+router.get("/test/timers", getActiveTimers);
+router.post("/test/clear-timer", clearTimer);
+router.post("/test/assign-motoboy", testAssignMotoboy);
+router.get("/test/connected-users", getConnectedUsers);
 
 module.exports = router;

@@ -52,6 +52,17 @@ const updateTravel = async (req, res) => {
       },
       { new: true }
     );
+
+    const orderdb = await Order.findByIdAndUpdate(
+      order._id,
+      {
+        motoboy: {
+          ...motoboy,
+          hasArrived: true,
+        },
+      },
+      { new: true }
+    );
     res.json(travel);
   } catch (error) {
     res.status(500).json({ message: error.message });

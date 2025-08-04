@@ -1572,6 +1572,13 @@ export default function EstabelecimentosPage() {
                                   </Typography>
                                 </Box>
                               )}
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
+                                Assinou o contrato:{" "}
+                                {selectedStore.termsAccepted ? "Sim" : "Não"}
+                              </Typography>
                             </Stack>
                           </CardContent>
                         </Card>
