@@ -399,12 +399,6 @@ router.put("/status", authenticateToken, async (req, res) => {
       const currentMotoboyId = order.motoboy?.motoboyId;
 
       // Limpar dados do motoboy
-      order.motoboy = {
-        motoboyId: null,
-        name: "",
-        phone: null,
-        blacklist: order.motoboy?.blacklist || [],
-      };
 
       // Adicionar motoboy atual à blacklist se existir
       if (currentMotoboyId) {
@@ -412,9 +406,15 @@ router.put("/status", authenticateToken, async (req, res) => {
 
         // Buscar motoboy e liberar se estava ocupado com este pedido
         const motoboy = await Motoboy.findById(currentMotoboyId);
-        if (motoboy && motoboy.race?.orderId === order._id.toString()) {
-          console.log(`🚫 Liberando motoboy ${motoboy._id} - pedido cancelado`);
+        const travel = await Travel.findById(motoboy.race?.travelId);
+        if (travel) {
+          travel.status = "cancelado";
+          await travel.save();
+        } else {
+          console.log(`⚠️ Travel não encontrado para motoboy ${motoboy._id}`);
+        }
 
+        if (motoboy && motoboy.race?.orderId === order._id.toString()) {
           // Marcar motoboy como disponível novamente
           motoboy.race = {
             travelId: null,
@@ -428,6 +428,7 @@ router.put("/status", authenticateToken, async (req, res) => {
     }
 
     // Atualizar status
+    order.motoboy.queue.status = status;
     order.status = status;
     await order.save();
 
@@ -856,6 +857,15 @@ router.post("/", async (req, res) => {
       });
     }
 
+    const cnpj_approved = await Store.findOne({
+      cnpj: store.cnpj,
+    });
+    if (cnpj_approved && !cnpj_approved.cnpj_approved) {
+      return res.status(403).json({
+        message: "CNPJ não aprovado ou não fornecido",
+      });
+    }
+
     const cnpj = store.cnpj;
 
     // Gerar número do pedido (formato: PD + timestamp)
@@ -1056,8 +1066,9 @@ router.post("/", async (req, res) => {
     //   driveBack || false
     // );
 
-    const { cost, distance, priceList } = preview;
-    console.log(store);
+    const { priceList } = preview;
+    const cost = priceList.totalCost;
+    const distance = priceList.totalDistance;
 
     const newOrder = new Order({
       store: {

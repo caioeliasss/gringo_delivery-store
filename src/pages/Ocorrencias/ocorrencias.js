@@ -35,6 +35,11 @@ import {
   AccordionDetails,
   useTheme,
   useMediaQuery,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Drawer,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -57,17 +62,13 @@ import {
   ShoppingBag as ProductsIcon,
   Chat as ChatIcon,
   Logout as LogoutIcon,
+  ReportProblem as OcorrenciasIcon,
 } from "@mui/icons-material";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import api from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
-import SideDrawer from "../../components/SideDrawer/SideDrawer";
-import {
-  SUPPORT_MENU_ITEMS,
-  createSupportFooterItems,
-} from "../../config/menuConfig";
+import { useNavigate, Link } from "react-router-dom";
 
 const ASSUNTOS_OCORRENCIA = [
   { label: "Problema com pedido", value: "PEDIDO", icon: ShoppingCartIcon },
@@ -96,6 +97,17 @@ export default function OcorrenciasPage() {
     assunto: "",
     descricao: "",
   });
+
+  // Função para toggle do drawer
+  const toggleDrawer = (open) => (event) => {
+    if (
+      event.type === "keydown" &&
+      (event.key === "Tab" || event.key === "Shift")
+    ) {
+      return;
+    }
+    setDrawerOpen(open);
+  };
 
   useEffect(() => {
     fetchOcorrencias();
@@ -238,11 +250,117 @@ export default function OcorrenciasPage() {
     return item ? item.label : assunto;
   };
 
-  // Definir itens do menu para SideDrawer
-  const menuItems = SUPPORT_MENU_ITEMS;
-
-  // Definir itens de rodapé para SideDrawer
-  const footerItems = createSupportFooterItems(handleLogout);
+  // Componente do drawer de navegação
+  const drawerItems = (
+    <Box sx={{ width: 250 }} role="presentation">
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          p: 2,
+        }}
+      >
+        <img
+          src="https://i.imgur.com/8jOdfcO.png"
+          alt="Gringo Delivery"
+          style={{ height: 50, marginBottom: 16 }}
+        />
+      </Box>
+      <Divider />
+      <List>
+        <ListItem
+          button
+          component={Link}
+          to="/dashboard"
+          sx={{
+            color: "text.primary",
+            "&:hover": { bgcolor: "primary.light", color: "white" },
+          }}
+        >
+          <ListItemIcon sx={{ color: "inherit" }}>
+            <DashboardIcon />
+          </ListItemIcon>
+          <ListItemText primary="Dashboard" />
+        </ListItem>
+        <ListItem
+          button
+          component={Link}
+          to="/produtos"
+          sx={{
+            color: "text.primary",
+            "&:hover": { bgcolor: "primary.light", color: "white" },
+          }}
+        >
+          <ListItemIcon sx={{ color: "inherit" }}>
+            <ProductsIcon />
+          </ListItemIcon>
+          <ListItemText primary="Produtos" />
+        </ListItem>
+        <ListItem
+          button
+          component={Link}
+          to="/pedidos"
+          sx={{
+            color: "text.primary",
+            "&:hover": { bgcolor: "primary.light", color: "white" },
+          }}
+        >
+          <ListItemIcon sx={{ color: "inherit" }}>
+            <OrdersIcon />
+          </ListItemIcon>
+          <ListItemText primary="Pedidos" />
+        </ListItem>
+        <ListItem
+          button
+          component={Link}
+          to="/ocorrencias"
+          selected={true}
+          sx={{
+            color: "text.primary",
+            "&.Mui-selected": {
+              bgcolor: "primary.main",
+              color: "white",
+              "&:hover": { bgcolor: "primary.dark" },
+            },
+            "&:hover": { bgcolor: "primary.light", color: "white" },
+          }}
+        >
+          <ListItemIcon sx={{ color: "inherit" }}>
+            <OcorrenciasIcon />
+          </ListItemIcon>
+          <ListItemText primary="Ocorrências" />
+        </ListItem>
+        <ListItem
+          button
+          component={Link}
+          to="/chat"
+          sx={{
+            color: "text.primary",
+            "&:hover": { bgcolor: "primary.light", color: "white" },
+          }}
+        >
+          <ListItemIcon sx={{ color: "inherit" }}>
+            <ChatIcon />
+          </ListItemIcon>
+          <ListItemText primary="Chat" />
+        </ListItem>
+      </List>
+      <Divider />
+      <List>
+        <ListItem
+          button
+          onClick={handleLogout}
+          sx={{ "&:hover": { bgcolor: "error.light", color: "white" } }}
+        >
+          <ListItemIcon sx={{ color: "inherit" }}>
+            <LogoutIcon />
+          </ListItemIcon>
+          <ListItemText primary="Sair" />
+        </ListItem>
+      </List>
+    </Box>
+  );
 
   return (
     <Box
@@ -254,12 +372,12 @@ export default function OcorrenciasPage() {
     >
       {/* AppBar para dispositivos móveis */}
       {isMobile && (
-        <AppBar position="fixed" sx={{ bgcolor: "primary.main" }}>
+        <AppBar position="fixed">
           <Toolbar>
             <IconButton
               color="inherit"
               edge="start"
-              onClick={() => setDrawerOpen(true)}
+              onClick={toggleDrawer(true)}
               sx={{ mr: 2 }}
             >
               <MenuIcon />
@@ -275,31 +393,23 @@ export default function OcorrenciasPage() {
         </AppBar>
       )}
 
-      {/* SideDrawer */}
-      {isMobile ? (
-        <SideDrawer
-          open={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
-          variant="temporary"
-          title="Gringo Delivery"
-          logoUrl="https://i.imgur.com/8jOdfcO.png"
-          logoAlt="Gringo Delivery"
-          logoHeight={50}
-          menuItems={menuItems}
-          footerItems={footerItems}
-        />
-      ) : (
-        <SideDrawer
-          open={true}
-          variant="permanent"
-          title="Gringo Delivery"
-          logoUrl="https://i.imgur.com/8jOdfcO.png"
-          logoAlt="Gringo Delivery"
-          logoHeight={50}
-          menuItems={menuItems}
-          footerItems={footerItems}
-        />
-      )}
+      {/* Drawer para dispositivos móveis */}
+      <Drawer
+        anchor="left"
+        open={isMobile ? drawerOpen : true}
+        onClose={toggleDrawer(false)}
+        variant={isMobile ? "temporary" : "permanent"}
+        sx={{
+          width: 250,
+          flexShrink: 0,
+          "& .MuiDrawer-paper": {
+            width: 250,
+            boxSizing: "border-box",
+          },
+        }}
+      >
+        {drawerItems}
+      </Drawer>
 
       {/* Conteúdo principal */}
       <Box

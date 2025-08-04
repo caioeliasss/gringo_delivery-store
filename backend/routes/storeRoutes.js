@@ -435,4 +435,74 @@ router.post(`/reprove/:storeId`, authenticateToken, async (req, res) => {
   }
 });
 
+// Rota para atualizar nome da loja (admin only)
+router.put("/name", async (req, res) => {
+  try {
+    const { storeId, businessName } = req.body;
+
+    if (!storeId || !businessName) {
+      return res.status(400).json({
+        message: "storeId e businessName são obrigatórios",
+      });
+    }
+
+    if (businessName.trim().length === 0) {
+      return res.status(400).json({
+        message: "Nome da loja não pode estar vazio",
+      });
+    }
+
+    // Buscar a loja pelo ID
+    const store = await Store.findById(storeId);
+    if (!store) {
+      return res.status(404).json({ message: "Loja não encontrada" });
+    }
+
+    // Atualizar o nome da loja
+    store.businessName = businessName.trim();
+    await store.save();
+
+    res.status(200).json({
+      message: "Nome da loja atualizado com sucesso",
+      store: {
+        _id: store._id,
+        businessName: store.businessName,
+      },
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar nome da loja:", error);
+    res.status(500).json({
+      message: "Erro ao atualizar nome da loja",
+      error: error.message,
+    });
+  }
+});
+
+// Rota para aceitar termos de serviço
+router.post("/accept-terms", authenticateToken, async (req, res) => {
+  try {
+    const store = await Store.findOne({ firebaseUid: req.user.uid });
+    if (!store) {
+      return res.status(404).json({ message: "Loja não encontrada" });
+    }
+
+    // Atualizar status de aceitação dos termos
+    store.termsAccepted = true;
+    store.termsAcceptedAt = new Date();
+    await store.save();
+
+    res.status(200).json({
+      message: "Termos aceitos com sucesso",
+      termsAccepted: store.termsAccepted,
+      termsAcceptedAt: store.termsAcceptedAt,
+    });
+  } catch (error) {
+    console.error("Erro ao aceitar termos:", error);
+    res.status(500).json({
+      message: "Erro ao aceitar termos",
+      error: error.message,
+    });
+  }
+});
+
 module.exports = router;

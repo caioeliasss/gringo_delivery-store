@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { getUserProfile } from "../../services/api";
+import { getUserProfile, acceptTerms } from "../../services/api";
 import OrderStats from "../../components/orderStats";
 import OverdueBillings from "../../components/OverdueBillings";
+import TermsServiceModal from "../../components/TermsServiceModal";
 import {
   Box,
   Container,
@@ -48,16 +49,22 @@ const Dashboard = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [cnpjInfo, setCnpjInfo] = useState({});
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const userResponse = await getUserProfile();
-        const cnpj = userResponse.data.cnpj;
-        setUserProfile(userResponse.data);
+        const userData = userResponse.data;
+        const cnpj = userData.cnpj;
+        setUserProfile(userData);
+
+        // Verificar se o usuário precisa aceitar os termos
+        if (!userData.termsAccepted) {
+          setShowTermsModal(true);
+        }
 
         const cnpjResponse = await buscarCnpj(cnpj);
-
         setCnpjInfo(cnpjResponse.data);
       } catch (error) {
         setCnpjInfo({ nome_fantasia: "Caro Cliente" });
@@ -75,6 +82,22 @@ const Dashboard = () => {
       navigate("/login");
     } catch (error) {
       console.error("Erro ao fazer logout:", error);
+    }
+  };
+
+  const handleAcceptTerms = async () => {
+    try {
+      await acceptTerms();
+      // Atualizar o perfil do usuário
+      setUserProfile((prev) => ({
+        ...prev,
+        termsAccepted: true,
+        termsAcceptedAt: new Date(),
+      }));
+      setShowTermsModal(false);
+    } catch (error) {
+      console.error("Erro ao aceitar termos:", error);
+      throw error; // Re-throw para que o modal possa mostrar o erro
     }
   };
 
@@ -424,6 +447,14 @@ const Dashboard = () => {
           </Paper>
         </Container>
       </Box>
+
+      {/* Modal de Termos de Serviço */}
+      <TermsServiceModal
+        open={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
+        onAccept={handleAcceptTerms}
+        userType="store"
+      />
     </Box>
   );
 };

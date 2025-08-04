@@ -124,7 +124,7 @@ const Register = () => {
       try {
         const response = await buscarCnpj(cnpjNumbers);
         const data = response.data;
-        businessName = data.nomeFantasia || data.razaoSocial;
+        businessName = data.nome_fantasia || data.razao_social;
         storeAddress = {
           cep: data.cep,
           address: data.logradouro,

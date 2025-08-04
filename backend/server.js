@@ -6,7 +6,7 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
-const admin = require("firebase-admin");
+const admin = require("./config/firebase-admin"); // Usar configuração centralizada
 const http = require("http");
 const socketIO = require("socket.io");
 
@@ -138,11 +138,8 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Inicializar Firebase Admin
-const serviceAccount = require("./serviceAccountKey.json");
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+// Firebase Admin já está inicializado no import (linha 9)
+// Removemos a inicialização duplicada para evitar o erro
 
 // Conexão com MongoDB
 mongoose

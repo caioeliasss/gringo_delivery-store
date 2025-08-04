@@ -1,0 +1,65 @@
+TERMO DE USO DA PLATAFORMA GRINGO DELIVERY
+GRINGO DELIVERY LTDA, pessoa jurídica de direito privado, inscrita no CNPJ n.º 55.742.346/0001-57, com sede na Avenida Oscar Chiarelli Filho, n.º 243, Bairro Residencial Ype, Cidade de Mogi-Guaçu, Estado de São Paulo, CEP 13846-770, e o Usuário (motoboy cadastrante pode ser dados pessoais ou ID), identificado por Nome, CPF, RG e Endereço, celebram o presente Termo de Uso, que passa a reger a utilização da plataforma Gringo Delivery, conforme as cláusulas e condições abaixo:
+1. INTRODUÇÃO
+Este Termo de Uso estabelece as regras e condições para a utilização da plataforma Gringo Delivery por motoboys cadastrados, sendo essencial sua leitura e aceitação antes da adesão ao sistema.
+A Gringo Delivery atua exclusivamente como intermediadora de entregas, organizando as solicitações e conectando motoboys a demandas de transporte. Não há qualquer vínculo empregatício entre as partes.
+2. POLÍTICA DE PRIVACIDADE E USO DE DADOS
+2.1. A Gringo Delivery poderá coletar, armazenar e utilizar dados pessoais dos motoboys, incluindo informações bancárias e de identificação, exclusivamente para operacionalização dos serviços.
+2.2. A Gringo Delivery não compartilhará dados pessoais dos motoboys com terceiros sem consentimento, salvo determinação legal ou exigência governamental.
+3. REGRAS SOBRE CANCELAMENTO DE CORRIDAS
+3.1. O motoboy poderá cancelar uma entrega sem penalidade, desde que o faça dentro do prazo estipulado no aplicativo.
+3.2. Cancelamentos excessivos e sem justificativa poderão resultar em advertências, bloqueios temporários ou até mesmo exclusão da plataforma.
+
+
+4. LIMITAÇÃO DE RESPONSABILIDADE
+4.1. A Gringo Delivery não se responsabiliza por:
+- Problemas mecânicos no veículo do motoboy;
+- Erros no funcionamento do GPS ou falhas na conexão de internet;
+- Multas de trânsito ou penalidades aplicadas ao motoboy durante a prestação do serviço;
+- Questões meteorológicas que possam impactar o transporte.
+- Quaisquer erros que não estejam vinculados a indicação da corrida ou da oferta de entrega.
+4.2. Reclamações de clientes sobre atrasos, danos ao produto ou erros na entrega devem ser solucionadas diretamente pelo motoboy, sem qualquer interferência ou responsabilidade da Gringo Delivery.
+5. CONDIÇÕES PARA USO DO APLICATIVO
+5.1. É proibido o uso indevido do app, incluindo:
+- Fraudes no cadastro ou alteração de dados falsos;
+- Repasse de corridas para terceiros não cadastrados;
+- Uso do aplicativo para qualquer finalidade que extrapole a intermediação de entregas.
+5.2. O motoboy deve utilizar seu próprio telefone e conexão de internet, sem que a Gringo Delivery tenha qualquer obrigação de fornecer suporte técnico.
+6. REGRAS PARA DESATIVAÇÃO DO PERFIL
+6.1. O motoboy pode solicitar a exclusão de sua conta, desde que não possua pendências financeiras ou entregas em andamento.
+6.2. A Gringo Delivery poderá desativar perfis nas seguintes situações:
+ Inatividade prolongada, sem justificativa;
+ Fraudes, irregularidades ou descumprimento reiterado das regras;
+ Violação grave de conduta, que comprometa a integridade da plataforma.
+7. USO DE MATERIAIS DA PLATAFORMA
+7.1. É proibido o uso indevido da marca, logo, imagens ou textos da Gringo Delivery sem autorização expressa.
+7.2. O aplicativo não pode ser utilizado para finalidades que extrapolem a intermediação de entregas, sendo vetada qualquer modificação ou cópia de seu conteúdo.
+8. DA NATUREZA DA RELAÇÃO ENTRE AS PARTES
+8.1. Não há vínculo empregatício entre a Gringo Delivery e os motoboys cadastrados, que atuam como prestadores de serviço autônomos.
+8.2. Preferencialmente, o motoboy deve estar cadastrado como MEI (Microempreendedor Individual) ou outra empresa cadastrada. Caso opte por receber pagamentos via CPF, será responsável por impostos e tributos aplicáveis.
+8.3. Se houver determinação oficial do governo para o recolhimento de impostos ou tributos devidos pelo motoboy, a Gringo Delivery poderá realizar o recolhimento conforme a legislação vigente, sem assumir qualquer responsabilidade adicional.
+9. DAS SOLICITAÇÕES DE SERVIÇO
+9.1. A plataforma Gringo Delivery apenas repassa e organiza as demandas de serviço, não sendo parte da entrega em si.
+9.2. O motoboy tem total liberdade para aceitar ou recusar qualquer solicitação de entrega disponibilizada no aplicativo.
+10. DA RESPONSABILIDADE DO MOTOBOY
+10.1. O motoboy será exclusivamente responsável pelo serviço prestado, incluindo:
+ - Atrasos na entrega, após retirar o produto ou mercadoria do estabelecimento;
+ - Erros operacionais ou danos à mercadoria ou produto;
+ - Reclamações de clientes relacionadas ao transporte e entrega.
+10.2. A Gringo Delivery não responde por prejuízos decorrentes da prestação do serviço ou no percurso.
+11. PENALIDADES E EXCLUSÃO DA PLATAFORMA
+11.1. O motoboy poderá ser removido da plataforma nos seguintes casos:
+ - Acúmulo de 3 notificações por irregularidades;
+ - Prática de crimes ou atos graves que a Gringo Delivery considerar inaceitáveis;
+ - Violação grave da política de uso do aplicativo.
+
+12. SOLUÇÃO DE CONFLITOS E ARBITRAGEM
+12.1. Qualquer disputa relacionada ao uso da plataforma deverá ser resolvida preferencialmente na via administrativa, evitando processos judiciais prolongados.
+12.2. Caso seja necessária uma ação legal, fica eleito o foro da Comarca de Mogi-Guaçu, Estado de São Paulo, com exclusão de qualquer outro.
+
+13. DISPOSIÇÕES FINAIS
+13.1. A aceitação deste Termo de Uso implica concordância integral com as disposições aqui estabelecidas.
+13.2. A Gringo Delivery reserva-se o direito de alterar este Termo, mediante aviso prévio na plataforma ou email.
+
+Mogi-Guaçu, Estado de São Paulo, 20 de maio de 2025.
+GRINGO DELIVERY LTDA

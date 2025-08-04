@@ -101,16 +101,24 @@ const storeSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  termsAccepted: {
+    type: Boolean,
+    default: false,
+  },
+  termsAcceptedAt: {
+    type: Date,
+    default: null,
+  },
   billingOptions: {
     monthlyFee: {
       type: Number,
       required: false,
-      default: 0,
+      default: 150,
     },
     motoBoyFee: {
       type: Number,
       required: false,
-      default: 0,
+      default: 2,
     },
   },
   createdAt: {

@@ -54,6 +54,14 @@ const motoboySchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    termsAccepted: {
+      type: Boolean,
+      default: false,
+    },
+    termsAcceptedAt: {
+      type: Date,
+      default: null,
+    },
     firebaseUid: {
       type: String,
       required: true,

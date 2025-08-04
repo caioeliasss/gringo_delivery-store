@@ -2,6 +2,7 @@ const Motoboy = require("../models/Motoboy");
 const Order = require("../models/Order");
 const express = require("express");
 const router = express.Router();
+const admin = require("../config/firebase-admin");
 const motoboyServices = require("../services/motoboyServices");
 const { sendNotification } = require("../services/fcmService");
 const NotificationService = require("../services/notificationService");
@@ -614,17 +615,41 @@ const repproveMotoboy = async (req, res) => {
   }
 };
 
+const acceptTerms = async (req, res) => {
+  try {
+    const motoboy = await Motoboy.findOne({ firebaseUid: req.user.uid });
+    if (!motoboy) {
+      return res.status(404).json({ message: "Motoboy não encontrado" });
+    }
+
+    // Atualizar status de aceitação dos termos
+    motoboy.termsAccepted = true;
+    motoboy.termsAcceptedAt = new Date();
+    await motoboy.save();
+
+    res.status(200).json({
+      message: "Termos aceitos com sucesso",
+      termsAccepted: motoboy.termsAccepted,
+      termsAcceptedAt: motoboy.termsAcceptedAt,
+    });
+  } catch (error) {
+    console.error("Erro ao aceitar termos:", error);
+    res.status(500).json({
+      message: "Erro ao aceitar termos",
+      error: error.message,
+    });
+  }
+};
+
+router.post("/accept-terms", authenticateToken, acceptTerms);
+
 router.delete(
   "/removeMotoboyFromOrder/:orderId/:motoboyId",
   removeMotoboyFromOrder
 );
 router.put("/update-push-token", authenticateToken, updatePushToken);
 router.get("/id/:id", authenticateToken, getMotoboyById);
-router.get(
-  "/firebase/:firebaseUid",
-  authenticateToken,
-  getMotoboyByFirebaseUid
-);
+router.get("/firebase/:firebaseUid", getMotoboyByFirebaseUid);
 router.get("/find", authenticateToken, findMotoboys);
 // router.get("/", getMotoboys);
 router.get("/me", authenticateToken, getMotoboyMe);

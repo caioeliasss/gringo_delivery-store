@@ -524,14 +524,74 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
     }
   };
 
+  const validateCustomers = () => {
+    const errors = [];
+
+    customers.forEach((customer, index) => {
+      const customerNumber = index + 1;
+
+      // Validar campos obrigatórios do cliente
+      if (!customer.name || customer.name.trim() === "") {
+        errors.push(`Cliente ${customerNumber}: Nome é obrigatório`);
+      }
+
+      if (!customer.phone || customer.phone.trim() === "") {
+        errors.push(`Cliente ${customerNumber}: Telefone é obrigatório`);
+      }
+
+      // Validar campos do endereço
+      const address = customer.customerAddress;
+
+      if (!address.cep || address.cep.trim() === "") {
+        errors.push(`Cliente ${customerNumber}: CEP é obrigatório`);
+      }
+
+      if (!address.address || address.address.trim() === "") {
+        errors.push(`Cliente ${customerNumber}: Endereço é obrigatório`);
+      }
+
+      if (!address.addressNumber || address.addressNumber.trim() === "") {
+        errors.push(
+          `Cliente ${customerNumber}: Número do endereço é obrigatório`
+        );
+      }
+
+      if (!address.bairro || address.bairro.trim() === "") {
+        errors.push(`Cliente ${customerNumber}: Bairro é obrigatório`);
+      }
+
+      if (!address.cidade || address.cidade.trim() === "") {
+        errors.push(`Cliente ${customerNumber}: Cidade é obrigatória`);
+      }
+
+      if (!address.estado || address.estado.trim() === "") {
+        errors.push(`Cliente ${customerNumber}: Estado é obrigatório`);
+      }
+
+      // Validar coordenadas
+      if (!address.coordinates || address.coordinates.length !== 2) {
+        errors.push(
+          `Cliente ${customerNumber}: Localização no mapa é obrigatória`
+        );
+      }
+    });
+
+    return errors;
+  };
+
   const handleSubmit = async () => {
     if (!selectedStore) {
       alert("Selecione uma loja");
       return;
     }
 
-    if (customers.some((c) => !c.name || !c.phone)) {
-      alert("Preencha todos os dados dos clientes");
+    // Validar todos os campos dos clientes
+    const customerErrors = validateCustomers();
+    if (customerErrors.length > 0) {
+      const errorMessage =
+        "Por favor, corrija os seguintes erros:\n\n" +
+        customerErrors.join("\n");
+      alert(errorMessage);
       return;
     }
 
@@ -586,7 +646,12 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
       handleClose();
     } catch (error) {
       console.error("Erro ao criar pedido:", error);
-      alert("Erro ao criar pedido. Tente novamente.");
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Erro desconhecido ao criar pedido";
+
+      alert("Erro ao criar pedido: " + errorMessage);
     } finally {
       setLoading(false);
     }
@@ -968,8 +1033,15 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                     <Grid container spacing={2}>
                       <Grid item xs={12} sm={6}>
                         <TextField
-                          label="Nome"
+                          label="Nome *"
                           fullWidth
+                          required
+                          error={!customer.name || customer.name.trim() === ""}
+                          helperText={
+                            !customer.name || customer.name.trim() === ""
+                              ? "Nome é obrigatório"
+                              : ""
+                          }
                           value={customer.name}
                           onChange={(e) =>
                             handleCustomerChange("name", e.target.value, index)
@@ -978,8 +1050,17 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                       </Grid>
                       <Grid item xs={12} sm={6}>
                         <TextField
-                          label="Telefone"
+                          label="Telefone *"
                           fullWidth
+                          required
+                          error={
+                            !customer.phone || customer.phone.trim() === ""
+                          }
+                          helperText={
+                            !customer.phone || customer.phone.trim() === ""
+                              ? "Telefone é obrigatório"
+                              : ""
+                          }
                           value={customer.phone}
                           onChange={(e) =>
                             handleCustomerChange("phone", e.target.value, index)
@@ -993,8 +1074,19 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                       </Grid>
                       <Grid item xs={12} sm={6}>
                         <TextField
-                          label="CEP"
+                          label="CEP *"
                           fullWidth
+                          required
+                          error={
+                            !customer.customerAddress.cep ||
+                            customer.customerAddress.cep.trim() === ""
+                          }
+                          helperText={
+                            !customer.customerAddress.cep ||
+                            customer.customerAddress.cep.trim() === ""
+                              ? "CEP é obrigatório"
+                              : ""
+                          }
                           value={customer.customerAddress.cep}
                           onChange={(e) =>
                             handleCustomerChange(
@@ -1007,8 +1099,19 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                       </Grid>
                       <Grid item xs={12} sm={6}>
                         <TextField
-                          label="Endereço"
+                          label="Endereço *"
                           fullWidth
+                          required
+                          error={
+                            !customer.customerAddress.address ||
+                            customer.customerAddress.address.trim() === ""
+                          }
+                          helperText={
+                            !customer.customerAddress.address ||
+                            customer.customerAddress.address.trim() === ""
+                              ? "Endereço é obrigatório"
+                              : ""
+                          }
                           value={customer.customerAddress.address}
                           onChange={(e) =>
                             handleCustomerChange(
@@ -1021,8 +1124,19 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                       </Grid>
                       <Grid item xs={12} sm={4}>
                         <TextField
-                          label="Número"
+                          label="Número *"
                           fullWidth
+                          required
+                          error={
+                            !customer.customerAddress.addressNumber ||
+                            customer.customerAddress.addressNumber.trim() === ""
+                          }
+                          helperText={
+                            !customer.customerAddress.addressNumber ||
+                            customer.customerAddress.addressNumber.trim() === ""
+                              ? "Número é obrigatório"
+                              : ""
+                          }
                           value={customer.customerAddress.addressNumber}
                           onChange={(e) =>
                             handleCustomerChange(
@@ -1035,8 +1149,19 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                       </Grid>
                       <Grid item xs={12} sm={4}>
                         <TextField
-                          label="Bairro"
+                          label="Bairro *"
                           fullWidth
+                          required
+                          error={
+                            !customer.customerAddress.bairro ||
+                            customer.customerAddress.bairro.trim() === ""
+                          }
+                          helperText={
+                            !customer.customerAddress.bairro ||
+                            customer.customerAddress.bairro.trim() === ""
+                              ? "Bairro é obrigatório"
+                              : ""
+                          }
                           value={customer.customerAddress.bairro}
                           onChange={(e) =>
                             handleCustomerChange(
@@ -1047,10 +1172,21 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                           }
                         />
                       </Grid>
-                      <Grid item xs={12} sm={4}>
+                      <Grid item xs={12} sm={3}>
                         <TextField
-                          label="Cidade"
+                          label="Cidade *"
                           fullWidth
+                          required
+                          error={
+                            !customer.customerAddress.cidade ||
+                            customer.customerAddress.cidade.trim() === ""
+                          }
+                          helperText={
+                            !customer.customerAddress.cidade ||
+                            customer.customerAddress.cidade.trim() === ""
+                              ? "Cidade é obrigatória"
+                              : ""
+                          }
                           value={customer.customerAddress.cidade}
                           onChange={(e) =>
                             handleCustomerChange(
@@ -1061,17 +1197,67 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                           }
                         />
                       </Grid>
+                      <Grid item xs={12} sm={1}>
+                        <TextField
+                          label="Estado *"
+                          fullWidth
+                          required
+                          error={
+                            !customer.customerAddress.estado ||
+                            customer.customerAddress.estado.trim() === ""
+                          }
+                          helperText={
+                            !customer.customerAddress.estado ||
+                            customer.customerAddress.estado.trim() === ""
+                              ? "Estado é obrigatório"
+                              : ""
+                          }
+                          value={customer.customerAddress.estado}
+                          placeholder="SP"
+                          onChange={(e) =>
+                            handleCustomerChange(
+                              "customerAddress.estado",
+                              e.target.value,
+                              index
+                            )
+                          }
+                        />
+                      </Grid>
                     </Grid>
 
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      sx={{ mt: 2 }}
-                      onClick={() => setActiveCustomerIndex(index)}
-                      disabled={!isLoaded || loadError}
-                    >
-                      {!isLoaded ? "Carregando mapa..." : "Selecionar no Mapa"}
-                    </Button>
+                    <Box sx={{ mt: 2 }}>
+                      {(!customer.customerAddress.coordinates ||
+                        customer.customerAddress.coordinates.length !== 2) && (
+                        <Alert severity="warning" sx={{ mb: 2 }}>
+                          ⚠️ É necessário selecionar a localização no mapa para
+                          este cliente
+                        </Alert>
+                      )}
+
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => setActiveCustomerIndex(index)}
+                        disabled={!isLoaded || loadError}
+                        startIcon={<LocationIcon />}
+                      >
+                        {!isLoaded
+                          ? "Carregando mapa..."
+                          : customer.customerAddress.coordinates?.length === 2
+                          ? "Alterar Localização no Mapa"
+                          : "Selecionar Localização no Mapa"}
+                      </Button>
+
+                      {customer.customerAddress.coordinates?.length === 2 && (
+                        <Typography
+                          variant="caption"
+                          color="success.main"
+                          sx={{ ml: 2 }}
+                        >
+                          ✓ Localização definida
+                        </Typography>
+                      )}
+                    </Box>
                   </CardContent>
                 </Card>
               ))}

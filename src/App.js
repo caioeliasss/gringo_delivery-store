@@ -33,6 +33,7 @@ import MotoboysPage from "./pages/Motoboys";
 import EstabelecimentosPage from "./pages/Estabelecimentos";
 import PrecificacaoPage from "./pages/Precificacao/Precificacao";
 import SupportPage from "./pages/Admin/SuportTeam/SupportPage";
+import Termos from "./pages/Termos/Termos";
 // Definir tema personalizado com a paleta de cores da Gringo Delivery
 const theme = createTheme({
   typography: {
@@ -259,6 +260,7 @@ function CustomerApp() {
               </PrivateRoute>
             }
           />
+          <Route path="/termos/:type" element={<Termos />} />
           <Route path="/" element={<Navigate to="/login" />} />
         </Routes>
       </AuthProvider>
@@ -383,10 +385,11 @@ function AdminApp() {
                   <Route path="/stores" element={<EstabelecimentosPage />} />
                   <Route path="/pedidos" element={<OrdersPage />} />
                   <Route path="/drivers" element={<MotoboysPage />} />
-                  <Route path="/occurrences" element={<OcorrenciasPage />} />
+                  <Route path="/occurrences" element={<Occurrences />} />
                   <Route path="/financeiro" element={<AdminFinanceiro />} />
                   <Route path="/settings" element={<PrecificacaoPage />} />
                   <Route path="/mapa" element={<SupportMapPage />} />
+                  <Route path="/chat" element={<ChatPage />} />
                   <Route path="*" element={<Navigate to="/dashboard" />} />
                   <Route path="/suporte" element={<SupportPage />} />
                 </Routes>

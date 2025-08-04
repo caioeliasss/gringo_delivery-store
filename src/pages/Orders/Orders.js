@@ -69,7 +69,11 @@ import {
 } from "@mui/icons-material";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import api, { getMotoboy, getMotoboys } from "../../services/api";
+import api, {
+  getMotoboy,
+  getMotoboys,
+  updateOrderStatus,
+} from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import SideDrawer from "../../components/SideDrawer/SideDrawer";
@@ -93,6 +97,7 @@ const ORDER_STATUS = [
     value: "pendente",
     icon: PendingIcon,
     color: "warning",
+    type: "order",
   },
   { label: "Em Preparo", value: "em_preparo", icon: TimeIcon, color: "error" },
   {
@@ -100,37 +105,49 @@ const ORDER_STATUS = [
     value: "pronto_retirada",
     icon: CheckCircleIcon,
     color: "success",
+    type: "order",
   },
   {
     label: "Em Entrega",
     value: "em_entrega",
     icon: ShippingIcon,
     color: "info",
+    type: "order",
   },
   {
     label: "Entregue",
     value: "entregue",
     icon: CheckCircleIcon,
     color: "success",
+    type: "order",
   },
-  { label: "Cancelado", value: "cancelado", icon: CancelIcon, color: "error" },
+  {
+    label: "Cancelado",
+    value: "cancelado",
+    icon: CancelIcon,
+    color: "error",
+    type: "order",
+  },
   {
     label: "Erro na Fila",
     value: "fila_cancelada",
     icon: CancelIcon,
     color: "error",
+    type: "fila",
   },
   {
     label: "Confirmado",
     value: "confirmado",
     icon: CheckCircleIcon,
     color: "success",
+    type: "fila",
   },
   {
     label: "Buscando",
     value: "buscando",
     icon: PendingIcon,
     color: "warning",
+    type: "fila",
   },
 ];
 //TODO criar visual de motoboy aguardando
@@ -161,6 +178,9 @@ export default function OrdersPage() {
   const [priceModal, setPriceModal] = useState(false);
   const [newPrice, setNewPrice] = useState("");
   const [openCreateOrderDialog, setOpenCreateOrderDialog] = useState(false);
+  const [statusModal, setStatusModal] = useState(false);
+  const [newStatus, setNewStatus] = useState("");
+  const [loadingStatusUpdate, setLoadingStatusUpdate] = useState(false);
 
   useEffect(() => {
     fetchOrders();
@@ -384,6 +404,59 @@ export default function OrdersPage() {
     } catch (error) {
       console.error("Erro ao encontrar motoboys:", error);
       alert("Erro ao encontrar motoboys. Tente novamente.");
+    }
+  };
+
+  const openStatusModal = () => {
+    setNewStatus(selectedOrder?.status || "");
+    setStatusModal(true);
+  };
+
+  const handleUpdateOrderStatus = async () => {
+    if (!newStatus || newStatus === selectedOrder?.status) {
+      setStatusModal(false);
+      return;
+    }
+
+    try {
+      setLoadingStatusUpdate(true);
+      const response = await updateOrderStatus(selectedOrder._id, newStatus);
+
+      if (response.status === 200) {
+        // Atualizar a lista de pedidos
+        setOrders((prevOrders) =>
+          prevOrders.map((order) =>
+            order._id === selectedOrder._id
+              ? {
+                  ...order,
+                  status: newStatus,
+                  motoboy: {
+                    ...order.motoboy,
+                    queue: { ...order.motoboy.queue, status: newStatus },
+                  },
+                }
+              : order
+          )
+        );
+
+        // Atualizar o pedido selecionado
+        setSelectedOrder((prev) => ({
+          ...prev,
+          status: newStatus,
+          motoboy: {
+            ...prev.motoboy,
+            queue: { ...prev.motoboy.queue, status: newStatus },
+          },
+        }));
+
+        setStatusModal(false);
+        console.log("Status do pedido atualizado com sucesso");
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar status do pedido:", error);
+      alert("Erro ao atualizar status do pedido. Tente novamente.");
+    } finally {
+      setLoadingStatusUpdate(false);
     }
   };
 
@@ -960,11 +1033,7 @@ export default function OrdersPage() {
                               : order.customer?.name || "Cliente não informado"}
                           </Typography>
                         </TableCell>
-                        <TableCell>
-                          {order.motoboy?.queue?.status === "cancelado"
-                            ? getStatusChip("fila_cancelada")
-                            : getStatusChip(order.status)}
-                        </TableCell>
+                        <TableCell>{getStatusChip(order.status)}</TableCell>
                         <TableCell>
                           {getStatusChip(order.motoboy?.queue?.status)}
                         </TableCell>
@@ -975,9 +1044,7 @@ export default function OrdersPage() {
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2">
-                            {order.motoboy?.queue?.status === "cancelado"
-                              ? "Erro na fila"
-                              : order.motoboy?.name || "Não atribuído"}
+                            {order.motoboy?.name || "Não atribuído"}
                           </Typography>
                         </TableCell>
                         <TableCell>
@@ -1130,7 +1197,13 @@ export default function OrdersPage() {
                         justifyContent: "space-between",
                       }}
                     >
-                      {getStatusChip(selectedOrder.status)}
+                      <Button
+                        variant="text"
+                        color="primary"
+                        onClick={openStatusModal}
+                      >
+                        {getStatusChip(selectedOrder.status)}
+                      </Button>
                       <Typography variant="body2" color="text.secondary">
                         Criado em: {formatDate(selectedOrder.createdAt)}
                       </Typography>
@@ -1852,6 +1925,108 @@ export default function OrdersPage() {
                   disabled={!newPrice || isNaN(parseFloat(newPrice))}
                 >
                   Confirmar Alteração
+                </Button>
+              </DialogActions>
+            </Dialog>
+
+            {/* Modal para Alterar Status */}
+            <Dialog
+              open={statusModal}
+              onClose={() => setStatusModal(false)}
+              maxWidth="sm"
+              fullWidth
+              className="status-modal"
+              PaperProps={{
+                sx: { borderRadius: 2 },
+              }}
+            >
+              <DialogTitle
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  pb: 1,
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <CheckCircleIcon sx={{ mr: 1, color: "primary.main" }} />
+                  <Typography variant="h6" fontWeight="bold">
+                    Alterar Status do Pedido
+                  </Typography>
+                </Box>
+                <IconButton onClick={() => setStatusModal(false)} size="small">
+                  <CloseIcon />
+                </IconButton>
+              </DialogTitle>
+
+              <DialogContent>
+                <Typography variant="body2" color="text.secondary" mb={3}>
+                  Pedido #{selectedOrder?.orderNumber || selectedOrder?.id}
+                </Typography>
+
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary" mb={1}>
+                    Status atual: {getStatusChip(selectedOrder?.status)}
+                  </Typography>
+                </Box>
+
+                <FormControl fullWidth>
+                  <InputLabel>Novo Status</InputLabel>
+                  <Select
+                    value={newStatus}
+                    onChange={(e) => setNewStatus(e.target.value)}
+                    label="Novo Status"
+                    disabled={loadingStatusUpdate}
+                  >
+                    {ORDER_STATUS.map(
+                      (status) =>
+                        status.type === "order" && (
+                          <MenuItem key={status.value} value={status.value}>
+                            <Box sx={{ display: "flex", alignItems: "center" }}>
+                              <status.icon
+                                sx={{
+                                  mr: 1,
+                                  fontSize: 18,
+                                  color: `${status.color}.main`,
+                                }}
+                              />
+                              <Typography variant="body2">
+                                {status.label}
+                              </Typography>
+                            </Box>
+                          </MenuItem>
+                        )
+                    )}
+                  </Select>
+                </FormControl>
+
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ mt: 1, display: "block" }}
+                >
+                  Selecione o novo status para o pedido
+                </Typography>
+              </DialogContent>
+
+              <DialogActions sx={{ p: 3, pt: 1 }}>
+                <Button onClick={() => setStatusModal(false)} color="inherit">
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleUpdateOrderStatus}
+                  color="primary"
+                  variant="contained"
+                  disabled={
+                    loadingStatusUpdate ||
+                    !newStatus ||
+                    newStatus === selectedOrder?.status
+                  }
+                  startIcon={
+                    loadingStatusUpdate ? <CircularProgress size={20} /> : null
+                  }
+                >
+                  {loadingStatusUpdate ? "Alterando..." : "Confirmar Alteração"}
                 </Button>
               </DialogActions>
             </Dialog>

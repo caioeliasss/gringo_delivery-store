@@ -34,18 +34,18 @@ const OrderStats = () => {
         // Dados simulados para demonstração
         setTimeout(() => {
           setStats({
-            totalOrders: 120,
-            todayOrders: 5,
-            last30DaysOrders: 42,
+            totalOrders: 0,
+            todayOrders: 0,
+            last30DaysOrders: 0,
             statusCount: {
-              pendente: 3,
-              em_preparo: 2,
-              em_entrega: 2,
-              entregue: 110,
-              cancelado: 3,
+              pendente: 0,
+              em_preparo: 0,
+              em_entrega: 0,
+              entregue: 0,
+              cancelado: 0,
             },
-            totalRevenue: 4850.75,
-            last30DaysRevenue: 1720.5,
+            totalRevenue: 0,
+            last30DaysRevenue: 0,
           });
           setLoading(false);
         }, 1000);

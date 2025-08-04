@@ -30,6 +30,8 @@ import {
   useMediaQuery,
   AppBar,
   Toolbar,
+  ListItemIcon,
+  Drawer,
 } from "@mui/material";
 import {
   Send as SendIcon,
@@ -56,8 +58,7 @@ import { ptBR } from "date-fns/locale";
 import api from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
 import eventService from "../../services/eventService";
-import { useNavigate } from "react-router-dom";
-import SideDrawer from "../../components/SideDrawer/SideDrawer";
+import { useNavigate, Link } from "react-router-dom";
 
 export default function ChatStore() {
   const theme = useTheme();
@@ -77,6 +78,17 @@ export default function ChatStore() {
   const [createChatDialog, setCreateChatDialog] = useState(false);
   const messagesEndRef = useRef(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Função para toggle do drawer
+  const toggleDrawer = (open) => (event) => {
+    if (
+      event.type === "keydown" &&
+      (event.key === "Tab" || event.key === "Shift")
+    ) {
+      return;
+    }
+    setDrawerOpen(open);
+  };
 
   // Carregar chats do usuário
   useEffect(() => {
@@ -348,24 +360,117 @@ export default function ChatStore() {
     }
   };
 
-  // Definir itens de menu para o SideDrawer
-  const menuItems = [
-    { path: "/dashboard", text: "Dashboard", icon: <DashboardIcon /> },
-    { path: "/produtos", text: "Produtos", icon: <ProductsIcon /> },
-    { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
-    { path: "/ocorrencias", text: "Ocorrências", icon: <OcorrenciasIcon /> },
-    { path: "/chat", text: "Chat", icon: <ChatIcon /> },
-  ];
-
-  // Definir itens de rodapé para o SideDrawer
-  const footerItems = [
-    {
-      text: "Sair",
-      icon: <LogoutIcon />,
-      onClick: handleLogout,
-      color: "error",
-    },
-  ];
+  // Componente do drawer de navegação
+  const drawerItems = (
+    <Box sx={{ width: 250 }} role="presentation">
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          p: 2,
+        }}
+      >
+        <img
+          src="https://i.imgur.com/8jOdfcO.png"
+          alt="Gringo Delivery"
+          style={{ height: 50, marginBottom: 16 }}
+        />
+      </Box>
+      <Divider />
+      <List>
+        <ListItem
+          button
+          component={Link}
+          to="/dashboard"
+          sx={{
+            color: "text.primary",
+            "&:hover": { bgcolor: "primary.light", color: "white" },
+          }}
+        >
+          <ListItemIcon sx={{ color: "inherit" }}>
+            <DashboardIcon />
+          </ListItemIcon>
+          <ListItemText primary="Dashboard" />
+        </ListItem>
+        <ListItem
+          button
+          component={Link}
+          to="/produtos"
+          sx={{
+            color: "text.primary",
+            "&:hover": { bgcolor: "primary.light", color: "white" },
+          }}
+        >
+          <ListItemIcon sx={{ color: "inherit" }}>
+            <ProductsIcon />
+          </ListItemIcon>
+          <ListItemText primary="Produtos" />
+        </ListItem>
+        <ListItem
+          button
+          component={Link}
+          to="/pedidos"
+          sx={{
+            color: "text.primary",
+            "&:hover": { bgcolor: "primary.light", color: "white" },
+          }}
+        >
+          <ListItemIcon sx={{ color: "inherit" }}>
+            <OrdersIcon />
+          </ListItemIcon>
+          <ListItemText primary="Pedidos" />
+        </ListItem>
+        <ListItem
+          button
+          component={Link}
+          to="/ocorrencias"
+          sx={{
+            color: "text.primary",
+            "&:hover": { bgcolor: "primary.light", color: "white" },
+          }}
+        >
+          <ListItemIcon sx={{ color: "inherit" }}>
+            <OcorrenciasIcon />
+          </ListItemIcon>
+          <ListItemText primary="Ocorrências" />
+        </ListItem>
+        <ListItem
+          button
+          component={Link}
+          to="/chat"
+          selected={true}
+          sx={{
+            color: "text.primary",
+            "&.Mui-selected": {
+              bgcolor: "primary.main",
+              color: "white",
+              "&:hover": { bgcolor: "primary.dark" },
+            },
+            "&:hover": { bgcolor: "primary.light", color: "white" },
+          }}
+        >
+          <ListItemIcon sx={{ color: "inherit" }}>
+            <ChatIcon />
+          </ListItemIcon>
+          <ListItemText primary="Chat" />
+        </ListItem>
+      </List>
+      <Divider />
+      <List>
+        <ListItem
+          button
+          onClick={handleLogout}
+          sx={{ "&:hover": { bgcolor: "error.light", color: "white" } }}
+        >
+          <ListItemIcon sx={{ color: "inherit" }}>
+            <LogoutIcon />
+          </ListItemIcon>
+          <ListItemText primary="Sair" />
+        </ListItem>
+      </List>
+    </Box>
+  );
 
   const renderChatList = () => {
     return (
@@ -790,12 +895,12 @@ export default function ChatStore() {
     >
       {/* AppBar para dispositivos móveis */}
       {isMobile && (
-        <AppBar position="fixed" sx={{ bgcolor: "primary.main" }}>
+        <AppBar position="fixed">
           <Toolbar>
             <IconButton
               color="inherit"
               edge="start"
-              onClick={() => setDrawerOpen(true)}
+              onClick={toggleDrawer(true)}
               sx={{ mr: 2 }}
             >
               <MenuIcon />
@@ -811,31 +916,23 @@ export default function ChatStore() {
         </AppBar>
       )}
 
-      {/* SideDrawer */}
-      {isMobile ? (
-        <SideDrawer
-          open={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
-          variant="temporary"
-          title="Gringo Delivery"
-          logoUrl="https://i.imgur.com/8jOdfcO.png"
-          logoAlt="Gringo Delivery"
-          logoHeight={50}
-          menuItems={menuItems}
-          footerItems={footerItems}
-        />
-      ) : (
-        <SideDrawer
-          open={true}
-          variant="permanent"
-          title="Gringo Delivery"
-          logoUrl="https://i.imgur.com/8jOdfcO.png"
-          logoAlt="Gringo Delivery"
-          logoHeight={50}
-          menuItems={menuItems}
-          footerItems={footerItems}
-        />
-      )}
+      {/* Drawer para dispositivos móveis */}
+      <Drawer
+        anchor="left"
+        open={isMobile ? drawerOpen : true}
+        onClose={toggleDrawer(false)}
+        variant={isMobile ? "temporary" : "permanent"}
+        sx={{
+          width: 250,
+          flexShrink: 0,
+          "& .MuiDrawer-paper": {
+            width: 250,
+            boxSizing: "border-box",
+          },
+        }}
+      >
+        {drawerItems}
+      </Drawer>
 
       {/* Conteúdo principal */}
       <Box

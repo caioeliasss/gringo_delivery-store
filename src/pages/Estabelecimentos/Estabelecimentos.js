@@ -38,6 +38,7 @@ import {
   TextField,
 } from "@mui/material";
 import {
+  Edit as EditIcon,
   Store as StoreIcon,
   Person as PersonIcon,
   Phone as PhoneIcon,
@@ -78,6 +79,7 @@ import api, {
   approveStore,
   reproveStore,
   updateStoreBilling,
+  updateStoreName,
 } from "../../services/api";
 import { getFileURL, getUserDocuments } from "../../services/storageService";
 import {
@@ -644,24 +646,58 @@ export default function EstabelecimentosPage() {
   const saveBillingOptions = async () => {
     try {
       setLoadingBilling(true);
-      const response = await updateStoreBilling(
-        selectedStore._id,
-        billingOptions
-      );
+
+      const data = {
+        motoBoyFee: billingOptions.deliveryFee,
+        monthlyFee: billingOptions.commissionRate,
+      };
+      console.log("Salvando billing options:", data);
+      const response = await updateStoreBilling(selectedStore._id, data);
 
       if (response.status === 200) {
+        console.log("Atualizando stores no frontend...");
+        console.log("Selected store ID:", selectedStore._id);
+        console.log("Billing options que serão salvos:", {
+          motoBoyFee: billingOptions.deliveryFee,
+          monthlyFee: billingOptions.commissionRate,
+        });
+
         // Atualizar o store na lista
-        setStores((prev) =>
-          prev.map((store) =>
-            store._id === selectedStore._id
-              ? { ...store, ...billingOptions }
-              : store
-          )
-        );
+        setStores((prev) => {
+          const updatedStores = prev.map((store) => {
+            if (store._id === selectedStore._id) {
+              const updatedStore = {
+                ...store,
+                billingOptions: {
+                  ...store.billingOptions,
+                  motoBoyFee: billingOptions.deliveryFee,
+                  monthlyFee: billingOptions.commissionRate,
+                },
+              };
+              console.log("Store atualizado na lista:", updatedStore);
+              return updatedStore;
+            }
+            return store;
+          });
+          console.log("Lista completa de stores atualizada");
+          // Forçar uma nova referência para o array
+          return [...updatedStores];
+        });
 
         // Atualizar o store selecionado se o modal de detalhes estiver aberto
         if (detailsModal && selectedStore) {
-          setSelectedStore((prev) => ({ ...prev, ...billingOptions }));
+          setSelectedStore((prev) => {
+            const updatedStore = {
+              ...prev,
+              billingOptions: {
+                ...prev.billingOptions,
+                motoBoyFee: billingOptions.deliveryFee,
+                monthlyFee: billingOptions.commissionRate,
+              },
+            };
+            console.log("Store selecionado atualizado:", updatedStore);
+            return updatedStore;
+          });
         }
 
         closeBillingModal();
@@ -671,6 +707,87 @@ export default function EstabelecimentosPage() {
     } finally {
       setLoadingBilling(false);
     }
+  };
+
+  const [editingName, setEditingName] = useState(false);
+  const [originalName, setOriginalName] = useState("");
+  const [savingName, setSavingName] = useState(false);
+
+  const handleEditName = () => {
+    setOriginalName(selectedStore?.businessName || "");
+    setEditingName(true);
+  };
+
+  const handleSaveName = async () => {
+    if (!selectedStore || !selectedStore._id) {
+      console.error("Nenhuma loja selecionada para atualizar");
+      alert("Erro: Nenhuma loja selecionada");
+      return;
+    }
+
+    const newName = selectedStore.businessName?.trim();
+    if (!newName) {
+      alert("Nome não pode estar vazio");
+      return;
+    }
+
+    if (newName === originalName) {
+      setEditingName(false);
+      return;
+    }
+
+    setSavingName(true);
+    try {
+      console.log("Atualizando nome da loja:", {
+        storeId: selectedStore._id,
+        newName: newName,
+      });
+
+      await updateStoreName(selectedStore._id, newName);
+
+      // Atualizar a lista de lojas
+      const response = await getStores();
+      setStores(response.data);
+
+      // Atualizar a loja selecionada na lista
+      const updatedStore = response.data.find(
+        (store) => store._id === selectedStore._id
+      );
+      if (updatedStore) {
+        setSelectedStore(updatedStore);
+      }
+
+      setEditingName(false);
+      console.log("Nome atualizado com sucesso!");
+
+      // Mostrar feedback visual de sucesso
+      const originalTitle = document.title;
+      document.title = "✅ Nome salvo!";
+      setTimeout(() => {
+        document.title = originalTitle;
+      }, 2000);
+    } catch (error) {
+      console.error("Erro ao atualizar nome da loja:", error);
+
+      const errorMessage =
+        error.response?.data?.message || "Erro ao atualizar nome da loja";
+      alert(errorMessage);
+
+      // Reverter o nome para o original
+      setSelectedStore({
+        ...selectedStore,
+        businessName: originalName,
+      });
+    } finally {
+      setSavingName(false);
+    }
+  };
+  const handleCancelEditName = () => {
+    setSelectedStore({
+      ...selectedStore,
+      businessName: originalName,
+    });
+    setEditingName(false);
   };
 
   return (
@@ -1285,18 +1402,75 @@ export default function EstabelecimentosPage() {
                             ?.charAt(0)
                             ?.toUpperCase() || "E"}
                         </Avatar>
-                        <Box>
-                          <Typography variant="h6" fontWeight="bold">
-                            {selectedStore.businessName || "Nome não informado"}
-                          </Typography>
-                          {getStatusChip(selectedStore.status || "closed")}
+                        <Box sx={{ display: "flex", alignItems: "center" }}>
+                          <TextField
+                            value={
+                              selectedStore?.businessName || "Nome Indefinido"
+                            }
+                            onChange={(e) => {
+                              setSelectedStore({
+                                ...selectedStore,
+                                businessName: e.target.value,
+                              });
+                            }}
+                            disabled={!editingName}
+                            variant="standard"
+                            size="medium"
+                            sx={{ flexGrow: 1, mr: 1 }}
+                            placeholder="Digite o nome da loja"
+                          />
+                          {!editingName ? (
+                            <IconButton
+                              onClick={handleEditName}
+                              size="small"
+                              title="Editar nome"
+                            >
+                              <EditIcon />
+                            </IconButton>
+                          ) : (
+                            <Box sx={{ display: "flex", gap: 0.5 }}>
+                              <IconButton
+                                onClick={handleSaveName}
+                                size="small"
+                                disabled={savingName}
+                                title="Salvar alterações"
+                                sx={{
+                                  color: "success.main",
+                                  "&:hover": {
+                                    backgroundColor: "success.light",
+                                  },
+                                }}
+                              >
+                                {savingName ? (
+                                  <CircularProgress size={16} />
+                                ) : (
+                                  <CheckIcon />
+                                )}
+                              </IconButton>
+                              <IconButton
+                                onClick={handleCancelEditName}
+                                size="small"
+                                title="Cancelar edição"
+                                sx={{
+                                  color: "error.main",
+                                  "&:hover": { backgroundColor: "error.light" },
+                                }}
+                              >
+                                <CloseIcon />
+                              </IconButton>
+                            </Box>
+                          )}
+
                           <Box sx={{ mt: 1 }}>
+                            <Typography variant="body2" color="text.secondary">
+                              {getStatusChip(selectedStore.status || "closed")}
+                            </Typography>
                             <Chip
                               label={selectedStore.category || "Outros"}
                               size="small"
                               variant="outlined"
                               icon={<CategoryIcon fontSize="small" />}
-                              sx={{ mr: 1 }}
+                              sx={{ mr: 1, mt: 1 }}
                             />
                           </Box>
                         </Box>
