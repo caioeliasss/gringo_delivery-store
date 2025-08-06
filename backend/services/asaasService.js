@@ -125,6 +125,76 @@ class AsaasService {
     }
   }
 
+  // ADICIONAR: Função para garantir que existe um customer no Asaas
+  async ensureCustomer(storeData) {
+    try {
+      // Se já tem customerId, retorna ele
+      if (storeData.asaasCustomerId) {
+        console.log("✅ Customer já existe:", storeData.asaasCustomerId);
+        return { id: storeData.asaasCustomerId };
+      }
+
+      console.log("⚠️ Customer não encontrado, criando novo...");
+
+      // Criar novo customer
+      const customerData = {
+        name:
+          storeData.businessName || storeData.displayName || storeData.email,
+        email: storeData.email,
+        cpfCnpj: String(storeData.cnpj),
+        phone: storeData.phone || "",
+      };
+
+      const response = await this.createCustomer(customerData);
+
+      console.log("✅ Novo customer criado:", response.id);
+      return response;
+    } catch (error) {
+      console.error("❌ Erro ao garantir customer:", error);
+      throw new Error(`Erro ao criar/verificar customer: ${error.message}`);
+    }
+  }
+
+  // ADICIONAR: Função para garantir customer para motoboy
+  async ensureMotoboyCustomer(motoboyData) {
+    try {
+      // Se já tem customerId, retorna ele
+      if (motoboyData.asaasCustomerId) {
+        console.log(
+          "✅ Customer do motoboy já existe:",
+          motoboyData.asaasCustomerId
+        );
+        return { id: motoboyData.asaasCustomerId };
+      }
+
+      console.log("⚠️ Customer do motoboy não encontrado, criando novo...");
+
+      // Criar novo customer para motoboy
+      const customerData = {
+        name: motoboyData.name,
+        email: motoboyData.email,
+        cpfCnpj: motoboyData.cpf,
+        phone: motoboyData.phoneNumber || motoboyData.phone || "",
+      };
+
+      const response = await this.createCustomer(customerData);
+
+      // Atualizar o motoboy com o customerId
+      const Motoboy = require("../models/Motoboy");
+      await Motoboy.findByIdAndUpdate(motoboyData._id, {
+        asaasCustomerId: response.id,
+      });
+
+      console.log("✅ Novo customer para motoboy criado:", response.id);
+      return response;
+    } catch (error) {
+      console.error("❌ Erro ao garantir customer para motoboy:", error);
+      throw new Error(
+        `Erro ao criar/verificar customer do motoboy: ${error.message}`
+      );
+    }
+  }
+
   async createInvoice(data) {
     try {
       const response = await this.api.post("/payments", {

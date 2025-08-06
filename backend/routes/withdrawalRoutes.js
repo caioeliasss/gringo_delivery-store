@@ -83,6 +83,10 @@ const requestWithdrawal = async (req, res) => {
     try {
       // console.log("🚀 Processando saque automaticamente...");
 
+      // NOVA FUNCIONALIDADE: Garantir que o motoboy tem um customer no Asaas
+      console.log("🔍 Verificando/criando customer do motoboy no Asaas...");
+      await asaasService.ensureMotoboyCustomer(motoboy);
+
       // Atualizar status para processando
       withdrawal.status = "processing";
       withdrawal.processedAt = new Date();
@@ -207,6 +211,16 @@ const processWithdrawal = async (req, res) => {
     }
 
     console.log("🚀 Processando saque:", withdrawalId);
+
+    // Buscar dados do motoboy para garantir customer no Asaas
+    const motoboy = await Motoboy.findById(withdrawal.motoboyId);
+    if (!motoboy) {
+      return res.status(404).json({ error: "Motoboy não encontrado" });
+    }
+
+    // NOVA FUNCIONALIDADE: Garantir que o motoboy tem um customer no Asaas
+    console.log("🔍 Verificando/criando customer do motoboy no Asaas...");
+    await asaasService.ensureMotoboyCustomer(motoboy);
 
     // Atualizar status para processando
     withdrawal.status = "processing";

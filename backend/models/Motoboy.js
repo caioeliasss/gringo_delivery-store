@@ -100,6 +100,11 @@ const motoboySchema = new mongoose.Schema(
         required: false,
       },
     },
+    asaasCustomerId: {
+      type: String,
+      required: false,
+      trim: true,
+    },
     withdrawalSettings: {
       minAmount: {
         type: Number,

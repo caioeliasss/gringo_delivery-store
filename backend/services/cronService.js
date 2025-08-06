@@ -72,18 +72,9 @@ class CronService {
     // Calcular valor baseado no plano da loja
     const amount = this.calculateBillingAmount(store);
 
-    let cusId = { id: store.asaasCustomerId };
-    // Criar registro no banco
-    if (!store.asaasCustomerId) {
-      const cnpj = String(store.cnpj);
-      const response = await asaasService.createCustomer({
-        name: store.businessName || store.email,
-        email: store.email,
-        cpfCnpj: cnpj,
-        phone: store.phone || "",
-      });
-      cusId = { id: response.data.id };
-    }
+    // ATUALIZAR: Usar nova função ensureCustomer
+    const cusId = await asaasService.ensureCustomer(store);
+
     if (!cusId.id) {
       throw new Error(
         `Loja ${store.businessName} não possui ID de cliente Asaas configurado`
@@ -378,10 +369,13 @@ class CronService {
       await billing.save();
 
       // Criar fatura no Asaas se configurado
-      if (store.asaasCustomerId && totalAmount > 0) {
+      if (totalAmount > 0) {
         try {
+          // Garantir que a loja tem customer no Asaas
+          const customerInfo = await asaasService.ensureCustomer(store);
+
           const asaasInvoice = await asaasService.createInvoice({
-            customerId: store.asaasCustomerId,
+            customerId: customerInfo.id,
             amount: billing.amount,
             dueDate: billing.dueDate.toISOString().split("T")[0],
             description: billing.description,
@@ -581,10 +575,13 @@ class CronService {
       await billing.save();
 
       // Criar fatura no Asaas se configurado
-      if (store.asaasCustomerId && totalAmount > 0) {
+      if (totalAmount > 0) {
         try {
+          // Garantir que a loja tem customer no Asaas
+          const customerInfo = await asaasService.ensureCustomer(store);
+
           const asaasInvoice = await asaasService.createInvoice({
-            customerId: store.asaasCustomerId,
+            customerId: customerInfo.id,
             amount: billing.amount,
             dueDate: billing.dueDate.toISOString().split("T")[0],
             description: billing.description,
