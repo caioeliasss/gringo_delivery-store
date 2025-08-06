@@ -213,7 +213,14 @@ const orderSchema = new mongoose.Schema({
   items: [orderItemSchema],
   status: {
     type: String,
-    enum: ["pendente", "em_preparo", "em_entrega", "entregue", "cancelado"],
+    enum: [
+      "pendente",
+      "em_preparo",
+      "pronto",
+      "em_entrega",
+      "entregue",
+      "cancelado",
+    ],
     default: "pendente",
   },
   total: {

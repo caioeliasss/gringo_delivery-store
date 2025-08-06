@@ -151,15 +151,17 @@ const calculateFees = (amount) => {
 
 const Travel = require("../models/Travel");
 const calculateAvailableBalance = async (motoboyId) => {
-  const travels = await Travel.find({
+  // Buscar viagens com status 'liberado' (que automaticamente significa que a dueDate passou)
+  const availableTravels = await Travel.find({
     motoboyId,
-    "finance.status": "liberado", // Apenas iagens liberadas para saque
-    "finance.dueDate": { $lte: new Date() }, // Viagens vencidas
+    "finance.status": "liberado",
   });
 
-  return travels.reduce((total, travel) => {
+  const totalBalance = availableTravels.reduce((total, travel) => {
     return total + (travel.finance.value || 0);
   }, 0);
+
+  return totalBalance;
 };
 
 // CORRIGIR: Função que estava faltando
@@ -338,5 +340,30 @@ router.get("/:motoboyId/balance", async (req, res) => {
 
 // Webhook do Asaas
 router.post("/webhook/asaas", handleAsaasWebhook);
+
+// ADICIONAR: Rota de teste para debug
+router.get("/test/asaas", async (req, res) => {
+  try {
+    if (testResult.success) {
+      res.json({
+        success: true,
+        message: "Conexão com Asaas funcionando",
+        data: testResult.data,
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: "Falha na conexão com Asaas",
+        error: testResult.error,
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Erro no teste de conexão",
+      error: error.message,
+    });
+  }
+});
 
 module.exports = router;

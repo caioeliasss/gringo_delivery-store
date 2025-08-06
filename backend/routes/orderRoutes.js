@@ -10,6 +10,7 @@ const DeliveryPrice = require("../models/DeliveryPrice");
 const mongoose = require("mongoose");
 const Travel = require("../models/Travel");
 const motoboyServices = require("../services/motoboyServices");
+const NotificationService = require("../services/notificationService");
 
 const buscarCnpj = async (cnpj) => {
   const API_URL = "https://brasilapi.com.br/api/cnpj/v1";
@@ -303,6 +304,33 @@ router.put("/status", authenticateToken, async (req, res) => {
     // console.log(
     //   `Pedido ${order._id} atualizado: ${previousStatus} -> ${status}`
     // );
+
+    // Notificar motoboy sobre mudança de status (se houver motoboy atribuído)
+    if (previousStatus !== status && order.motoboy?.motoboyId) {
+      try {
+        await NotificationService.notifyOrderStatusChange(
+          {
+            orderId: order._id,
+            orderNumber: order.orderNumber,
+            newStatus: status,
+            previousStatus: previousStatus,
+            motoboyId: order.motoboy.motoboyId,
+            storeName: order.store.name || "Estabelecimento",
+          },
+          req.app
+        );
+
+        console.log(
+          `✅ Notificação de mudança de status enviada para motoboy ${order.motoboy.motoboyId}: ${previousStatus} → ${status}`
+        );
+      } catch (notifyError) {
+        console.error(
+          "Erro ao notificar motoboy sobre mudança de status:",
+          notifyError
+        );
+        // Não falhar a requisição se a notificação falhar
+      }
+    }
 
     // Se o status mudou, enviar notificação via SSE
     if (previousStatus !== status) {

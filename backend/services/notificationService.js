@@ -258,12 +258,6 @@ class NotificationService {
       });
     }
 
-    const notificationSent = global.sendSocketNotification(
-      motoboy.firebaseUid,
-      "genericNotification",
-      notifyData
-    );
-
     // Enviar evento SSE se disponível
     if (app?.locals?.sendEventToStore && firebaseUid) {
       try {
@@ -274,6 +268,13 @@ class NotificationService {
           message: notification.message,
           chatId: chatId || null,
         };
+
+        // Enviar notificação via Socket
+        const notificationSent = global.sendSocketNotification(
+          motoboy?.firebaseUid || firebaseUid,
+          "genericNotification",
+          notifyData
+        );
 
         app.locals.sendEventToStore(
           firebaseUid,
@@ -444,6 +445,163 @@ class NotificationService {
         );
       } catch (pushError) {
         console.error("Erro ao enviar notificação push:", pushError);
+      }
+    }
+
+    return notification;
+  }
+
+  /**
+   * Notifica o motoboy sobre mudança de status do pedido
+   * @param {Object} data - Dados da notificação
+   * @param {string} data.orderId - ID do pedido
+   * @param {string} data.orderNumber - Número do pedido
+   * @param {string} data.newStatus - Novo status do pedido
+   * @param {string} data.previousStatus - Status anterior do pedido
+   * @param {string} data.motoboyId - ID do motoboy
+   * @param {string} data.storeName - Nome da loja
+   * @param {Object} app - Objeto da aplicação para SSE
+   * @returns {Promise<Object>} - Notificação criada
+   */
+  async notifyOrderStatusChange(data, app) {
+    const {
+      orderId,
+      orderNumber,
+      newStatus,
+      previousStatus,
+      motoboyId,
+      storeName,
+    } = data;
+
+    if (!orderId || !newStatus || !motoboyId) {
+      throw new Error(
+        "Dados incompletos. orderId, newStatus e motoboyId são obrigatórios"
+      );
+    }
+
+    // Buscar motoboy
+    const motoboy = await Motoboy.findById(motoboyId);
+    if (!motoboy) {
+      console.warn(
+        `Motoboy ${motoboyId} não encontrado para notificação de status`
+      );
+      return null;
+    }
+
+    // Definir título e mensagem baseado no status
+    let title,
+      message,
+      screen = "/(tabs)";
+
+    switch (newStatus) {
+      case "em_preparo":
+        title = "Pedido Confirmado";
+        message = `O pedido ${orderNumber} foi confirmado pela loja ${storeName}. Prepare-se para a retirada.`;
+        break;
+      case "em_entrega":
+        title = "Pedido Pronto";
+        message = `O pedido ${orderNumber} está pronto para retirada na loja ${storeName}.`;
+        break;
+      case "pronto":
+        title = "Pedido Pronto";
+        message = `O pedido ${orderNumber} está pronto para retirada na loja ${storeName}.`;
+        screen = "/(tabs)";
+        break;
+      case "entregue":
+        title = "Entrega Finalizada";
+        message = `Parabéns! O pedido ${orderNumber} foi marcado como entregue.`;
+        break;
+      case "cancelado":
+        title = "Pedido Cancelado";
+        message = `O pedido ${orderNumber} foi cancelado pela loja ${storeName}.`;
+        break;
+      default:
+        title = "Atualização do Pedido";
+        message = `O status do pedido ${orderNumber} foi atualizado para: ${newStatus}.`;
+    }
+
+    // Criar a notificação
+    const notification = new Notification({
+      motoboyId: motoboy._id,
+      firebaseUid: motoboy.firebaseUid,
+      type: "ORDER_STATUS_UPDATE",
+      title,
+      message,
+      data: {
+        orderId,
+        orderNumber,
+        newStatus,
+        previousStatus,
+        storeName,
+      },
+      status: "PENDING",
+      expiresAt: new Date(Date.now() + 60000 * 60 * 24 * 7), // 7 dias para expirar
+    });
+
+    await notification.save();
+
+    console.log(
+      `Notificação de status criada: ${notification._id} para motoboy ${motoboy.name} - ${previousStatus} → ${newStatus}`
+    );
+
+    // Enviar push notification se tiver token FCM
+    if (motoboy.fcmToken) {
+      try {
+        await pushNotificationService.sendPushNotification(
+          motoboy.fcmToken,
+          notification.title,
+          notification.message,
+          {
+            notificationId: notification._id,
+            type: notification.type,
+            orderId: orderId,
+            screen: screen,
+            newStatus: newStatus,
+          }
+        );
+      } catch (pushError) {
+        console.error("Erro ao enviar notificação push de status:", pushError);
+      }
+    }
+
+    // Enviar notificação via Socket
+    const notificationSent = global.sendSocketNotification(
+      motoboy.firebaseUid,
+      "orderStatusChanged",
+      {
+        orderId,
+        orderNumber,
+        newStatus,
+        previousStatus,
+        storeName,
+        notificationId: notification._id,
+        title: notification.title,
+        message: notification.message,
+      }
+    );
+
+    // Enviar evento SSE se disponível
+    if (app?.locals?.sendEventToStore) {
+      try {
+        const notifyData = {
+          notificationId: notification._id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          data: notification.data,
+        };
+
+        app.locals.sendEventToStore(
+          motoboy.firebaseUid,
+          "orderStatusUpdate",
+          notifyData
+        );
+
+        console.log(
+          `Notificação SSE de status enviada para motoboy ${motoboy.name}: ${previousStatus} → ${newStatus}`
+        );
+      } catch (notifyError) {
+        console.error("Erro ao enviar notificação SSE de status:", notifyError);
       }
     }
 

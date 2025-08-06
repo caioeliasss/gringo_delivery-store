@@ -169,6 +169,7 @@ export default function OcorrenciasPage() {
       setLoading(true);
       const ocorrenciaData = {
         type: formData.assunto,
+        storeId: estabelecimento?._id || null,
         firebaseUid: currentUser?.uid || null,
         description: formData.descricao,
         estabelecimentoId: estabelecimento._id || null,

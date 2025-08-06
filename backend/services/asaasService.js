@@ -5,8 +5,8 @@ class AsaasService {
   constructor() {
     this.baseURL =
       process.env.ASAAS_ENVIRONMENT === "production"
-        ? "https://www.asaas.com/api/v3"
-        : "https://sandbox.asaas.com/api/v3";
+        ? "https://api.asaas.com/v3"
+        : "https://api-sandbox.asaas.com/v3";
 
     this.apiKey = process.env.ASAAS_API_KEY;
 
@@ -206,23 +206,48 @@ class AsaasService {
   // Criar transferência PIX
   async createPixTransfer(data) {
     try {
-      console.log("Criando transferência PIX com dados:", data);
-      const response = await this.api.post("/transfers", {
+      // Primeiro, teste a conectividade
+
+      // CORRIGIR: Testar endpoint padrão do Asaas para transferências
+      const payload = {
         value: data.value,
-        pixAddressKey: data.pixKey,
+        pixAddressKey: data.pixKey, // Voltar para pixAddressKey (documentação oficial)
         pixAddressKeyType: data.pixKeyType, // EMAIL, CPF, CNPJ, PHONE, EVP
         description:
           data.description || "Pagamento de corrida - Gringo Delivery",
-        scheduleDate: data.scheduleDate || null, // Para agendamento
-      });
+      };
 
-      console.log("Transferência PIX criada com sucesso:", response.data);
+      // Remover scheduleDate se for null para evitar problemas
+      if (data.scheduleDate) {
+        payload.scheduleDate = data.scheduleDate;
+      }
+
+      const response = await this.api.post("/transfers", payload);
 
       return response.data;
     } catch (error) {
-      console.error("Erro ao criar transferência PIX:", error.response?.data);
+      console.error("❌ Erro detalhado ao criar transferência PIX:");
+      console.error("  - Status:", error.response?.status);
+      console.error("  - Status Text:", error.response?.statusText);
+      console.error("  - Data:", error.response?.data);
+      console.error("  - URL:", error.config?.url);
+      console.error("  - Method:", error.config?.method);
+      console.error("  - BaseURL:", error.config?.baseURL);
+
+      // Se for HTML (erro 404), é problema de endpoint
+      if (
+        typeof error.response?.data === "string" &&
+        error.response.data.includes("<!doctype html>")
+      ) {
+        throw new Error(
+          `Endpoint não encontrado: ${error.config?.baseURL}${error.config?.url}. A API do Asaas pode estar com problemas ou o endpoint mudou.`
+        );
+      }
+
       throw new Error(
         error.response?.data?.errors?.[0]?.description ||
+          error.response?.data?.message ||
+          `Erro HTTP ${error.response?.status}: ${error.response?.statusText}` ||
           "Erro ao processar transferência"
       );
     }

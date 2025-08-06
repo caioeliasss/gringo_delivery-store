@@ -1380,7 +1380,13 @@ const Occurrences = () => {
                       Endereço:
                     </Typography>
                     <Typography variant="body1">
-                      {storeDetails.address}
+                      {typeof storeDetails.address === "string"
+                        ? storeDetails.address
+                        : `${storeDetails.address.address || ""}, ${
+                            storeDetails.address.addressNumber || ""
+                          } - ${storeDetails.address.bairro || ""}, ${
+                            storeDetails.address.cidade || ""
+                          } - CEP: ${storeDetails.address.cep || ""}`}
                     </Typography>
                   </Box>
                 </Grid>

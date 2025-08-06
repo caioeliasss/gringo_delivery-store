@@ -25,6 +25,7 @@ const notificationSchema = new mongoose.Schema({
       "CALL_STYLE",
       "ORDER_READY",
       "FULLSCREEN_CALL",
+      "ORDER_STATUS_UPDATE",
     ],
     required: true,
   },

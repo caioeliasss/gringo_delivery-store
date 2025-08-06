@@ -1244,8 +1244,8 @@ const Pedidos = () => {
       const phoneNumber = pedido.motoboy.phone;
       const motoboyId = pedido.motoboy.motoboyId;
 
-      const orderReady = require("../../services/api").orderReady;
-      const response = await orderReady(motoboyId, pedido._id);
+      const orderReady = require("../../services/api").updateOrderStatus;
+      const response = await orderReady(pedido._id, "pronto");
       if (response.status > 199 && response.status < 300) {
         setSnackbar({
           open: true,
