@@ -294,6 +294,7 @@ orderSchema.pre("save", function (next) {
     console.log(
       `🔄 Motoboy atribuído ao pedido ${this._id}, iniciando timer...`
     );
+    this.motoboy.timer = Date.now();
 
     // Importar o serviço de motoboy e iniciar o timer
     const motoboyServices = require("../services/motoboyServices");

@@ -1,5 +1,8 @@
 // backend/socket/socketHandler.js
 const Motoboy = require("../models/Motoboy");
+const Order = require("../models/Order");
+const Travel = require("../models/Travel");
+const notificationService = require("../services/notificationService");
 
 module.exports = (io, socketManager) => {
   io.on("connection", (socket) => {
@@ -92,13 +95,45 @@ module.exports = (io, socketManager) => {
     // Aceitar pedido via socket
     socket.on("acceptOrder", async (data) => {
       try {
-        const { orderId, motoboyId } = data;
-        console.log(`Pedido ${orderId} aceito pelo motoboy ${motoboyId}`);
+        const { orderId, motoboyId, travelId } = data;
+        console.log(
+          `Pedido ${orderId} aceito pelo motoboy ${motoboyId} e travelId ${travelId}`
+        );
+
+        const motoboy = await Motoboy.findById(motoboyId);
+        if (!motoboy) {
+          throw new Error("Motoboy não encontrado");
+        }
+
+        // Atualizar motoboy como indisponível e com corrida ativa
+        await Motoboy.findByIdAndUpdate(motoboyId, {
+          isAvailable: false,
+          race: {
+            travelId: travelId,
+            orderId: orderId,
+            active: true,
+          },
+        });
+
+        // Atualizar status do pedido no banco de dados
+        await Order.findByIdAndUpdate(orderId, {
+          status: "em_preparo",
+          "motoboy.motoboyId": motoboyId,
+          "motoboy.name": motoboy.name,
+          "motoboy.phone": motoboy.phoneNumber,
+          "motoboy.phoneNumber": motoboy.phoneNumber,
+          "motoboy.queue.status": "confirmado",
+        });
+
+        console.log(
+          `✅ Pedido ${orderId} aceito e motoboy ${motoboyId} marcado como indisponível`
+        );
 
         // Notificar loja sobre aceite
         io.emit("orderAccepted", {
           orderId,
           motoboyId,
+          travelId,
           timestamp: new Date().toISOString(),
         });
 
@@ -107,6 +142,7 @@ module.exports = (io, socketManager) => {
           message: "Pedido aceito com sucesso",
         });
       } catch (error) {
+        console.error("Erro ao aceitar pedido:", error);
         socket.emit("acceptOrder:error", {
           message: error.message,
         });

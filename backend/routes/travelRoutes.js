@@ -16,9 +16,12 @@ const createTravel = async (req, res) => {
       motoboyId: order.motoboy.motoboyId,
       order: order,
     });
-    travel.save();
-    res.json(travel);
+
+    // Aguardar o save e retornar o travel com _id
+    const savedTravel = await travel.save();
+    res.json(savedTravel);
   } catch (error) {
+    console.error("Erro ao criar travel:", error);
     res.status(500).json({ message: error.message });
   }
 };

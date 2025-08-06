@@ -622,8 +622,38 @@ const acceptTerms = async (req, res) => {
   }
 };
 
-router.post("/accept-terms", authenticateToken, acceptTerms);
+const arrivedAtStore = async (req, res) => {
+  try {
+    const { motoboyId, arrivedAt } = req.body;
+    if (!motoboyId || !arrivedAt) {
+      return res
+        .status(400)
+        .json({ message: "Motoboy ID e hora de chegada são necessários" });
+    }
+    const motoboy = await Motoboy.findById(motoboyId);
+    if (!motoboy) {
+      return res.status(404).json({ message: "Motoboy não encontrado" });
+    }
+    const order = await Order.findById(motoboy.race?.orderId);
+    if (!order) {
+      return res
+        .status(404)
+        .json({ message: "Pedido não encontrado para este motoboy" });
+    }
+    order.motoboy.hasArrived = true;
+    await order.save();
+    res.status(200).json({ message: "Chegada na loja registrada com sucesso" });
+  } catch (error) {
+    console.error("Erro ao registrar chegada na loja:", error);
+    res.status(500).json({
+      message: "Erro ao registrar chegada na loja",
+      error: error.message,
+    });
+  }
+};
 
+router.post("/arrived", authenticateToken, arrivedAtStore);
+router.post("/accept-terms", authenticateToken, acceptTerms);
 router.delete(
   "/removeMotoboyFromOrder/:orderId/:motoboyId",
   removeMotoboyFromOrder

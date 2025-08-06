@@ -1,11 +1,9 @@
 const Motoboy = require("../models/Motoboy");
 const geolib = require("geolib");
-const Notification = require("../models/Notification");
-const mongoose = require("mongoose");
-const axios = require("axios");
 const Order = require("../models/Order");
 const Travel = require("../models/Travel");
 const NotificationService = require("./notificationService");
+const notificationService = require("./notificationService");
 /**
  * Service for handling motoboy operations
  */
@@ -27,8 +25,6 @@ class MotoboyService {
     this.processingOrders = new Map();
     // Map to store active timers for cancellation
     this.activeTimers = new Map();
-
-    this.apiBaseUrl = process.env.API_URL || "http://localhost:8080/api";
   }
 
   async findBestMotoboys(coordinates, maxDistance = 5000, limit = 50) {
@@ -119,6 +115,25 @@ class MotoboyService {
    * @returns {Promise<Object>} - Result of the assignment attempt
    */
   async processMotoboyQueue(motoboys, order) {
+    // Verificar se o pedido já foi aceito por algum motoboy
+    const currentOrder = await Order.findById(order._id).select("motoboy");
+    if (
+      currentOrder &&
+      currentOrder.motoboy &&
+      currentOrder.motoboy.motoboyId &&
+      currentOrder.motoboy.queue &&
+      currentOrder.motoboy.queue.status === "confirmado"
+    ) {
+      console.log(
+        `✅ Pedido ${order._id} já foi aceito pelo motoboy ${currentOrder.motoboy.motoboyId}`
+      );
+      return {
+        success: true,
+        order: currentOrder,
+        message: "Order already accepted by another motoboy",
+      };
+    }
+
     // If no motoboys left, return failure
     if (motoboys.length === 0) {
       console.log(`❌ [QUEUE DEBUG] Nenhum motoboy na lista`);
@@ -152,17 +167,38 @@ class MotoboyService {
       // Se o motoboy está na blacklist, tentar o próximo
       return this.processMotoboyQueue(motoboys.slice(1), order);
     }
+
     try {
+      // Verificar novamente se o pedido já foi aceito antes de fazer request
+      const checkOrder = await Order.findById(order._id).select("motoboy");
+      if (
+        checkOrder &&
+        checkOrder.motoboy &&
+        checkOrder.motoboy.motoboyId &&
+        checkOrder.motoboy.queue &&
+        checkOrder.motoboy.queue.status === "confirmado"
+      ) {
+        console.log(
+          `✅ Pedido ${order._id} já foi aceito durante o processamento`
+        );
+        return {
+          success: true,
+          order: checkOrder,
+          message: "Order was accepted while processing queue",
+        };
+      }
+
       const accepted = await this.requestMotoboy(motoboy, order);
 
       if (accepted) {
-        order.motoboy.queue.status = "aceito";
+        order.motoboy.queue.status = "confirmado";
         // Motoboy accepted, assign to order
         order.motoboy = {
           ...order.motoboy,
           motoboyId: motoboy._id,
           name: motoboy.name,
           phone: motoboy.phoneNumber,
+          phoneNumber: motoboy.phoneNumber,
           timer: Date.now(),
           location: {
             estimatedTime: motoboy.estimatedTimeMinutes,
@@ -173,6 +209,10 @@ class MotoboyService {
 
         // Save the updated order
         await order.save();
+
+        console.log(
+          `🔄 Motoboy ${motoboy.name} atribuído ao pedido ${order._id}, iniciando timer...`
+        );
 
         // Iniciar timer de 15 minutos para verificar se o motoboy chegou
         this.timerCounting(order._id);
@@ -207,9 +247,8 @@ class MotoboyService {
   }
 
   /**
-   * Request a motoboy to take a delivery
-   * In a real system, this would send a notification to the motoboy's device
-   * and wait for their response with a timeout
+   * Request a motoboy to take a delivery using polling method
+   * Checks if the order.motoboy.motoboyId matches the requested motoboy ID
    *
    * @param {Object} motoboy - The motoboy to request
    * @param {Object} order - The order to deliver
@@ -217,94 +256,109 @@ class MotoboyService {
    */
   async requestMotoboy(motoboy, order) {
     try {
-      // Verificar disponibilidade
+      // Verificar disponibilidade do motoboy
       const motoboyAtual = await Motoboy.findById(motoboy._id).select(
-        "isAvailable"
+        "isAvailable firebaseUid name phoneNumber fcmToken"
       );
       if (!motoboyAtual || !motoboyAtual.isAvailable) {
+        console.log(`❌ Motoboy ${motoboy.name} não está disponível`);
         return false;
       }
 
-      // Criar notificação
-      try {
-        const response = await axios.post(`${this.apiBaseUrl}/notifications`, {
-          motoboyId: motoboy._id,
+      if (motoboy._id) {
+        console.log(
+          `📱 Enviando oferta de entrega para ${motoboy.name} via WebSocket`
+        );
+        notificationService.createDeliveryRequestNotification({
+          motoboyId: motoboy._id.toString(),
           order: order,
         });
-        // Enviar push/notificação ao app (simulado)
-        console.log(`Notificando id: ${response.data._id}`);
+      }
 
+      try {
+        // Iniciar polling para verificar se o motoboy aceitou
         return new Promise((resolve) => {
-          // 1. Monitorar mudanças na notificação
-          const notificationId =
-            typeof response.data._id === "string"
-              ? new mongoose.Types.ObjectId(response.data._id)
-              : response.data._id;
+          let attempts = 0;
+          const maxAttempts = 60; // 60 tentativas = 60 segundos
+          const orderId = order._id.toString();
+          const motoboyId = motoboy._id.toString();
 
-          // Use a more reliable match pattern
-          const changeStream = Notification.watch([
-            {
-              $match: {
-                operationType: { $in: ["update", "replace"] },
-                "documentKey._id": notificationId,
-              },
-            },
-          ]);
-          // 2. Quando houver mudança
-          changeStream.on("change", async (change) => {
-            let novoStatus;
+          console.log(
+            `🔍 Iniciando polling para pedido ${orderId} e motoboy ${motoboy.name}`
+          );
 
-            // Extrair o novo status
-            if (
-              change.operationType === "update" &&
-              change.updateDescription.updatedFields.status
-            ) {
-              novoStatus = change.updateDescription.updatedFields.status;
-            } else if (change.operationType === "replace") {
-              novoStatus = change.fullDocument.status;
-            }
+          const checkAcceptance = async () => {
+            try {
+              attempts++;
 
-            // Se status mudou e não é mais PENDING
-            if (novoStatus && novoStatus !== "PENDING") {
-              // Fechar monitoramento
-              changeStream.close();
-              const aceito = novoStatus === "ACCEPTED";
-              // Se aceitou, atualizar motoboy como indisponível
-              if (aceito) {
-                await Motoboy.findByIdAndUpdate(motoboy._id, {
-                  isAvailable: false,
-                  race: {
-                    orderId: order._id,
-                    active: true,
-                  },
-                });
+              // Buscar o pedido atualizado
+              const updatedOrder = await Order.findById(orderId).select(
+                "motoboy"
+              );
+
+              if (!updatedOrder) {
+                console.log(`❌ Pedido ${orderId} não encontrado`);
+                resolve(false);
+                return;
               }
 
-              resolve(aceito);
+              // Verificar se o motoboy foi atribuído ao pedido
+              if (
+                updatedOrder.motoboy &&
+                updatedOrder.motoboy.motoboyId &&
+                updatedOrder.motoboy.motoboyId.toString() === motoboyId
+              ) {
+                console.log(
+                  `✅ Motoboy ${motoboy.name} aceitou o pedido ${orderId}`
+                );
+                resolve(true);
+                return;
+              }
+
+              // Verificar se outro motoboy já aceitou o pedido
+              if (
+                updatedOrder.motoboy &&
+                updatedOrder.motoboy.motoboyId &&
+                updatedOrder.motoboy.motoboyId.toString() !== motoboyId &&
+                updatedOrder.motoboy.queue &&
+                updatedOrder.motoboy.queue.status === "confirmado"
+              ) {
+                console.log(
+                  `❌ Pedido ${orderId} já foi aceito por outro motoboy (${updatedOrder.motoboy.motoboyId})`
+                );
+                resolve(false);
+                return;
+              }
+
+              // Verificar se atingiu o limite de tentativas
+              if (attempts >= maxAttempts) {
+                console.log(
+                  `⏰ Timeout atingido para motoboy ${motoboy.name} no pedido ${orderId}`
+                );
+                resolve(false);
+                return;
+              }
+
+              // Continuar verificando em 1 segundo
+              setTimeout(checkAcceptance, 1000);
+            } catch (error) {
+              console.error(
+                `❌ Erro durante polling para ${motoboy.name}:`,
+                error
+              );
+              resolve(false);
             }
-          });
+          };
 
-          // 3. Timeout para caso não haja resposta
-          const timeout = setTimeout(async () => {
-            changeStream.close();
-
-            // Verificar se notificação ainda está pendente
-            const notificacaoAtual = await Notification.findById(
-              response.data._id
-            );
-            if (notificacaoAtual && notificacaoAtual.status === "PENDING") {
-              notificacaoAtual.status = "EXPIRED";
-              await notificacaoAtual.save();
-            }
-
-            resolve(false);
-          }, 60000); // 30 segundos
+          // Iniciar verificação
+          checkAcceptance();
         });
       } catch (error) {
-        console.error(error);
+        console.error(`❌ Erro ao enviar oferta para ${motoboy.name}:`, error);
+        return false;
       }
     } catch (error) {
-      console.error("Erro ao solicitar motoboy:", error);
+      console.error("❌ Erro ao solicitar motoboy:", error);
       return false;
     }
   }

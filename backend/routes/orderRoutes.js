@@ -297,7 +297,6 @@ router.put("/status", authenticateToken, async (req, res) => {
     }
 
     // Atualizar status
-    order.motoboy.queue.status = status;
     order.status = status;
     await order.save();
 
