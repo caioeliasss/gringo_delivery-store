@@ -14,6 +14,7 @@ import {
   Map as MapIcon,
   Support as SupportIcon,
   DriveEta as DriversIcon,
+  Notifications as NotificationsIcon,
 } from "@mui/icons-material";
 
 // Configuração centralizada dos itens de menu para o sistema de suporte
@@ -27,6 +28,11 @@ const ORIGINAL_SUPPORT_MENU_ITEMS = [
     path: "/ocorrencias",
     text: "Ocorrências",
     icon: <ReportProblemIcon />,
+  },
+  {
+    path: "/notificacoes",
+    text: "Notificações",
+    icon: <NotificationsIcon />,
   },
   {
     path: "/chat",

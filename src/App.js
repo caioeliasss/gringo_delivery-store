@@ -33,6 +33,7 @@ import MotoboysPage from "./pages/Motoboys";
 import EstabelecimentosPage from "./pages/Estabelecimentos";
 import PrecificacaoPage from "./pages/Precificacao/Precificacao";
 import SupportPage from "./pages/Admin/SuportTeam/SupportPage";
+import SupportNotifications from "./pages/Suporte/SupportNotifications";
 import Termos from "./pages/Termos/Termos";
 // Definir tema personalizado com a paleta de cores da Gringo Delivery
 const theme = createTheme({
@@ -294,6 +295,16 @@ function SuporteApp() {
               <SuporteAuthProvider>
                 <PrivateRoute>
                   <Occurrences />
+                </PrivateRoute>
+              </SuporteAuthProvider>
+            }
+          />
+          <Route
+            path="/notificacoes"
+            element={
+              <SuporteAuthProvider>
+                <PrivateRoute>
+                  <SupportNotifications />
                 </PrivateRoute>
               </SuporteAuthProvider>
             }

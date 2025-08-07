@@ -19,6 +19,7 @@ import {
   Chat as ChatIcon,
 } from "@mui/icons-material";
 import { useAuth } from "../../contexts/AuthContext";
+import NotificationIndicator from "../NotificationIndicator";
 
 const SideDrawer = ({
   open,
@@ -96,7 +97,14 @@ const SideDrawer = ({
             }}
           >
             {item.icon && (
-              <ListItemIcon sx={{ color: "inherit" }}>{item.icon}</ListItemIcon>
+              <ListItemIcon sx={{ color: "inherit" }}>
+                {/* Adicionar indicador de notificação se for o item de notificações */}
+                {item.path === "/notificacoes" ? (
+                  <NotificationIndicator>{item.icon}</NotificationIndicator>
+                ) : (
+                  item.icon
+                )}
+              </ListItemIcon>
             )}
             <ListItemText primary={item.text} />
           </ListItem>

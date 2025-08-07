@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-
+const notificationService = require("../services/notificationService");
 // Modelo de Ocorrência
 const Occurrence = require("../models/Occurrence");
 
@@ -90,6 +90,17 @@ router.post("/", async (req, res) => {
     });
 
     const savedOccurrence = await newOccurrence.save();
+
+    notificationService.notifySupport({
+      title: "Nova Ocorrência",
+      message: `Nova ocorrência registrada por ${name}`,
+      body: `Nova ocorrência registrada por ${name}`,
+      data: {
+        occurrenceId: savedOccurrence._id,
+        type: type,
+        status: "ABERTO",
+      },
+    });
 
     res.status(201).json(savedOccurrence);
   } catch (error) {

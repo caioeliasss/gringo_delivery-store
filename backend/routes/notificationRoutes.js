@@ -35,6 +35,65 @@ const getNotificationsAll = async (req, res) => {
   }
 };
 
+const getSupportNotifications = async (req, res) => {
+  try {
+    const { firebaseUid } = req.query;
+
+    if (!firebaseUid) {
+      return res.status(400).json({
+        message: "firebaseUid é obrigatório",
+      });
+    }
+
+    const notifications = await Notification.find({
+      firebaseUid: firebaseUid,
+      $or: [{ type: "SUPPORT_ALERT" }, { type: "SUPPORT" }, { type: "SYSTEM" }],
+    }).sort({ createdAt: -1 });
+
+    res.json(notifications);
+  } catch (error) {
+    console.error("Erro ao buscar notificações do suporte:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const updateSupportNotification = async (req, res) => {
+  try {
+    const { id, status } = req.body;
+
+    if (!id || !status) {
+      return res.status(400).json({
+        message: "Dados incompletos. id e status são obrigatórios",
+      });
+    }
+
+    const notification = await Notification.findById(id);
+    if (!notification) {
+      return res.status(404).json({ message: "Notificação não encontrada" });
+    }
+
+    notification.status = status;
+    await notification.save();
+
+    // Enviar atualização via Socket se disponível
+    if (global.sendSocketNotification && notification.firebaseUid) {
+      global.sendSocketNotification(
+        notification.firebaseUid,
+        "notificationUpdateBell",
+        notification.status !== "READ"
+      );
+    }
+
+    res.status(200).json({
+      message: "Notificação atualizada com sucesso",
+      notification,
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar notificação do suporte:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 const createNotification = async (req, res) => {
   try {
     const { motoboyId, order, fullscreen } = req.body;
@@ -528,8 +587,10 @@ router.post("/notifySupport", notifySupport);
 router.post("/generic", createNotificationGeneric);
 router.get("/", getNotifications);
 router.get("/all", getNotificationsAll);
+router.get("/support", getSupportNotifications);
 router.post("/", createNotification);
 router.put("/", updateNotification);
+router.put("/support", updateSupportNotification);
 router.post("/call-style", createCallStyleNotification);
 router.post("/call-style/respond", respondToCallStyleNotification);
 router.get("/call-style/:callId", getCallInfo);
