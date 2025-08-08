@@ -89,14 +89,39 @@ const SupportNotifications = () => {
       setPushSupported(supported);
 
       if (supported) {
-        const permission = Notification.permission;
-        setPushPermission(permission);
-        setPushEnabled(permission === "granted");
+        // Verificar status atual primeiro
+        const status = await webPushService.checkCurrentStatus();
 
-        // Inicializar o service
-        await webPushService.initialize();
+        setPushPermission(status.permission);
+        setPushEnabled(status.isFullyConfigured);
 
-        // Obter diagnósticos
+        if (status.isFullyConfigured) {
+          console.log("🔔 Notificações push já configuradas e funcionando");
+
+          // Mostrar feedback discreto
+          setTimeout(() => {
+            setSnackbar({
+              open: true,
+              message: "Notificações push ativas ✅",
+              severity: "success",
+            });
+          }, 1000);
+        } else if (status.hasPermission && !status.serviceWorkerRegistered) {
+          // Tem permissão mas service worker não está registrado - tentar inicializar
+          console.log("� Tentando reconectar Service Worker...");
+          const initialized = await webPushService.initialize();
+
+          if (initialized) {
+            setPushEnabled(true);
+            setSnackbar({
+              open: true,
+              message: "Notificações push reconectadas!",
+              severity: "success",
+            });
+          }
+        }
+
+        // Obter diagnósticos atualizados
         setDiagnostics(webPushService.getDiagnostics());
       }
     };
@@ -116,7 +141,9 @@ const SupportNotifications = () => {
     }
 
     if (!pushEnabled) {
-      // Solicitar permissão e habilitar
+      // Habilitar notificações
+      console.log("🔔 Tentando habilitar notificações push...");
+
       const granted = await webPushService.requestPermission();
       if (granted) {
         const initialized = await webPushService.initialize();
@@ -152,11 +179,13 @@ const SupportNotifications = () => {
         });
       }
     } else {
-      // Desabilitar (apenas visual, não podemos remover permissão)
+      // Desabilitar notificações (apenas visual, não podemos remover permissão)
+      console.log("🔕 Desabilitando notificações push visualmente...");
       setPushEnabled(false);
       setSnackbar({
         open: true,
-        message: "Notificações push desabilitadas",
+        message:
+          "Notificações push desabilitadas (para reabilitar, use o switch)",
         severity: "info",
       });
     }
@@ -302,8 +331,38 @@ const SupportNotifications = () => {
     // Configurar intervalo para atualizar periodicamente
     const interval = setInterval(fetchNotifications, 30000); // 30 segundos
 
-    return () => clearInterval(interval);
-  }, [user]);
+    // Configurar verificação periódica do status das notificações push
+    const pushCheckInterval = setInterval(async () => {
+      if (pushSupported && pushEnabled) {
+        const status = await webPushService.checkCurrentStatus();
+
+        if (!status.isFullyConfigured && pushEnabled) {
+          console.warn(
+            "⚠️ Notificações push perderam configuração, tentando reconectar..."
+          );
+
+          const initialized = await webPushService.initialize();
+          if (!initialized) {
+            setPushEnabled(false);
+            setSnackbar({
+              open: true,
+              message:
+                "Notificações push foram perdidas. Reative-as clicando no switch.",
+              severity: "warning",
+            });
+          }
+        }
+
+        // Atualizar diagnósticos
+        setDiagnostics(webPushService.getDiagnostics());
+      }
+    }, 60000); // Verificar a cada minuto
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(pushCheckInterval);
+    };
+  }, [user, pushSupported, pushEnabled]);
 
   if (loading) {
     return (
@@ -421,9 +480,23 @@ const SupportNotifications = () => {
             <Typography variant="caption">
               <strong>Debug:</strong> User: {user?.uid} | Socket:{" "}
               {isConnected ? "✅" : "❌"} | Push: {pushEnabled ? "✅" : "❌"} |
-              SW: {diagnostics?.serviceWorkerRegistered ? "✅" : "❌"}
+              SW: {diagnostics?.serviceWorkerRegistered ? "✅" : "❌"} |
+              Permission: {pushPermission}
               {connectionError && ` | Error: ${connectionError}`}
             </Typography>
+            <Box sx={{ mt: 1 }}>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={async () => {
+                  const status = await webPushService.checkCurrentStatus();
+                  console.log("🔍 Status completo:", status);
+                  alert(`Status: ${JSON.stringify(status, null, 2)}`);
+                }}
+              >
+                Verificar Status Completo
+              </Button>
+            </Box>
           </Alert>
         )}
 

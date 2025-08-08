@@ -358,6 +358,50 @@ class WebPushService {
     return this.permission === "granted";
   }
 
+  // Verificar status atual sem alterar nada
+  async checkCurrentStatus() {
+    console.log("🔍 Verificando status atual das notificações...");
+
+    // Atualizar permissão
+    this.permission = Notification.permission;
+
+    // Verificar se existe service worker registrado
+    try {
+      const existingRegistration =
+        await navigator.serviceWorker.getRegistration("/");
+      const hasServiceWorker = !!existingRegistration;
+
+      const status = {
+        supported: this.isSupported(),
+        permission: this.permission,
+        hasPermission: this.hasPermission(),
+        serviceWorkerRegistered: hasServiceWorker,
+        isFullyConfigured: this.hasPermission() && hasServiceWorker,
+      };
+
+      console.log("📊 Status das notificações:", status);
+
+      if (status.isFullyConfigured && !this.serviceWorkerRegistration) {
+        // Se tudo está configurado mas não temos a referência, reconectar
+        console.log("🔄 Reconectando ao Service Worker...");
+        this.serviceWorkerRegistration = existingRegistration;
+        this.setupServiceWorkerListeners();
+      }
+
+      return status;
+    } catch (error) {
+      console.warn("Erro ao verificar status:", error);
+      return {
+        supported: this.isSupported(),
+        permission: this.permission,
+        hasPermission: this.hasPermission(),
+        serviceWorkerRegistered: false,
+        isFullyConfigured: false,
+        error: error.message,
+      };
+    }
+  }
+
   // Limpar todas as notificações
   clearAllNotifications() {
     if (this.serviceWorkerRegistration) {
@@ -399,6 +443,37 @@ class WebPushService {
     if (!this.isSupported()) {
       console.warn("❌ Notificações não são suportadas neste navegador");
       return false;
+    }
+
+    // Verificar se existe uma registration existente primeiro
+    try {
+      const existingRegistration =
+        await navigator.serviceWorker.getRegistration("/");
+      if (existingRegistration) {
+        console.log(
+          "🔍 Service Worker existente encontrado:",
+          existingRegistration
+        );
+        this.serviceWorkerRegistration = existingRegistration;
+        this.setupServiceWorkerListeners();
+
+        // Atualizar permissão atual
+        this.permission = Notification.permission;
+
+        if (this.permission === "granted") {
+          console.log(
+            "✅ Reconectado ao Service Worker existente com permissão"
+          );
+          return true;
+        } else {
+          console.log(
+            "⚠️ Service Worker reconectado, mas sem permissão de notificação"
+          );
+          return true;
+        }
+      }
+    } catch (error) {
+      console.warn("Erro ao verificar Service Worker existente:", error);
     }
 
     // Se já tem permissão, registrar service worker

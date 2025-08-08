@@ -1,48 +1,51 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import { 
-  Container, 
-  Typography, 
-  Box, 
-  TextField, 
-  Button, 
+import React, { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+import {
+  Container,
+  Typography,
+  Box,
+  TextField,
+  Button,
   Paper,
   Link as MuiLink,
   Alert,
   CircularProgress,
-  Divider
-} from '@mui/material';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
-import GoogleIcon from '@mui/icons-material/Google';
+  Divider,
+} from "@mui/material";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import GoogleIcon from "@mui/icons-material/Google";
 
 const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login, loginWithGoogle } = useAuth();
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const { login, loginWithGoogle, resetPassword } = useAuth();
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
-      setError('Por favor, preencha todos os campos');
+      setError("Por favor, preencha todos os campos");
       return;
     }
 
     try {
-      setError('');
+      setError("");
+      setMessage("");
       setLoading(true);
       await login(email, password);
-      navigate('/dashboard');
+      navigate("/dashboard");
     } catch (error) {
-      console.error('Erro no login:', error.message);
+      console.error("Erro no login:", error.message);
       setError(
-        error.code === 'auth/invalid-credential' 
-          ? 'Email ou senha incorretos' 
-          : 'Falha ao fazer login. Tente novamente.'
+        error.code === "auth/invalid-credential"
+          ? "Email ou senha incorretos"
+          : "Falha ao fazer login. Tente novamente."
       );
     } finally {
       setLoading(false);
@@ -51,13 +54,49 @@ const Login = () => {
 
   const handleGoogleLogin = async () => {
     try {
-      setError('');
+      setError("");
+      setMessage("");
       setLoading(true);
       await loginWithGoogle();
-      navigate('/dashboard');
+      navigate("/dashboard");
     } catch (error) {
-      console.error('Erro no login com Google:', error.message);
-      setError('Falha ao fazer login com Google');
+      console.error("Erro no login com Google:", error.message);
+      setError("Falha ao fazer login com Google");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async (e) => {
+    e.preventDefault();
+
+    if (!email) {
+      setError("Por favor, digite seu email para recuperar a senha");
+      return;
+    }
+
+    try {
+      setError("");
+      setMessage("");
+      setLoading(true);
+      await resetPassword(email);
+      setMessage(
+        "Email de recuperação enviado! Verifique sua caixa de entrada."
+      );
+      setShowPasswordReset(false);
+    } catch (error) {
+      console.error("Erro ao enviar email de recuperação:", error.message);
+      let errorMessage = "Falha ao enviar email de recuperação";
+
+      if (error.code === "auth/user-not-found") {
+        errorMessage = "Email não encontrado";
+      } else if (error.code === "auth/invalid-email") {
+        errorMessage = "Email inválido";
+      } else if (error.code === "auth/too-many-requests") {
+        errorMessage = "Muitas tentativas. Tente novamente mais tarde";
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -68,10 +107,10 @@ const Login = () => {
       <Box
         sx={{
           marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          minHeight: '100vh'
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          minHeight: "100vh",
         }}
       >
         {/* Logo */}
@@ -82,103 +121,189 @@ const Login = () => {
             style={{ height: 80 }}
           />
         </Box>
-        
-        <Paper 
-          elevation={3} 
-          sx={{ 
-            p: 4, 
-            display: 'flex', 
-            flexDirection: 'column', 
-            alignItems: 'center',
-            width: '100%',
+
+        <Paper
+          elevation={3}
+          sx={{
+            p: 4,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            width: "100%",
             maxWidth: 400,
-            borderRadius: 3
+            borderRadius: 3,
           }}
         >
-          <Box 
-            sx={{ 
-              bgcolor: 'primary.main', 
-              borderRadius: '100%', 
-              p: 1, 
+          <Box
+            sx={{
+              bgcolor: "primary.main",
+              borderRadius: "100%",
+              p: 1,
               mb: 2,
-              color: 'white'
+              color: "white",
             }}
           >
-            <LockOutlinedIcon fontSize="large" style={{marginTop: "4px"}}/>
+            <LockOutlinedIcon fontSize="large" style={{ marginTop: "4px" }} />
           </Box>
-          
+
           <Typography component="h1" variant="h5" fontWeight="bold" mb={3}>
-            Login
+            {showPasswordReset ? "Recuperar Senha" : "Login"}
           </Typography>
-          
+
           {error && (
-            <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
+            <Alert severity="error" sx={{ width: "100%", mb: 2 }}>
               {error}
             </Alert>
           )}
-          
-          <Box component="form" onSubmit={handleLogin} sx={{ width: '100%' }}>
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="email"
-              label="Email"
-              name="email"
-              autoComplete="email"
-              autoFocus
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              variant="outlined"
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              name="password"
-              label="Senha"
-              type="password"
-              id="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              variant="outlined"
-            />
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              sx={{ mt: 3, mb: 2, py: 1.5 }}
-              disabled={loading}
+
+          {message && (
+            <Alert severity="success" sx={{ width: "100%", mb: 2 }}>
+              {message}
+            </Alert>
+          )}
+
+          {showPasswordReset ? (
+            // Formulário de recuperação de senha
+            <Box
+              component="form"
+              onSubmit={handlePasswordReset}
+              sx={{ width: "100%" }}
             >
-              {loading ? <CircularProgress size={24} color="inherit" /> : "Entrar"}
-            </Button>
-            
-            <Divider sx={{ my: 2 }}>ou</Divider>
-            
-            {/* Botão de login com Google (comentado) */}
-            {false && (
-              <Button
+              <TextField
+                margin="normal"
+                required
                 fullWidth
+                id="email"
+                label="Email para recuperação"
+                name="email"
+                autoComplete="email"
+                autoFocus
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 variant="outlined"
-                sx={{ mb: 2, py: 1.5 }}
-                startIcon={<GoogleIcon />}
-                onClick={handleGoogleLogin}
+                helperText="Digite o email da sua conta para receber o link de recuperação"
+              />
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                sx={{ mt: 3, mb: 2, py: 1.5 }}
                 disabled={loading}
               >
-                Entrar com Google
+                {loading ? (
+                  <CircularProgress size={24} color="inherit" />
+                ) : (
+                  "Enviar Email de Recuperação"
+                )}
               </Button>
-            )}
-            
-            <Box sx={{ mt: 2, textAlign: 'center' }}>
-              <Typography variant="body2">
-                Não tem uma conta?{' '}
-                <MuiLink component={Link} to="/register" variant="body2" fontWeight="bold" color="primary">
-                  Registre-se
-                </MuiLink>
-              </Typography>
+
+              <Button
+                fullWidth
+                variant="text"
+                sx={{ mb: 2 }}
+                onClick={() => {
+                  setShowPasswordReset(false);
+                  setError("");
+                  setMessage("");
+                }}
+                disabled={loading}
+              >
+                Voltar ao Login
+              </Button>
             </Box>
-          </Box>
+          ) : (
+            // Formulário de login normal
+            <Box component="form" onSubmit={handleLogin} sx={{ width: "100%" }}>
+              <TextField
+                margin="normal"
+                required
+                fullWidth
+                id="email"
+                label="Email"
+                name="email"
+                autoComplete="email"
+                autoFocus
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                variant="outlined"
+              />
+              <TextField
+                margin="normal"
+                required
+                fullWidth
+                name="password"
+                label="Senha"
+                type="password"
+                id="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                variant="outlined"
+              />
+
+              {/* Link para recuperação de senha */}
+              <Box sx={{ textAlign: "right", mt: 1, mb: 1 }}>
+                <Button
+                  variant="text"
+                  size="small"
+                  onClick={() => {
+                    setShowPasswordReset(true);
+                    setError("");
+                    setMessage("");
+                  }}
+                  disabled={loading}
+                  sx={{ textTransform: "none", fontSize: "0.875rem", mr: 1 }}
+                >
+                  Esqueceu sua senha?
+                </Button>
+              </Box>
+
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                sx={{ mt: 2, mb: 2, py: 1.5 }}
+                disabled={loading}
+              >
+                {loading ? (
+                  <CircularProgress size={24} color="inherit" />
+                ) : (
+                  "Entrar"
+                )}
+              </Button>
+
+              <Divider sx={{ my: 2 }}>ou</Divider>
+
+              {/* Botão de login com Google (comentado) */}
+              {false && (
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  sx={{ mb: 2, py: 1.5 }}
+                  startIcon={<GoogleIcon />}
+                  onClick={handleGoogleLogin}
+                  disabled={loading}
+                >
+                  Entrar com Google
+                </Button>
+              )}
+
+              <Box sx={{ mt: 2, textAlign: "center" }}>
+                <Typography variant="body2">
+                  Não tem uma conta?{" "}
+                  <MuiLink
+                    component={Link}
+                    to="/register"
+                    variant="body2"
+                    fontWeight="bold"
+                    color="primary"
+                  >
+                    Registre-se
+                  </MuiLink>
+                </Typography>
+              </Box>
+            </Box>
+          )}
         </Paper>
       </Box>
     </Container>
