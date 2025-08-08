@@ -66,6 +66,84 @@ router.get("/id/:id", async (req, res) => {
   }
 });
 
+// Endpoint de busca para estabelecimentos
+router.get("/search", async (req, res) => {
+  try {
+    const { q, approved, available, limit = 50 } = req.query;
+
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({
+        message: "Query de busca deve ter pelo menos 2 caracteres",
+      });
+    }
+
+    const searchTerm = q.trim();
+    const regex = new RegExp(searchTerm, "i"); // Case insensitive
+
+    // Construir query de busca com melhor tratamento de tipos
+    const searchConditions = [
+      { businessName: regex },
+      { displayName: regex },
+      { phone: regex },
+      { email: regex },
+      { "address.address": regex },
+      { "address.bairro": regex },
+      { "address.cidade": regex },
+      { "address.cep": regex },
+    ];
+
+    // Tratamento especial para CNPJ (que é Number no schema)
+    if (/^\d+$/.test(searchTerm)) {
+      // Se for apenas números, buscar como Number
+      searchConditions.push({ cnpj: parseInt(searchTerm) });
+    }
+
+    const searchQuery = {
+      $or: searchConditions,
+    };
+
+    console.log("🔍 Search term:", searchTerm);
+    console.log("🔍 Search query:", JSON.stringify(searchQuery, null, 2));
+
+    // Adicionar filtros opcionais
+    if (approved !== undefined) {
+      searchQuery.cnpj_approved = approved === "true";
+    }
+
+    if (available !== undefined) {
+      searchQuery.isAvailable = available === "true";
+    }
+
+    // Buscar estabelecimentos por múltiplos campos
+    console.log("🔍 Executing search query...");
+    const stores = await Store.find(searchQuery)
+      .select(
+        "businessName displayName phone email cnpj address firebaseUid isAvailable cnpj_approved createdAt"
+      )
+      .limit(parseInt(limit)) // Limitar resultados para performance
+      .sort({ businessName: 1 }) // Ordenar por nome
+      .lean(); // Para melhor performance
+
+    console.log(`✅ Search completed. Found ${stores.length} stores`);
+    res.status(200).json(stores);
+  } catch (error) {
+    console.error("❌ Erro na busca de estabelecimentos:", error);
+    console.error("❌ Error stack:", error.stack);
+    console.error(
+      "❌ Search query that failed:",
+      JSON.stringify(searchQuery, null, 2)
+    );
+
+    res.status(500).json({
+      message: "Erro ao buscar estabelecimentos",
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : "Internal server error",
+    });
+  }
+});
+
 router.get("/firebase/:id", async (req, res) => {
   try {
     const user = await Store.findOne({ firebaseUid: req.params.id });
@@ -500,6 +578,43 @@ router.post("/accept-terms", authenticateToken, async (req, res) => {
     console.error("Erro ao aceitar termos:", error);
     res.status(500).json({
       message: "Erro ao aceitar termos",
+      error: error.message,
+    });
+  }
+});
+
+// Endpoint para criar índices de busca (usar apenas uma vez para setup)
+router.post("/setup-search-indexes", async (req, res) => {
+  try {
+    // Criar índices compostos para melhorar performance de busca
+    await Store.collection.createIndex(
+      {
+        businessName: "text",
+        displayName: "text",
+        phone: "text",
+        email: "text",
+        cnpj: "text",
+        "address.address": "text",
+        "address.bairro": "text",
+        "address.cidade": "text",
+      },
+      {
+        name: "store_search_index",
+      }
+    );
+
+    // Índices individuais para filtros
+    await Store.collection.createIndex({ cnpj_approved: 1 });
+    await Store.collection.createIndex({ isAvailable: 1 });
+    await Store.collection.createIndex({ businessName: 1 });
+
+    res.status(200).json({
+      message: "Índices de busca criados com sucesso para estabelecimentos",
+    });
+  } catch (error) {
+    console.error("Erro ao criar índices:", error);
+    res.status(500).json({
+      message: "Erro ao criar índices de busca",
       error: error.message,
     });
   }

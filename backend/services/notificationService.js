@@ -92,6 +92,7 @@ class NotificationService {
               orderId: order._id,
             }
           );
+        console.log("Notificação enviada via FCM:", fcmNotification);
       } catch (pushError) {
         console.error("Erro ao enviar notificação call style:", pushError);
         // Não falhar o request se a notificação call style falhar

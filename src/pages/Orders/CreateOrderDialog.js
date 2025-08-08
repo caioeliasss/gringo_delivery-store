@@ -56,6 +56,7 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
   const [produtos, setProdutos] = useState([]);
   const [loadingStores, setLoadingStores] = useState(false);
   const [loadingProdutos, setLoadingProdutos] = useState(false);
+  const [produtosFetched, setProdutosFetched] = useState(false); // Controlar se já foram carregados
 
   // Estados do formulário
   const [selectedStore, setSelectedStore] = useState(null);
@@ -94,9 +95,11 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [driveBack, setDriveBack] = useState(false);
 
-  // Ref para o mapa
+  // Refs para os mapas (separados para evitar conflito)
   const mapRef = useRef(null);
+  const storeMapRef = useRef(null);
   const [map, setMap] = useState(null);
+  const [storeMap, setStoreMap] = useState(null);
 
   // Estados para controle do mapa
   const [mapCenter, setMapCenter] = useState({
@@ -115,41 +118,56 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
   useEffect(() => {
     if (open) {
       fetchStores();
+      // Carregar produtos do cache se existirem
+      loadProductsFromCache();
     }
   }, [open]);
 
-  // Configurar listener de clique no mapa
+  // Configurar listener de clique no mapa do cliente (sempre ativo quando o mapa existe)
   useEffect(() => {
     if (map && isLoaded) {
-      console.log("🎯 Configurando listener de clique no mapa");
+      console.log("🎯 Configurando listener de clique no mapa do cliente");
 
       const clickListener = map.addListener("click", (event) => {
-        console.log("🖱️ Clique detectado no mapa");
-        handleMapClick(event);
+        console.log("🖱️ Clique detectado no mapa do cliente");
+        handleCustomerMapClick(event);
       });
 
       return () => {
         if (clickListener) {
-          console.log("🧹 Removendo listener de clique");
+          console.log("🧹 Removendo listener de clique do mapa do cliente");
           clickListener.remove();
         }
       };
     }
-  }, [
-    map,
-    isLoaded,
-    activeCustomerIndex,
-    customers,
-    isSelectingStoreLocation,
-    selectedStore,
-  ]);
+  }, [map, isLoaded, activeCustomerIndex, customers]);
 
-  // Carregar produtos quando uma loja for selecionada
+  // Configurar listener de clique no mapa da loja (sempre ativo quando o mapa existe)
   useEffect(() => {
-    if (selectedStore) {
+    if (storeMap && isLoaded) {
+      console.log("🎯 Configurando listener de clique no mapa da loja");
+
+      const clickListener = storeMap.addListener("click", (event) => {
+        console.log("🖱️ Clique detectado no mapa da loja");
+        handleStoreMapClick(event);
+      });
+
+      return () => {
+        if (clickListener) {
+          console.log("🧹 Removendo listener de clique do mapa da loja");
+          clickListener.remove();
+        }
+      };
+    }
+  }, [storeMap, isLoaded, selectedStore]);
+
+  // Carregar produtos apenas uma vez quando uma loja for selecionada
+  useEffect(() => {
+    if (selectedStore && !produtosFetched && !loadingProdutos) {
+      console.log("🛍️ Carregando produtos da API...");
       fetchProdutos();
     }
-  }, [selectedStore]);
+  }, [selectedStore, produtosFetched, loadingProdutos]);
 
   // Calcular total quando itens mudarem
   useEffect(() => {
@@ -192,13 +210,115 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
     }
   };
 
+  // Função para carregar produtos do cache
+  const loadProductsFromCache = () => {
+    try {
+      const cachedProducts = localStorage.getItem("gringo-products-cache");
+      const cacheTimestamp = localStorage.getItem(
+        "gringo-products-cache-timestamp"
+      );
+
+      if (cachedProducts && cacheTimestamp) {
+        const now = new Date().getTime();
+        const cacheTime = parseInt(cacheTimestamp);
+        const fiveMinutes = 5 * 60 * 1000; // 5 minutos em ms
+
+        // Se o cache tem menos de 5 minutos, usar os dados em cache
+        if (now - cacheTime < fiveMinutes) {
+          const products = JSON.parse(cachedProducts);
+          setProdutos(products);
+          setProdutosFetched(true);
+          console.log(`📦 ${products.length} produtos carregados do cache`);
+          return;
+        }
+      }
+    } catch (error) {
+      console.warn("Erro ao carregar produtos do cache:", error);
+    }
+  };
+
+  // Função para salvar produtos no cache
+  const saveProductsToCache = (products) => {
+    try {
+      localStorage.setItem("gringo-products-cache", JSON.stringify(products));
+      localStorage.setItem(
+        "gringo-products-cache-timestamp",
+        new Date().getTime().toString()
+      );
+      console.log("💾 Produtos salvos no cache");
+    } catch (error) {
+      console.warn("Erro ao salvar produtos no cache:", error);
+    }
+  };
+
+  // Função para forçar recarregamento dos produtos
+  const forceRefreshProducts = async () => {
+    console.log("🔄 Forçando recarregamento dos produtos");
+    setProdutosFetched(false);
+    setProdutos([]);
+
+    // Limpar cache
+    try {
+      localStorage.removeItem("gringo-products-cache");
+      localStorage.removeItem("gringo-products-cache-timestamp");
+    } catch (error) {
+      console.warn("Erro ao limpar cache:", error);
+    }
+
+    // Aguardar um pouco antes de fazer nova requisição
+    setTimeout(() => {
+      fetchProdutos();
+    }, 1000);
+  };
+
   const fetchProdutos = async () => {
+    // Evitar múltiplas chamadas
+    if (loadingProdutos || produtosFetched) {
+      console.log(
+        "⚠️ Produtos já estão sendo carregados ou já foram carregados"
+      );
+      return;
+    }
+
     try {
       setLoadingProdutos(true);
+      console.log("📡 Fazendo requisição para /products");
+
+      // Adicionar delay para evitar rate limiting
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       const response = await api.get("/products");
-      setProdutos(response.data || []);
+      const products = response.data || [];
+
+      setProdutos(products);
+      setProdutosFetched(true);
+
+      // Salvar no cache
+      saveProductsToCache(products);
+
+      console.log(`✅ ${products.length} produtos carregados da API`);
     } catch (error) {
-      console.error("Erro ao buscar produtos:", error);
+      console.error("❌ Erro ao buscar produtos:", error);
+
+      // Se for erro 429, mostrar mensagem específica
+      if (error.response?.status === 429) {
+        alert(
+          "Limite de requisições excedido. Os produtos serão carregados do cache quando disponível."
+        );
+
+        // Tentar carregar do cache como fallback
+        const cachedProducts = localStorage.getItem("gringo-products-cache");
+        if (cachedProducts) {
+          try {
+            const products = JSON.parse(cachedProducts);
+            setProdutos(products);
+            setProdutosFetched(true);
+            console.log("🔄 Produtos carregados do cache após erro 429");
+          } catch (cacheError) {
+            console.error("Erro ao carregar cache após 429:", cacheError);
+          }
+        }
+      }
     } finally {
       setLoadingProdutos(false);
     }
@@ -290,23 +410,48 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
     setItems(newItems);
   };
 
-  const handleMapClick = (event) => {
+  // Função específica para cliques no mapa do cliente
+  const handleCustomerMapClick = (event) => {
     if (!event || !event.latLng) {
-      console.error("Evento de clique inválido:", event);
+      console.error("Evento de clique inválido no mapa do cliente:", event);
       return;
     }
 
     const lat = event.latLng.lat();
     const lng = event.latLng.lng();
 
-    console.log("Mapa clicado em:", {
+    console.log("👤 Mapa do cliente clicado em:", {
       lat,
       lng,
       activeCustomerIndex,
-      isSelectingStoreLocation,
     });
 
-    if (isSelectingStoreLocation && selectedStore) {
+    // Atualizar coordenadas do cliente ativo
+    const newCustomers = [...customers];
+    newCustomers[activeCustomerIndex].customerAddress.coordinates = [lng, lat];
+    setCustomers(newCustomers);
+
+    // Geocodificação reversa para obter o endereço
+    reverseGeocode(lat, lng);
+  };
+
+  // Função específica para cliques no mapa da loja
+  const handleStoreMapClick = (event) => {
+    if (!event || !event.latLng) {
+      console.error("Evento de clique inválido no mapa da loja:", event);
+      return;
+    }
+
+    const lat = event.latLng.lat();
+    const lng = event.latLng.lng();
+
+    console.log("🏪 Mapa da loja clicado em:", {
+      lat,
+      lng,
+      selectedStore: selectedStore?.businessName || selectedStore?.name,
+    });
+
+    if (selectedStore) {
       // Atualizar coordenadas da loja selecionada
       const updatedStore = {
         ...selectedStore,
@@ -319,17 +464,6 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
 
       // Geocodificação reversa para obter o endereço da loja
       reverseGeocodeStore(lat, lng);
-    } else {
-      // Lógica existente para clientes
-      const newCustomers = [...customers];
-      newCustomers[activeCustomerIndex].customerAddress.coordinates = [
-        lng,
-        lat,
-      ];
-      setCustomers(newCustomers);
-
-      // Geocodificação reversa para obter o endereço
-      reverseGeocode(lat, lng);
     }
   };
 
@@ -418,7 +552,7 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
       if (data.results && data.results.length > 0) {
         const location = data.results[0].geometry.location;
         setMapCenter({ lat: location.lat, lng: location.lng });
-        handleMapClick({
+        handleCustomerMapClick({
           latLng: {
             lat: () => location.lat,
             lng: () => location.lng,
@@ -448,7 +582,7 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
 
         // Simular clique no mapa para a loja
         if (selectedStore) {
-          handleMapClick({
+          handleStoreMapClick({
             latLng: {
               lat: () => location.lat,
               lng: () => location.lng,
@@ -690,6 +824,7 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
     setActiveCustomerIndex(0);
     setSearchAddress("");
     setMap(null); // Reset do mapa
+    setStoreMap(null); // Reset do mapa da loja
 
     // Reset dos novos estados
     setPreviewCost(null);
@@ -697,6 +832,7 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
     setDriveBack(false);
     setStoreSearchAddress("");
     setIsSelectingStoreLocation(false);
+    setProdutosFetched(false); // Reset do controle de produtos
 
     onClose();
   };
@@ -931,7 +1067,7 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                           </Box>
                         ) : (
                           <GoogleMap
-                            ref={mapRef}
+                            ref={storeMapRef}
                             mapContainerStyle={{
                               width: "100%",
                               height: "400px",
@@ -939,8 +1075,8 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                             center={mapCenter}
                             zoom={15}
                             onLoad={(mapInstance) => {
-                              mapRef.current = mapInstance;
-                              setMap(mapInstance);
+                              storeMapRef.current = mapInstance;
+                              setStoreMap(mapInstance);
                               console.log(
                                 "✅ Mapa da loja carregado e pronto para cliques"
                               );
@@ -1350,6 +1486,15 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                       )}
                     </GoogleMap>
                   )}
+
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ mt: 1, display: "block" }}
+                  >
+                    Clique no mapa para selecionar a localização do Cliente{" "}
+                    {activeCustomerIndex + 1}
+                  </Typography>
                 </CardContent>
               </Card>
             </Box>
@@ -1366,15 +1511,53 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                   mb: 2,
                 }}
               >
-                <Typography variant="h6">Itens do Pedido</Typography>
-                <Button
-                  startIcon={<AddIcon />}
-                  onClick={handleAddItem}
-                  variant="outlined"
-                  size="small"
-                >
-                  Adicionar Item
-                </Button>
+                <Typography variant="h6">
+                  Itens do Pedido
+                  {produtosFetched && produtos.length > 0 && (
+                    <Typography
+                      component="span"
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ ml: 1 }}
+                    >
+                      ({produtos.length} produtos disponíveis)
+                    </Typography>
+                  )}
+                </Typography>
+                <Box sx={{ display: "flex", gap: 1 }}>
+                  {!produtosFetched && (
+                    <Button
+                      size="small"
+                      onClick={() => {
+                        setProdutosFetched(false);
+                        fetchProdutos();
+                      }}
+                      disabled={loadingProdutos}
+                      color="secondary"
+                    >
+                      {loadingProdutos ? "Carregando..." : "Carregar Produtos"}
+                    </Button>
+                  )}
+                  {produtosFetched && (
+                    <Button
+                      size="small"
+                      onClick={forceRefreshProducts}
+                      disabled={loadingProdutos}
+                      color="info"
+                      title="Recarregar produtos da API"
+                    >
+                      🔄 Atualizar
+                    </Button>
+                  )}
+                  <Button
+                    startIcon={<AddIcon />}
+                    onClick={handleAddItem}
+                    variant="outlined"
+                    size="small"
+                  >
+                    Adicionar Item
+                  </Button>
+                </Box>
               </Box>
 
               {items.map((item, index) => (

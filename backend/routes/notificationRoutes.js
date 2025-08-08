@@ -582,6 +582,29 @@ const getCallInfo = async (req, res) => {
   }
 };
 
+const markAllAsRead = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        message: "userId é obrigatório",
+      });
+    }
+
+    await Notification.updateMany(
+      { userId, read: false },
+      { $set: { read: true } }
+    );
+
+    res.json({ message: "Todas as notificações marcadas como lidas" });
+  } catch (error) {
+    console.error("Erro ao marcar todas as notificações como lidas:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+router.put("/mark-as-all-read", markAllAsRead);
 router.post("/notifyOccurrence", notifyOccurrence);
 router.post("/notifySupport", notifySupport);
 router.post("/generic", createNotificationGeneric);

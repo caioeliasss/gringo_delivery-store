@@ -26,6 +26,14 @@ import {
   Toolbar,
   Card,
   CardContent,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Tab,
+  Tabs,
+  ListItemButton,
+  Fab,
 } from "@mui/material";
 import {
   Send as SendIcon,
@@ -53,6 +61,7 @@ import {
   Map as MapIcon,
   ReportProblem as OcorrenciasIcon,
   Chat as ChatIcon,
+  Add as AddIcon,
 } from "@mui/icons-material";
 import { useAuth } from "../../contexts/AuthContext";
 import { format } from "date-fns";
@@ -113,6 +122,14 @@ const ChatPage = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [userProfiles, setUserProfiles] = useState({});
   const [sendingMessage, setSendingMessage] = useState(false);
+
+  // Estados para criar novo chat
+  const [newChatDialogOpen, setNewChatDialogOpen] = useState(false);
+  const [newChatType, setNewChatType] = useState(""); // "MOTOBOY" ou "STORE"
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
 
   // Efeito para verificar se o usuário está autenticado como suporte
   useEffect(() => {
@@ -716,6 +733,181 @@ const ChatPage = () => {
     return USER_TYPES[profile.type] || USER_TYPES.CUSTOMER;
   };
 
+  // Função para buscar usuários (motoboys ou estabelecimentos)
+  const searchUsers = async (query, type) => {
+    if (!query || query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      setSearchLoading(true);
+      let response;
+
+      if (type === "MOTOBOY") {
+        // Tentar endpoint de busca primeiro, fallback para listar todos
+        try {
+          response = await api.get(
+            `/motoboys/search?q=${encodeURIComponent(query)}`
+          );
+        } catch (error) {
+          // Se não existir endpoint de busca, busca todos e filtra localmente
+          response = await api.get(`/motoboys`);
+          const filteredData = response.data.filter((motoboy) => {
+            const searchTerm = query.toLowerCase();
+            return (
+              motoboy.name?.toLowerCase().includes(searchTerm) ||
+              motoboy.phone?.includes(query) ||
+              motoboy.email?.toLowerCase().includes(searchTerm) ||
+              motoboy.cpf?.includes(query)
+            );
+          });
+          response.data = filteredData;
+        }
+      } else if (type === "STORE") {
+        try {
+          response = await api.get(
+            `/stores/search?q=${encodeURIComponent(query)}`
+          );
+        } catch (error) {
+          // Se não existir endpoint de busca, busca todos e filtra localmente
+          response = await api.get(`/stores`);
+          const filteredData = response.data.filter((store) => {
+            const searchTerm = query.toLowerCase();
+            return (
+              store.businessName?.toLowerCase().includes(searchTerm) ||
+              store.ownerName?.toLowerCase().includes(searchTerm) ||
+              store.phone?.includes(query) ||
+              store.email?.toLowerCase().includes(searchTerm) ||
+              store.cnpj?.includes(query) ||
+              store.address?.street?.toLowerCase().includes(searchTerm) ||
+              store.address?.neighborhood?.toLowerCase().includes(searchTerm)
+            );
+          });
+          response.data = filteredData;
+        }
+      }
+
+      const users = response.data
+        .slice(0, 50) // Limitar a 50 resultados para melhor performance
+        .map((user) => ({
+          ...user,
+          userType: type,
+          displayName: type === "STORE" ? user.businessName : user.name,
+        }));
+
+      setSearchResults(users);
+    } catch (error) {
+      console.error("Erro ao buscar usuários:", error);
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // Função para criar novo chat
+  const createNewChat = async (user) => {
+    if (!user || !user.firebaseUid) {
+      console.error("Usuário inválido para criar chat");
+      return;
+    }
+
+    try {
+      setSearchLoading(true);
+
+      // Verificar se já existe um chat com esse usuário
+      const existingChat = chats.find(
+        (chat) =>
+          chat.firebaseUid.includes(user.firebaseUid) &&
+          chat.firebaseUid.includes(currentUser.uid)
+      );
+
+      if (existingChat) {
+        // Se o chat já existe, apenas seleciona ele
+        setActiveChat(existingChat);
+        fetchMessages(existingChat._id);
+        setNewChatDialogOpen(false);
+        setSelectedUser(null);
+        setUserSearchQuery("");
+        setSearchResults([]);
+
+        // Feedback para usuário
+        console.log("Chat já existe, redirecionando...");
+        return;
+      }
+
+      // Criar novo chat
+      const chatData = {
+        firebaseUid: [currentUser.uid, user.firebaseUid],
+        participantNames: {
+          [currentUser.uid]: "Suporte Gringo",
+          [user.firebaseUid]: user.displayName,
+        },
+        participants: [
+          {
+            firebaseUid: currentUser.uid,
+            name: "Suporte Gringo",
+            unreadCount: 0,
+          },
+          {
+            firebaseUid: user.firebaseUid,
+            name: user.displayName,
+            unreadCount: 0,
+          },
+        ],
+        status: "ACTIVE",
+      };
+
+      const response = await api.post("/chat", chatData);
+      const newChat = response.data;
+
+      // Adicionar à lista de chats
+      setChats((prevChats) => [newChat, ...prevChats]);
+
+      // Atualizar perfis de usuários
+      setUserProfiles((prev) => ({
+        ...prev,
+        [user.firebaseUid]: {
+          name: user.displayName,
+          businessName: user.businessName,
+          type: user.userType,
+        },
+      }));
+
+      // Selecionar o novo chat
+      setActiveChat(newChat);
+      fetchMessages(newChat._id);
+
+      // Fechar dialog
+      setNewChatDialogOpen(false);
+      setSelectedUser(null);
+      setUserSearchQuery("");
+      setSearchResults([]);
+
+      if (isMobile) {
+        setDrawerOpen(false);
+      }
+    } catch (error) {
+      console.error("Erro ao criar novo chat:", error);
+      alert("Erro ao criar chat. Tente novamente.");
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // Effect para buscar usuários quando o tipo ou query mudarem
+  useEffect(() => {
+    if (newChatType && userSearchQuery) {
+      const timeoutId = setTimeout(() => {
+        searchUsers(userSearchQuery, newChatType);
+      }, 500); // Debounce de 500ms
+
+      return () => clearTimeout(timeoutId);
+    } else {
+      setSearchResults([]);
+    }
+  }, [userSearchQuery, newChatType]);
+
   const renderChatList = () => {
     // Filtrar chats baseado na busca
     const filteredChats = chats.filter((chat) => {
@@ -737,9 +929,27 @@ const ChatPage = () => {
         }}
       >
         <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
-          <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
-            Conversas
-          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 2,
+            }}
+          >
+            <Typography variant="h6" fontWeight="bold">
+              Conversas
+            </Typography>
+            <Tooltip title="Novo chat">
+              <IconButton
+                color="primary"
+                onClick={() => setNewChatDialogOpen(true)}
+                size="small"
+              >
+                <AddIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
 
           <TextField
             fullWidth
@@ -1261,18 +1471,36 @@ const ChatPage = () => {
       >
         {/* Lista de chats para desktop ou drawer para mobile */}
         {isMobile ? (
-          <SideDrawer
-            open={drawerOpen}
-            onClose={() => setDrawerOpen(false)}
-            variant="temporary"
-            title="Gringo Delivery"
-            logoUrl="https://i.imgur.com/8jOdfcO.png"
-            logoAlt="Gringo Delivery"
-            logoHeight={50}
-            menuItems={SUPPORT_MENU_ITEMS}
-            // Passa diretamente a função de logout
-            footerItems={createSupportFooterItems(handleLogout)}
-          />
+          <>
+            <SideDrawer
+              open={drawerOpen}
+              onClose={() => setDrawerOpen(false)}
+              variant="temporary"
+              title="Gringo Delivery"
+              logoUrl="https://i.imgur.com/8jOdfcO.png"
+              logoAlt="Gringo Delivery"
+              logoHeight={50}
+              menuItems={SUPPORT_MENU_ITEMS}
+              // Passa diretamente a função de logout
+              footerItems={createSupportFooterItems(handleLogout)}
+            />
+            {/* FAB para criar novo chat no mobile */}
+            {!activeChat && (
+              <Fab
+                color="primary"
+                aria-label="novo chat"
+                onClick={() => setNewChatDialogOpen(true)}
+                sx={{
+                  position: "fixed",
+                  bottom: 16,
+                  right: 16,
+                  zIndex: 1000,
+                }}
+              >
+                <AddIcon />
+              </Fab>
+            )}
+          </>
         ) : (
           <SideDrawer
             open={true}
@@ -1306,6 +1534,265 @@ const ChatPage = () => {
         {/* Área de mensagens */}
         <Box sx={{ flexGrow: 1 }}>{renderChatMessages()}</Box>
       </Box>
+
+      {/* Dialog para criar novo chat */}
+      <Dialog
+        open={newChatDialogOpen}
+        onClose={() => {
+          setNewChatDialogOpen(false);
+          setNewChatType("");
+          setUserSearchQuery("");
+          setSearchResults([]);
+          setSelectedUser(null);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <Typography variant="h6">Iniciar Nova Conversa</Typography>
+            <IconButton
+              onClick={() => {
+                setNewChatDialogOpen(false);
+                setNewChatType("");
+                setUserSearchQuery("");
+                setSearchResults([]);
+                setSelectedUser(null);
+              }}
+              size="small"
+            >
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+
+        <DialogContent>
+          {!newChatType ? (
+            // Seleção do tipo de usuário
+            <Box sx={{ py: 2 }}>
+              <Typography variant="body1" sx={{ mb: 3 }}>
+                Com quem você gostaria de iniciar uma conversa?
+              </Typography>
+
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Card
+                    sx={{
+                      cursor: "pointer",
+                      "&:hover": { elevation: 4 },
+                      transition: "all 0.2s",
+                    }}
+                    onClick={() => setNewChatType("MOTOBOY")}
+                  >
+                    <CardContent sx={{ textAlign: "center", py: 3 }}>
+                      <Avatar
+                        sx={{
+                          bgcolor: USER_TYPES.MOTOBOY.color,
+                          mx: "auto",
+                          mb: 2,
+                          width: 60,
+                          height: 60,
+                        }}
+                      >
+                        <MotoboyIcon fontSize="large" />
+                      </Avatar>
+                      <Typography variant="h6">Motoboy</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Conversar com um entregador
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={6}>
+                  <Card
+                    sx={{
+                      cursor: "pointer",
+                      "&:hover": { elevation: 4 },
+                      transition: "all 0.2s",
+                    }}
+                    onClick={() => setNewChatType("STORE")}
+                  >
+                    <CardContent sx={{ textAlign: "center", py: 3 }}>
+                      <Avatar
+                        sx={{
+                          bgcolor: USER_TYPES.STORE.color,
+                          mx: "auto",
+                          mb: 2,
+                          width: 60,
+                          height: 60,
+                        }}
+                      >
+                        <StoreIcon fontSize="large" />
+                      </Avatar>
+                      <Typography variant="h6">Estabelecimento</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Conversar com uma loja
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </Grid>
+            </Box>
+          ) : (
+            // Busca e seleção de usuário
+            <Box sx={{ py: 2 }}>
+              <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+                <IconButton onClick={() => setNewChatType("")} size="small">
+                  <ArrowBackIcon />
+                </IconButton>
+                <Typography variant="h6" sx={{ ml: 1 }}>
+                  Buscar{" "}
+                  {newChatType === "MOTOBOY" ? "Motoboy" : "Estabelecimento"}
+                </Typography>
+              </Box>
+
+              <TextField
+                fullWidth
+                placeholder={`Digite o nome do ${
+                  newChatType === "MOTOBOY" ? "motoboy" : "estabelecimento"
+                }...`}
+                value={userSearchQuery}
+                onChange={(e) => setUserSearchQuery(e.target.value)}
+                variant="outlined"
+                sx={{ mb: 2 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
+              {searchLoading ? (
+                <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+                  <CircularProgress />
+                </Box>
+              ) : searchResults.length > 0 ? (
+                <List sx={{ maxHeight: 300, overflow: "auto" }}>
+                  {searchResults.map((user) => (
+                    <ListItemButton
+                      key={user.firebaseUid || user._id}
+                      onClick={() => setSelectedUser(user)}
+                      selected={selectedUser?.firebaseUid === user.firebaseUid}
+                    >
+                      <ListItemAvatar>
+                        <Avatar
+                          sx={{
+                            bgcolor:
+                              newChatType === "MOTOBOY"
+                                ? USER_TYPES.MOTOBOY.color
+                                : USER_TYPES.STORE.color,
+                          }}
+                        >
+                          {newChatType === "MOTOBOY" ? (
+                            <MotoboyIcon />
+                          ) : (
+                            <StoreIcon />
+                          )}
+                        </Avatar>
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={user.displayName}
+                        secondary={
+                          <Box>
+                            {newChatType === "STORE" ? (
+                              <>
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
+                                  {user.ownerName && `Dono: ${user.ownerName}`}
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
+                                  {user.address?.street
+                                    ? `${user.address.street}, ${user.address.neighborhood}`
+                                    : "Endereço não informado"}
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
+                                  {user.phone || "Sem telefone"} •{" "}
+                                  {user.email || "Sem email"}
+                                </Typography>
+                              </>
+                            ) : (
+                              <>
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
+                                  {user.phone || "Sem telefone"} •{" "}
+                                  {user.email || "Sem email"}
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
+                                  Status:{" "}
+                                  {user.isAvailable
+                                    ? "Disponível"
+                                    : "Indisponível"}
+                                </Typography>
+                              </>
+                            )}
+                          </Box>
+                        }
+                      />
+                    </ListItemButton>
+                  ))}
+                </List>
+              ) : userSearchQuery.length >= 2 ? (
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ textAlign: "center", py: 4 }}
+                >
+                  Nenhum{" "}
+                  {newChatType === "MOTOBOY" ? "motoboy" : "estabelecimento"}{" "}
+                  encontrado
+                </Typography>
+              ) : (
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ textAlign: "center", py: 4 }}
+                >
+                  Digite pelo menos 2 caracteres para buscar
+                </Typography>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+
+        {newChatType && selectedUser && (
+          <DialogActions>
+            <Button onClick={() => setSelectedUser(null)}>Cancelar</Button>
+            <Button
+              onClick={() => createNewChat(selectedUser)}
+              variant="contained"
+              disabled={searchLoading}
+            >
+              {searchLoading ? (
+                <CircularProgress size={20} />
+              ) : (
+                "Iniciar Conversa"
+              )}
+            </Button>
+          </DialogActions>
+        )}
+      </Dialog>
     </Box>
   );
 };

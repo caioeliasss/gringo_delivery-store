@@ -544,6 +544,69 @@ router.get("/", async (req, res) => {
   }
 });
 
+// Endpoint de busca para motoboys
+router.get("/search", async (req, res) => {
+  try {
+    const { q, approved, available, limit = 50 } = req.query;
+
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({
+        message: "Query de busca deve ter pelo menos 2 caracteres",
+      });
+    }
+
+    const searchTerm = q.trim();
+    const regex = new RegExp(searchTerm, "i"); // Case insensitive
+
+    // Construir query de busca
+    const searchQuery = {
+      $or: [
+        { name: regex },
+        { email: regex },
+        { phoneNumber: regex },
+        { cpf: regex },
+      ],
+    };
+
+    // Adicionar filtros opcionais
+    if (approved !== undefined) {
+      searchQuery.isApproved = approved === "true";
+    }
+
+    if (available !== undefined) {
+      searchQuery.isAvailable = available === "true";
+    }
+
+    // Buscar motoboys por múltiplos campos
+    const motoboys = await Motoboy.find(searchQuery)
+      .select(
+        "name email phoneNumber cpf isApproved isAvailable coordinates firebaseUid score createdAt race"
+      )
+      .limit(parseInt(limit)) // Limitar resultados para performance
+      .sort({ name: 1 }) // Ordenar por nome
+      .lean(); // Para melhor performance
+
+    // Adicionar informações de status mais detalhadas
+    const motoboyWithStatus = motoboys.map((motoboy) => ({
+      ...motoboy,
+      statusText: motoboy.isApproved
+        ? motoboy.isAvailable
+          ? "Disponível"
+          : "Indisponível"
+        : "Aguardando aprovação",
+      isInRace: motoboy.race?.active || false,
+    }));
+
+    res.status(200).json(motoboyWithStatus);
+  } catch (error) {
+    console.error("Erro na busca de motoboys:", error);
+    res.status(500).json({
+      message: "Erro ao buscar motoboys",
+      error: error.message,
+    });
+  }
+});
+
 const approveMotoboy = async (req, res) => {
   try {
     const { motoboyId } = req.params;
@@ -878,5 +941,39 @@ router.get("/test/timers", getActiveTimers);
 router.post("/test/clear-timer", clearTimer);
 router.post("/test/assign-motoboy", testAssignMotoboy);
 router.get("/test/connected-users", getConnectedUsers);
+
+// Endpoint para criar índices de busca (usar apenas uma vez para setup)
+router.post("/setup-search-indexes", async (req, res) => {
+  try {
+    // Criar índices compostos para melhorar performance de busca
+    await Motoboy.collection.createIndex(
+      {
+        name: "text",
+        email: "text",
+        phoneNumber: "text",
+        cpf: "text",
+      },
+      {
+        name: "motoboy_search_index",
+      }
+    );
+
+    // Índices individuais para filtros
+    await Motoboy.collection.createIndex({ isApproved: 1 });
+    await Motoboy.collection.createIndex({ isAvailable: 1 });
+    await Motoboy.collection.createIndex({ name: 1 });
+    await Motoboy.collection.createIndex({ "race.active": 1 });
+
+    res.status(200).json({
+      message: "Índices de busca criados com sucesso para motoboys",
+    });
+  } catch (error) {
+    console.error("Erro ao criar índices:", error);
+    res.status(500).json({
+      message: "Erro ao criar índices de busca",
+      error: error.message,
+    });
+  }
+});
 
 module.exports = router;
