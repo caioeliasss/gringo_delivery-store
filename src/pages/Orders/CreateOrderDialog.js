@@ -1128,9 +1128,14 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                   mb: 2,
                 }}
               >
-                <Typography variant="h6">
-                  Clientes ({customers.length})
-                </Typography>
+                <Tabs
+                  value={activeCustomerIndex}
+                  onChange={(e, newValue) => setActiveCustomerIndex(newValue)}
+                >
+                  {customers.map((_, index) => (
+                    <Tab key={index} label={`Cliente ${index + 1}`} />
+                  ))}
+                </Tabs>
                 <Button
                   startIcon={<AddIcon />}
                   onClick={handleAddCustomer}
@@ -1141,8 +1146,111 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                 </Button>
               </Box>
 
+              <Card sx={{ mb: 2 }}>
+                <CardContent>
+                  <Typography variant="h6" fontWeight={"bold"} gutterBottom>
+                    Selecionar Localização - Cliente {activeCustomerIndex + 1}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" mb={1}>
+                    Clique no mapa para selecionar a localização do cliente ou
+                    digite CEP ou endereço (ex: Av Brasil, Centro, Mogi Guaçu).
+                  </Typography>
+
+                  <Box sx={{ mb: 2, display: "flex", gap: 1 }}>
+                    <TextField
+                      fullWidth
+                      placeholder="Buscar endereço..."
+                      value={searchAddress}
+                      disabled={!isLoaded || loadError}
+                      onChange={(e) => setSearchAddress(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === "Enter" && isLoaded && !loadError) {
+                          handleSearchAddress();
+                        }
+                      }}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SearchIcon />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                    <Button
+                      variant="contained"
+                      onClick={handleSearchAddress}
+                      disabled={!isLoaded || loadError}
+                      sx={{ minWidth: "auto", px: 2 }}
+                    >
+                      <SearchIcon />
+                    </Button>
+                  </Box>
+
+                  {loadError && (
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                      Erro ao carregar o Google Maps. Verifique sua conexão com
+                      a internet.
+                    </Alert>
+                  )}
+
+                  {!isLoaded ? (
+                    <Box
+                      sx={{
+                        width: "100%",
+                        height: "400px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: "grey.100",
+                        borderRadius: 1,
+                      }}
+                    >
+                      <Box sx={{ textAlign: "center" }}>
+                        <CircularProgress sx={{ mb: 2 }} />
+                        <Typography variant="body2" color="text.secondary">
+                          Carregando mapa...
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ) : (
+                    <GoogleMap
+                      ref={mapRef}
+                      mapContainerStyle={{ width: "100%", height: "400px" }}
+                      center={mapCenter}
+                      zoom={15}
+                      onLoad={(mapInstance) => {
+                        mapRef.current = mapInstance;
+                        setMap(mapInstance);
+                        console.log("✅ Mapa carregado e pronto para cliques");
+                      }}
+                    >
+                      {customers[activeCustomerIndex]?.customerAddress
+                        ?.coordinates?.length === 2 && (
+                        <Marker
+                          position={{
+                            lat: customers[activeCustomerIndex].customerAddress
+                              .coordinates[1],
+                            lng: customers[activeCustomerIndex].customerAddress
+                              .coordinates[0],
+                          }}
+                        />
+                      )}
+                    </GoogleMap>
+                  )}
+
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ mt: 1, display: "block" }}
+                  >
+                    Clique no mapa para selecionar a localização do Cliente{" "}
+                    {activeCustomerIndex + 1}
+                  </Typography>
+                </CardContent>
+              </Card>
+
               {customers.map((customer, index) => (
-                <Card key={index} sx={{ mb: 2 }}>
+                <Card key={index} sx={{ mt: 2 }}>
                   <CardContent>
                     <Box
                       sx={{
@@ -1399,104 +1507,6 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
               ))}
 
               {/* Mapa para seleção de endereço */}
-              <Card sx={{ mt: 2 }}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Selecionar Localização - Cliente {activeCustomerIndex + 1}
-                  </Typography>
-
-                  <Box sx={{ mb: 2, display: "flex", gap: 1 }}>
-                    <TextField
-                      fullWidth
-                      placeholder="Buscar endereço..."
-                      value={searchAddress}
-                      disabled={!isLoaded || loadError}
-                      onChange={(e) => setSearchAddress(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === "Enter" && isLoaded && !loadError) {
-                          handleSearchAddress();
-                        }
-                      }}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <SearchIcon />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                    <Button
-                      variant="contained"
-                      onClick={handleSearchAddress}
-                      disabled={!isLoaded || loadError}
-                      sx={{ minWidth: "auto", px: 2 }}
-                    >
-                      <SearchIcon />
-                    </Button>
-                  </Box>
-
-                  {loadError && (
-                    <Alert severity="error" sx={{ mb: 2 }}>
-                      Erro ao carregar o Google Maps. Verifique sua conexão com
-                      a internet.
-                    </Alert>
-                  )}
-
-                  {!isLoaded ? (
-                    <Box
-                      sx={{
-                        width: "100%",
-                        height: "400px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        backgroundColor: "grey.100",
-                        borderRadius: 1,
-                      }}
-                    >
-                      <Box sx={{ textAlign: "center" }}>
-                        <CircularProgress sx={{ mb: 2 }} />
-                        <Typography variant="body2" color="text.secondary">
-                          Carregando mapa...
-                        </Typography>
-                      </Box>
-                    </Box>
-                  ) : (
-                    <GoogleMap
-                      ref={mapRef}
-                      mapContainerStyle={{ width: "100%", height: "400px" }}
-                      center={mapCenter}
-                      zoom={15}
-                      onLoad={(mapInstance) => {
-                        mapRef.current = mapInstance;
-                        setMap(mapInstance);
-                        console.log("✅ Mapa carregado e pronto para cliques");
-                      }}
-                    >
-                      {customers[activeCustomerIndex]?.customerAddress
-                        ?.coordinates?.length === 2 && (
-                        <Marker
-                          position={{
-                            lat: customers[activeCustomerIndex].customerAddress
-                              .coordinates[1],
-                            lng: customers[activeCustomerIndex].customerAddress
-                              .coordinates[0],
-                          }}
-                        />
-                      )}
-                    </GoogleMap>
-                  )}
-
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ mt: 1, display: "block" }}
-                  >
-                    Clique no mapa para selecionar a localização do Cliente{" "}
-                    {activeCustomerIndex + 1}
-                  </Typography>
-                </CardContent>
-              </Card>
             </Box>
           )}
 
@@ -1961,6 +1971,36 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
             </Box>
           )}
         </Box>
+
+        {!customers.length && (
+          <Typography variant="body2" color="text.secondary">
+            Nenhum cliente adicionado.
+          </Typography>
+        )}
+
+        {customers.length > 0 &&
+          (!customers[activeCustomerIndex].customerAddress.addressNumber ||
+            !customers[activeCustomerIndex].name ||
+            !customers[activeCustomerIndex].phone) && (
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              Cliente incompleto: verifique nome, telefone e numero do endereço.
+            </Typography>
+          )}
+
+        {customers.length > 0 &&
+          customers[activeCustomerIndex]?.customerAddress?.addressNumber && (
+            <Typography>
+              {customers[activeCustomerIndex].customerAddress.addressNumber}
+            </Typography>
+          )}
       </DialogContent>
 
       <DialogActions sx={{ p: 3, pt: 1 }}>

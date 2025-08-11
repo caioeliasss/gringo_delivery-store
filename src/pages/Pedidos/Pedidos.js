@@ -1223,7 +1223,7 @@ const Pedidos = () => {
       <Button
         variant="contained"
         color="primary"
-        onClick={handleOpenCreateDialog}
+        onClick={() => setCreateDialogOpen(true)}
         startIcon={<AddIcon />}
       >
         Criar Pedido
