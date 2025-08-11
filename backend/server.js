@@ -11,8 +11,18 @@ const http = require("http");
 const socketIO = require("socket.io");
 const path = require("path");
 
-// Configuração das variáveis de ambiente
-dotenv.config();
+// Configuração das variáveis de ambiente baseada no NODE_ENV
+const envFile =
+  process.env.NODE_ENV === "production"
+    ? ".env.production"
+    : process.env.NODE_ENV === "development"
+    ? ".env.development"
+    : ".env";
+
+dotenv.config({ path: envFile });
+
+console.log(`🔧 Carregando variáveis do arquivo: ${envFile}`);
+console.log(`🌐 BASE_URL configurada: ${process.env.BASE_URL}`);
 
 // Inicializar app Express
 const app = express();
@@ -31,17 +41,38 @@ const io = socketIO(server, {
   transports: ["websocket", "polling"], // Usar apenas WebSocket para comunicação
 });
 
-// Middleware
+const isDevelopment = process.env.NODE_ENV !== "production";
+
 app.use(
   cors({
-    origin: "*", // Em produção, especifique domínios permitidos
+    origin: isDevelopment
+      ? "*" // Desenvolvimento: permite qualquer origin
+      : ["https://gringodelivery.com.br"], // Produção: apenas seu domínio
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
 );
-app.use(helmet());
+
+// Configurar trust proxy para funcionar corretamente com proxies (GCP, Nginx, etc.)
+app.set("trust proxy", true);
+
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginEmbedderPolicy: false,
+  })
+);
 app.use(express.json());
+
+// Middleware CORS específico para arquivos de upload
+app.use("/uploads", (req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  next();
+});
 
 // Middleware para servir arquivos estáticos do chat
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));

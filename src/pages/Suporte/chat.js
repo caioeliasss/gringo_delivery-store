@@ -145,21 +145,6 @@ const ChatPage = () => {
   const [previewImage, setPreviewImage] = useState(null);
 
   // Efeito para verificar se o usuário está autenticado como suporte
-  useEffect(() => {
-    const checkIfIsSupportTeam = async () => {
-      try {
-        const response = await api.get(`/support/firebase/${currentUser?.uid}`);
-        if (!response.data) {
-          navigate("/login");
-        }
-      } catch (error) {
-        console.error("Erro ao verificar o usuário:", error);
-        navigate("/login");
-      }
-    };
-
-    checkIfIsSupportTeam();
-  }, [currentUser, navigate]);
 
   // Inicializar com chat da rota (se houver)
   useEffect(() => {
@@ -444,6 +429,19 @@ const ChatPage = () => {
             [uid]: {
               ...supportResponse.data,
               type: "SUPPORT",
+            },
+          }));
+          return;
+        }
+      } catch (e) {}
+      try {
+        const supportResponse = await api.get(`/admin/firebase/${uid}`);
+        if (supportResponse.data) {
+          setUserProfiles((prev) => ({
+            ...prev,
+            [uid]: {
+              ...supportResponse.data,
+              type: "ADMIN",
             },
           }));
           return;

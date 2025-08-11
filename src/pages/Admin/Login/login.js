@@ -42,7 +42,7 @@ const LoginAdmin = () => {
       setLoading(true);
       const responseUser = await login(email, password);
       const user = responseUser.user;
-      const response = await api.get(`/support/firebase/${user.uid}`);
+      const response = await api.get(`/admin/firebase/${user.uid}`);
       if (!response.data) {
         setError("Email não encontrado");
         return;

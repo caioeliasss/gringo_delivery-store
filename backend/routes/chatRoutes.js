@@ -103,10 +103,25 @@ const uploadChatFile = async (req, res) => {
       });
     }
 
-    // Gerar URL do arquivo
-    const baseUrl =
-      process.env.BASE_URL || `http://localhost:${process.env.PORT || 8080}`;
+    // Gerar URL do arquivo baseada no ambiente
+    let baseUrl = process.env.BASE_URL;
+
+    // Se BASE_URL não estiver definida, construir baseada no ambiente
+    if (!baseUrl) {
+      const isProduction = process.env.NODE_ENV === "production";
+      if (isProduction) {
+        baseUrl = "https://gringodelivery.com.br";
+      } else {
+        baseUrl = `http://localhost:${process.env.PORT || 8080}`;
+      }
+    }
+
     const fileUrl = `${baseUrl}/uploads/chat-files/${req.file.filename}`;
+
+    console.log(`📁 Arquivo salvo: ${req.file.filename}`);
+    console.log(`🌐 URL gerada: ${fileUrl}`);
+    console.log(`🔧 BASE_URL: ${process.env.BASE_URL}`);
+    console.log(`🌍 NODE_ENV: ${process.env.NODE_ENV}`);
 
     // Informações do arquivo para retornar
     const fileInfo = {

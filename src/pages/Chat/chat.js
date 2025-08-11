@@ -32,6 +32,9 @@ import {
   Toolbar,
   ListItemIcon,
   Drawer,
+  Modal,
+  Backdrop,
+  Snackbar,
 } from "@mui/material";
 import {
   Send as SendIcon,
@@ -49,6 +52,8 @@ import {
   Menu as MenuIcon,
   Dashboard as DashboardIcon,
   Receipt as OrdersIcon,
+  InsertDriveFile as FileIcon,
+  Image as ImageIcon,
   ShoppingBag as ProductsIcon,
   Logout as LogoutIcon,
   ReportProblem as OcorrenciasIcon,
@@ -78,6 +83,22 @@ export default function ChatStore() {
   const [createChatDialog, setCreateChatDialog] = useState(false);
   const messagesEndRef = useRef(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Estados para upload de arquivos
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [filePreview, setFilePreview] = useState(null);
+  const fileInputRef = useRef(null);
+
+  // Estado para o preview da imagem em tela cheia
+  const [previewImage, setPreviewImage] = useState(null);
+
+  // Estado para o snackbar de feedback
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
   // Função para toggle do drawer
   const toggleDrawer = (open) => (event) => {
@@ -261,8 +282,149 @@ export default function ChatStore() {
     return `Usuário ${uid?.substring(0, 6) || "Desconhecido"}`;
   };
 
+  // Função para lidar com seleção de arquivos
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validar tamanho do arquivo (máximo 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      alert("Arquivo muito grande. Máximo permitido: 10MB");
+      return;
+    }
+
+    // Validar tipos de arquivo permitidos
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "application/pdf",
+      "text/plain",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      alert(
+        "Tipo de arquivo não permitido. Permitidos: imagens, PDF, DOC, DOCX, XLS, XLSX, TXT"
+      );
+      return;
+    }
+
+    setSelectedFile(file);
+
+    // Criar preview para imagens
+    if (file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setFilePreview(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setFilePreview(null);
+    }
+  };
+
+  // Função para fazer upload do arquivo
+  const uploadFile = async (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("chatId", activeChat._id);
+    formData.append("sender", user.uid);
+
+    try {
+      const response = await api.post("/chat/upload", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Erro no upload:", error);
+      throw error;
+    }
+  };
+
+  // Função para enviar arquivo
+  const handleSendFile = async () => {
+    if (!selectedFile || !activeChat || !user) return;
+
+    try {
+      setUploadingFile(true);
+
+      // Fazer upload do arquivo
+      const uploadResponse = await uploadFile(selectedFile);
+
+      // Criar mensagem com o arquivo
+      const messageData = {
+        chatId: activeChat._id,
+        message: `Arquivo: ${selectedFile.name}`,
+        sender: user.uid,
+        messageType: "FILE",
+        fileUrl: uploadResponse.fileUrl,
+        fileName: selectedFile.name,
+        fileSize: selectedFile.size,
+        fileType: selectedFile.type,
+      };
+
+      const response = await api.post("/chat/message", messageData);
+
+      // Enviar notificação para os outros participantes
+      const otherParticipants = activeChat.firebaseUid.filter(
+        (uid) => uid !== user.uid
+      );
+
+      if (otherParticipants.length > 0) {
+        await api.post(`/notifications/generic`, {
+          title: "Nova mensagem",
+          message: `📎 Enviou um arquivo: ${selectedFile.name}`,
+          firebaseUid: otherParticipants,
+          screen: "/chat",
+          type: "CHAT_MESSAGE",
+          chatId: activeChat._id,
+          expiresAt: new Date(Date.now() + 16 * 60 * 60 * 1000),
+        });
+      }
+
+      // Adicionar mensagem à lista local
+      setMessages((prev) => [...prev, response.data]);
+
+      // Limpar estados
+      setSelectedFile(null);
+      setFilePreview(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch (error) {
+      console.error("Erro ao enviar arquivo:", error);
+      alert("Erro ao enviar arquivo. Tente novamente.");
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  // Função para cancelar seleção de arquivo
+  const handleCancelFile = () => {
+    setSelectedFile(null);
+    setFilePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const handleSendMessage = async (e) => {
     e?.preventDefault();
+
+    // Se há arquivo selecionado, enviar arquivo em vez de mensagem de texto
+    if (selectedFile) {
+      await handleSendFile();
+      return;
+    }
+
     if (!newMessage.trim() || !activeChat || !user) return;
 
     try {
@@ -759,12 +921,105 @@ export default function ChatStore() {
                           borderBottomRightRadius: isCurrentUser ? 0.5 : 2,
                         }}
                       >
-                        <Typography
-                          variant="body1"
-                          sx={{ wordBreak: "break-word" }}
-                        >
-                          {msg.message}
-                        </Typography>
+                        {/* Renderização baseada no tipo de mensagem */}
+                        {msg.messageType === "FILE" ? (
+                          <Box>
+                            {/* Preview da imagem se for imagem */}
+                            {(
+                              msg.metadata?.fileType || msg.fileType
+                            )?.startsWith("image/") &&
+                            (msg.metadata?.fileUrl || msg.fileUrl) ? (
+                              <Box sx={{ mb: 1 }}>
+                                <img
+                                  src={msg.metadata?.fileUrl || msg.fileUrl}
+                                  alt={msg.metadata?.fileName || msg.fileName}
+                                  style={{
+                                    maxWidth: "200px",
+                                    maxHeight: "200px",
+                                    borderRadius: "8px",
+                                    cursor: "pointer",
+                                    display: "block",
+                                  }}
+                                  onClick={() =>
+                                    setPreviewImage(
+                                      msg.metadata?.fileUrl || msg.fileUrl
+                                    )
+                                  }
+                                  onError={(e) => {
+                                    console.error(
+                                      "Erro ao carregar imagem:",
+                                      msg.metadata?.fileUrl || msg.fileUrl
+                                    );
+                                    e.target.style.display = "none";
+                                  }}
+                                  onLoad={() => {
+                                    console.log(
+                                      "Imagem carregada com sucesso:",
+                                      msg.metadata?.fileUrl || msg.fileUrl
+                                    );
+                                  }}
+                                />
+                              </Box>
+                            ) : null}
+
+                            {/* Informações do arquivo */}
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1,
+                              }}
+                            >
+                              {(
+                                msg.metadata?.fileType || msg.fileType
+                              )?.startsWith("image/") ? (
+                                <ImageIcon sx={{ fontSize: 20 }} />
+                              ) : (
+                                <FileIcon sx={{ fontSize: 20 }} />
+                              )}
+                              <Box>
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    textDecoration: "underline",
+                                    cursor: "pointer",
+                                    "&:hover": { opacity: 0.8 },
+                                  }}
+                                  onClick={() => {
+                                    console.log(
+                                      "Tentando abrir arquivo:",
+                                      msg.metadata?.fileUrl || msg.fileUrl
+                                    );
+                                    window.open(
+                                      msg.metadata?.fileUrl || msg.fileUrl,
+                                      "_blank"
+                                    );
+                                  }}
+                                >
+                                  {msg.metadata?.fileName || msg.fileName}
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  sx={{ opacity: 0.7 }}
+                                >
+                                  {msg.metadata?.fileSize || msg.fileSize
+                                    ? `${(
+                                        (msg.metadata?.fileSize ||
+                                          msg.fileSize) / 1024
+                                      ).toFixed(1)} KB`
+                                    : ""}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </Box>
+                        ) : (
+                          <Typography
+                            variant="body1"
+                            sx={{ wordBreak: "break-word" }}
+                          >
+                            {msg.message}
+                          </Typography>
+                        )}
                         <Box
                           sx={{
                             display: "flex",
@@ -810,6 +1065,68 @@ export default function ChatStore() {
             bgcolor: "#fff",
           }}
         >
+          {/* Preview do arquivo selecionado */}
+          {filePreview && (
+            <Box
+              sx={{
+                mb: 2,
+                p: 2,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 2,
+                bgcolor: "#f5f5f5",
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  {selectedFile?.type?.startsWith("image/") ? (
+                    <ImageIcon color="primary" />
+                  ) : (
+                    <FileIcon color="primary" />
+                  )}
+                  <Box>
+                    <Typography variant="body2" fontWeight="medium">
+                      {selectedFile?.name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {selectedFile?.size
+                        ? `${(selectedFile.size / 1024).toFixed(1)} KB`
+                        : ""}
+                    </Typography>
+                  </Box>
+                </Box>
+                <IconButton
+                  size="small"
+                  onClick={handleCancelFile}
+                  disabled={uploadingFile}
+                >
+                  <CloseIcon />
+                </IconButton>
+              </Box>
+
+              {/* Preview da imagem */}
+              {selectedFile?.type?.startsWith("image/") && filePreview && (
+                <Box sx={{ mt: 2 }}>
+                  <img
+                    src={filePreview}
+                    alt="Preview"
+                    style={{
+                      maxWidth: "200px",
+                      maxHeight: "200px",
+                      borderRadius: "8px",
+                      border: `1px solid ${theme.palette.divider}`,
+                    }}
+                  />
+                </Box>
+              )}
+            </Box>
+          )}
+
           <Box sx={{ display: "flex", alignItems: "center" }}>
             <TextField
               fullWidth
@@ -819,7 +1136,7 @@ export default function ChatStore() {
               variant="outlined"
               multiline
               maxRows={4}
-              disabled={sendingMessage}
+              disabled={sendingMessage || uploadingFile}
               sx={{
                 "& .MuiOutlinedInput-root": {
                   borderRadius: 4,
@@ -831,25 +1148,53 @@ export default function ChatStore() {
                     <IconButton color="primary" disabled>
                       <EmojiIcon />
                     </IconButton>
-                    <IconButton color="primary" disabled>
-                      <AttachFileIcon />
-                    </IconButton>
+                    <input
+                      accept="image/*,.pdf,.doc,.docx,.txt"
+                      style={{ display: "none" }}
+                      id="file-input"
+                      type="file"
+                      onChange={handleFileSelect}
+                    />
+                    <label htmlFor="file-input">
+                      <IconButton
+                        color="primary"
+                        component="span"
+                        disabled={uploadingFile}
+                      >
+                        <AttachFileIcon />
+                      </IconButton>
+                    </label>
                   </InputAdornment>
                 ),
               }}
             />
-            <Button
-              variant="contained"
-              onClick={handleSendMessage}
-              disabled={!newMessage.trim() || sendingMessage}
-              sx={{ borderRadius: "50%", minWidth: "auto", p: 1.5, ml: 1 }}
-            >
-              {sendingMessage ? (
-                <CircularProgress size={24} color="inherit" />
-              ) : (
+            {uploadingFile ? (
+              <Box sx={{ ml: 1, display: "flex", alignItems: "center" }}>
+                <CircularProgress size={24} />
+              </Box>
+            ) : selectedFile ? (
+              <Button
+                variant="contained"
+                onClick={handleSendFile}
+                disabled={uploadingFile}
+                sx={{ borderRadius: "50%", minWidth: "auto", p: 1.5, ml: 1 }}
+              >
                 <SendIcon />
-              )}
-            </Button>
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                onClick={handleSendMessage}
+                disabled={!newMessage.trim() || sendingMessage}
+                sx={{ borderRadius: "50%", minWidth: "auto", p: 1.5, ml: 1 }}
+              >
+                {sendingMessage ? (
+                  <CircularProgress size={24} color="inherit" />
+                ) : (
+                  <SendIcon />
+                )}
+              </Button>
+            )}
           </Box>
         </Box>
       </Box>
@@ -1009,6 +1354,72 @@ export default function ChatStore() {
             </Button>
           </DialogActions>
         </Dialog>
+
+        {/* Modal para preview de imagem */}
+        <Modal
+          open={Boolean(previewImage)}
+          onClose={() => setPreviewImage(null)}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            p: 2,
+          }}
+        >
+          <Box
+            sx={{ position: "relative", maxWidth: "90vw", maxHeight: "90vh" }}
+          >
+            <IconButton
+              onClick={() => setPreviewImage(null)}
+              sx={{
+                position: "absolute",
+                top: -10,
+                right: -10,
+                bgcolor: "rgba(0, 0, 0, 0.5)",
+                color: "white",
+                "&:hover": {
+                  bgcolor: "rgba(0, 0, 0, 0.7)",
+                },
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+            {previewImage && (
+              <img
+                src={previewImage}
+                alt="Preview"
+                style={{
+                  maxWidth: "100%",
+                  maxHeight: "100%",
+                  borderRadius: "8px",
+                }}
+                onError={(e) => {
+                  console.error(
+                    "Erro ao carregar imagem no modal:",
+                    previewImage
+                  );
+                  setPreviewImage(null);
+                }}
+              />
+            )}
+          </Box>
+        </Modal>
+
+        {/* Snackbar para feedback */}
+        <Snackbar
+          open={Boolean(snackbar.open)}
+          autoHideDuration={6000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        >
+          <Alert
+            onClose={() => setSnackbar({ ...snackbar, open: false })}
+            severity={snackbar.severity}
+            sx={{ width: "100%" }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
       </Box>
     </Box>
   );
