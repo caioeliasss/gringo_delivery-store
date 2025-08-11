@@ -39,6 +39,10 @@ const chatMessageSchema = new mongoose.Schema(
         size: Number,
       },
     ],
+    fileUrl: String,
+    fileName: String,
+    fileSize: Number,
+    fileType: String,
     metadata: {
       // Dados adicionais específicos de cada tipo de mensagem
       // Por exemplo, para mensagens de localização:

@@ -9,6 +9,7 @@ const rateLimit = require("express-rate-limit");
 const admin = require("./config/firebase-admin"); // Usar configuração centralizada
 const http = require("http");
 const socketIO = require("socket.io");
+const path = require("path");
 
 // Configuração das variáveis de ambiente
 dotenv.config();
@@ -41,6 +42,9 @@ app.use(
 );
 app.use(helmet());
 app.use(express.json());
+
+// Middleware para servir arquivos estáticos do chat
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Armazenar clientes SSE conectados (mantido para compatibilidade)
 const clients = new Map();

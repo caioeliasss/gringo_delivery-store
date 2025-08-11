@@ -3,6 +3,143 @@ const router = express.Router();
 const Chat = require("../models/Chat");
 const ChatMessage = require("../models/ChatMessage");
 const mongoose = require("mongoose");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
+
+// Configurar o multer para upload de arquivos
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(__dirname, "../uploads/chat-files");
+
+    // Criar diretório se não existir
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    // Gerar nome único para o arquivo
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const sanitizedOriginalName = file.originalname.replace(
+      /[^a-zA-Z0-9.-]/g,
+      "_"
+    );
+    cb(null, `${uniqueSuffix}-${sanitizedOriginalName}`);
+  },
+});
+
+// Validação de arquivos
+const fileFilter = (req, file, cb) => {
+  // Tipos permitidos
+  const allowedTypes = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "application/pdf",
+    "text/plain",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ];
+
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Tipo de arquivo não permitido"), false);
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
+  fileFilter: fileFilter,
+});
+
+// Função para upload de arquivos do chat
+const uploadChatFile = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "Nenhum arquivo foi enviado" });
+    }
+
+    const { chatId, sender } = req.body;
+
+    // Validar dados obrigatórios
+    if (!chatId || !sender) {
+      // Remover arquivo se validação falhar
+      if (req.file && req.file.path) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(400).json({
+        message: "chatId e sender são obrigatórios",
+      });
+    }
+
+    // Verificar se o chat existe
+    const chat = await Chat.findById(chatId);
+    if (!chat) {
+      // Remover arquivo se chat não existir
+      if (req.file && req.file.path) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(404).json({ message: "Chat não encontrado" });
+    }
+
+    // Verificar se o remetente faz parte do chat
+    if (!chat.participants.some((p) => p.firebaseUid === sender)) {
+      // Remover arquivo se usuário não autorizado
+      if (req.file && req.file.path) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(403).json({
+        message: "Remetente não faz parte deste chat",
+      });
+    }
+
+    // Gerar URL do arquivo
+    const baseUrl =
+      process.env.BASE_URL || `http://localhost:${process.env.PORT || 8080}`;
+    const fileUrl = `${baseUrl}/uploads/chat-files/${req.file.filename}`;
+
+    // Informações do arquivo para retornar
+    const fileInfo = {
+      fileUrl: fileUrl,
+      fileName: req.file.originalname,
+      fileSize: req.file.size,
+      fileType: req.file.mimetype,
+      filePath: req.file.path,
+      uploadedAt: new Date(),
+    };
+
+    console.log("Arquivo carregado com sucesso:", {
+      originalName: req.file.originalname,
+      filename: req.file.filename,
+      size: req.file.size,
+      chatId,
+      sender,
+    });
+
+    res.status(200).json(fileInfo);
+  } catch (error) {
+    // Remover arquivo em caso de erro
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    console.error("Erro no upload de arquivo:", error);
+    res.status(500).json({
+      message: "Erro interno do servidor no upload",
+      error: error.message,
+    });
+  }
+};
 
 // Criar um novo chat
 const createChat = async (req, res) => {
@@ -336,8 +473,18 @@ const updateStatus = async (req, res) => {
 // Enviar mensagem
 const sendMessage = async (req, res) => {
   try {
-    const { chatId, message, sender, messageType, metadata, attachments } =
-      req.body;
+    const {
+      chatId,
+      message,
+      sender,
+      messageType,
+      metadata,
+      attachments,
+      fileUrl,
+      fileName,
+      fileSize,
+      fileType,
+    } = req.body;
 
     if (!chatId || !message || !sender) {
       return res.status(400).json({
@@ -358,7 +505,7 @@ const sendMessage = async (req, res) => {
     }
 
     // Criar nova mensagem
-    const newMessage = new ChatMessage({
+    const newMessageData = {
       chatId,
       message,
       sender,
@@ -366,8 +513,26 @@ const sendMessage = async (req, res) => {
       readBy: [{ firebaseUid: sender }], // Já marcada como lida pelo remetente
       metadata: metadata || {},
       attachments: attachments || [],
-    });
+    };
 
+    // Se for arquivo, adicionar os campos de arquivo
+    if (messageType === "FILE") {
+      if (fileUrl) newMessageData.fileUrl = fileUrl;
+      if (fileName) newMessageData.fileName = fileName;
+      if (fileSize) newMessageData.fileSize = fileSize;
+      if (fileType) newMessageData.fileType = fileType;
+
+      // Também adicionar no metadata para compatibilidade
+      newMessageData.metadata = {
+        ...newMessageData.metadata,
+        fileUrl,
+        fileName,
+        fileSize,
+        fileType,
+      };
+    }
+
+    const newMessage = new ChatMessage(newMessageData);
     await newMessage.save();
     // O hook post-save já atualiza o chat com a última mensagem
 
@@ -509,6 +674,7 @@ const getUnreadMessageCount = async (req, res) => {
 };
 
 // Definir rotas
+router.post("/upload", upload.single("file"), uploadChatFile);
 router.post("/", createChat);
 router.get("/", getUserChats);
 router.get("/:id", getChatById);
