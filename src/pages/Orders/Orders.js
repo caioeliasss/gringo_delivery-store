@@ -1729,7 +1729,7 @@ export default function OrdersPage() {
                                             color="text.secondary"
                                           >
                                             Código do cliente {customer.name}:{" "}
-                                            {customer.phone}
+                                            {customer.phone?.slice(-4)}
                                           </Typography>
                                         </Box>
                                       )

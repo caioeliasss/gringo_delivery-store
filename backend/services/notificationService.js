@@ -210,20 +210,40 @@ class NotificationService {
       chatId,
     } = data;
 
-    // Verificar se motoboy existe
-    let motoboy = null;
+    // Buscar usuário por motoboyId primeiro (se fornecido)
+    let user = null;
+    let userType = null;
+
     if (motoboyId) {
-      motoboy = await Motoboy.findById(motoboyId);
+      user = await Motoboy.findById(motoboyId);
+      if (user) userType = "MOTOBOY";
     }
 
-    if (!motoboy && firebaseUid) {
-      motoboy = await Motoboy.findOne({ firebaseUid });
+    // Se não encontrou por motoboyId ou motoboyId não foi fornecido, buscar por firebaseUid
+    if (!user && firebaseUid) {
+      // Tentar encontrar em Motoboy primeiro
+      user = await Motoboy.findOne({ firebaseUid });
+      if (user) {
+        userType = "MOTOBOY";
+      } else {
+        // Tentar encontrar em Store
+        user = await Store.findOne({ firebaseUid });
+        if (user) {
+          userType = "STORE";
+        } else {
+          // Tentar encontrar em SupportTeam
+          user = await SupportTeam.findOne({ firebaseUid });
+          if (user) {
+            userType = "SUPPORT";
+          }
+        }
+      }
     }
 
     // Criar a notificação
     const notification = new Notification({
-      motoboyId: motoboy ? motoboy._id : null,
-      firebaseUid: firebaseUid || (motoboy ? motoboy.firebaseUid : null),
+      motoboyId: userType === "MOTOBOY" ? user?._id : null,
+      firebaseUid: firebaseUid || user?.firebaseUid || null,
       type: type || "SYSTEM",
       title,
       message,
@@ -233,34 +253,47 @@ class NotificationService {
 
     await notification.save();
 
-    // Enviar push notification se tiver token
-    if (motoboy && motoboy.fcmToken) {
+    // Enviar push notification se tiver token FCM
+    if (user && (user.fcmToken || user.pushToken)) {
       try {
+        const token = user.fcmToken || user.pushToken;
         await pushNotificationService.sendCallStyleNotificationFCM(
-          motoboy.fcmToken,
+          token,
           notification.title,
           notification.message,
           {
             notificationId: notification._id,
             type: notification.type,
             screen: screen || "/(tabs)",
-            orderId: motoboy.race.orderId,
+            chatId: chatId || null,
+            orderId: userType === "MOTOBOY" ? user.race?.orderId : null,
           }
         );
+        console.log(
+          `📱 Notificação FCM enviada para ${userType}: ${
+            user.name || user.businessName
+          }`
+        );
       } catch (pushError) {
-        console.error("Erro ao enviar notificação call style:", pushError);
+        console.error(
+          `Erro ao enviar notificação FCM para ${userType}:`,
+          pushError
+        );
       }
     } else {
-      console.warn("Motoboy não encontrado ou não possui token FCM", {
+      console.warn("Usuário não encontrado ou não possui token FCM/Push", {
         motoboyId,
         firebaseUid,
-        motoboyExists: !!motoboy,
-        hasFcmToken: motoboy?.fcmToken ? true : false,
+        userExists: !!user,
+        userType: userType,
+        hasFcmToken: user?.fcmToken ? true : false,
+        hasPushToken: user?.pushToken ? true : false,
+        userName: user?.name || user?.businessName || "Desconhecido",
       });
     }
 
-    // Enviar evento SSE se disponível
-    if (app?.locals?.sendEventToStore && firebaseUid) {
+    // Enviar evento via Socket e SSE se disponível
+    if (firebaseUid) {
       try {
         const notifyData = {
           notificationId: notification._id,
@@ -268,22 +301,32 @@ class NotificationService {
           title: notification.title,
           message: notification.message,
           chatId: chatId || null,
+          userType: userType,
         };
 
         // Enviar notificação via Socket
         const notificationSent = global.sendSocketNotification(
-          motoboy?.firebaseUid || firebaseUid,
+          firebaseUid,
           "genericNotification",
           notifyData
         );
 
-        app.locals.sendEventToStore(
-          firebaseUid,
-          notification.type || "genericNotification",
-          notifyData
+        console.log(
+          `🔌 Socket notification ${
+            notificationSent ? "enviada" : "falhou"
+          } para ${userType}: ${firebaseUid}`
         );
+
+        // Enviar via SSE se disponível
+        if (app?.locals?.sendEventToStore) {
+          app.locals.sendEventToStore(
+            firebaseUid,
+            notification.type || "genericNotification",
+            notifyData
+          );
+        }
       } catch (notifyError) {
-        console.error(`Erro ao enviar notificação SSE:`, notifyError);
+        console.error(`Erro ao enviar notificação Socket/SSE:`, notifyError);
       }
     }
 
@@ -431,21 +474,23 @@ class NotificationService {
       throw new Error("Usuário não encontrado");
     }
 
-    if (user.pushToken) {
+    if (user.fcmToken) {
       try {
-        await pushNotificationService.sendPushNotification(
-          user.pushToken,
-          notification.title,
-          notification.message,
-          {
-            notificationId: notification._id,
-            type: notification.type,
-            orderId: user._id,
-            screen: "/occurrences",
-          }
-        );
+        const fcmNotification =
+          await pushNotificationService.sendCallStyleNotificationFCM(
+            user.fcmToken,
+            notification.title,
+            notification.message,
+            {
+              notificationId: notification._id,
+              type: notification.type,
+              screen: "/(tabs)",
+              orderId: order._id,
+            }
+          );
       } catch (pushError) {
         console.error("Erro ao enviar notificação push:", pushError);
+        // Não falhar o request se a notificação push falhar
       }
     }
 
@@ -547,8 +592,9 @@ class NotificationService {
 
     // Enviar push notification se tiver token FCM
     if (motoboy.fcmToken) {
+      //FIXME por favor
       try {
-        await pushNotificationService.sendPushNotification(
+        await pushNotificationService.sendCallStyleNotificationFCM(
           motoboy.fcmToken,
           notification.title,
           notification.message,

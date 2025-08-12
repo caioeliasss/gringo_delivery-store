@@ -35,6 +35,41 @@ const getNotificationsAll = async (req, res) => {
   }
 };
 
+const hasUnreadNotifications = async (req, res) => {
+  try {
+    const { motoboyId, firebaseUid } = req.query;
+
+    if (!motoboyId && !firebaseUid) {
+      return res.status(400).json({
+        message: "motoboyId ou firebaseUid é obrigatório",
+      });
+    }
+
+    // Determinar critério de busca
+    let searchCriteria = {};
+    if (motoboyId) {
+      searchCriteria.motoboyId = motoboyId;
+    } else if (firebaseUid) {
+      searchCriteria.firebaseUid = firebaseUid;
+    }
+
+    // Contar apenas notificações não lidas (muito mais eficiente que buscar todas)
+    const unreadCount = await Notification.countDocuments({
+      ...searchCriteria,
+      status: { $ne: "READ" }, // Todas que NÃO são "READ"
+      expiresAt: { $gt: new Date() }, // E que não expiraram
+    });
+
+    res.json({
+      hasUnread: unreadCount > 0,
+      unreadCount: unreadCount,
+    });
+  } catch (error) {
+    console.error("Erro ao verificar notificações não lidas:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 const getSupportNotifications = async (req, res) => {
   try {
     const { firebaseUid } = req.query;
@@ -47,7 +82,12 @@ const getSupportNotifications = async (req, res) => {
 
     const notifications = await Notification.find({
       firebaseUid: firebaseUid,
-      $or: [{ type: "SUPPORT_ALERT" }, { type: "SUPPORT" }, { type: "SYSTEM" }],
+      $or: [
+        { type: "SUPPORT_ALERT" },
+        { type: "SUPPORT" },
+        { type: "SYSTEM" },
+        { type: "CHAT_MESSAGE" },
+      ],
     }).sort({ createdAt: -1 });
 
     res.json(notifications);
@@ -258,18 +298,19 @@ const createNotificationGeneric = async (req, res) => {
     });
     await notification.save();
 
-    if (!motoboy || motoboy.pushToken || motoboy.pushToken === null) {
+    if (motoboy.fcmToken) {
       try {
-        await pushNotificationService.sendPushNotification(
-          motoboy.pushToken,
-          notification.title,
-          notification.message,
-          {
-            notificationId: notification._id,
-            type: notification.type,
-            screen: screen || "notifications",
-          }
-        );
+        const fcmNotification =
+          await pushNotificationService.sendCallStyleNotificationFCM(
+            motoboy.fcmToken,
+            notification.title,
+            notification.message,
+            {
+              notificationId: notification._id,
+              type: notification.type,
+              screen: "/(tabs)",
+            }
+          );
       } catch (pushError) {
         console.error("Erro ao enviar notificação push:", pushError);
         // Não falhar o request se a notificação push falhar
@@ -438,19 +479,19 @@ const notifyOccurrence = async (req, res) => {
       return res.status(404).json({ message: "Usuario não encontrado" });
     }
 
-    if (user.pushToken) {
+    if (user.fcmToken) {
       try {
-        await pushNotificationService.sendPushNotification(
-          user.pushToken,
-          notification.title,
-          notification.message,
-          {
-            notificationId: notification._id,
-            type: notification.type,
-            orderId: user._id,
-            screen: "/occurrences",
-          }
-        );
+        const fcmNotification =
+          await pushNotificationService.sendCallStyleNotificationFCM(
+            user.fcmToken,
+            notification.title,
+            notification.message,
+            {
+              notificationId: notification._id,
+              type: notification.type,
+              screen: "/(tabs)",
+            }
+          );
       } catch (pushError) {
         console.error("Erro ao enviar notificação push:", pushError);
         // Não falhar o request se a notificação push falhar
@@ -584,20 +625,54 @@ const getCallInfo = async (req, res) => {
 
 const markAllAsRead = async (req, res) => {
   try {
-    const { userId } = req.body;
+    const { firebaseUid, motoboyId, userId } =
+      req.body || req.query || req.params;
+    console.log("Marking all notifications as read. Dados recebidos:", {
+      firebaseUid,
+      motoboyId,
+      userId,
+    });
 
-    if (!userId) {
+    // Determinar qual critério usar para buscar as notificações
+    let searchCriteria = {};
+
+    if (motoboyId) {
+      // Para notificações do motoboy (maioria dos casos)
+      searchCriteria = { motoboyId: motoboyId };
+    } else if (firebaseUid) {
+      // Para notificações por firebaseUid (suporte, etc)
+      searchCriteria = { firebaseUid: firebaseUid };
+    } else if (userId) {
+      // Tentar ambos os casos
+      searchCriteria = {
+        $or: [{ motoboyId: userId }, { firebaseUid: userId }],
+      };
+    } else {
       return res.status(400).json({
-        message: "userId é obrigatório",
+        message: "É necessário fornecer motoboyId, firebaseUid ou userId",
       });
     }
 
-    await Notification.updateMany(
-      { userId, read: false },
-      { $set: { read: true } }
+    console.log("Critério de busca:", searchCriteria);
+
+    // Buscar notificações que NÃO estão marcadas como READ
+    const updateResult = await Notification.updateMany(
+      {
+        ...searchCriteria,
+        status: { $ne: "READ" }, // Pegar todas que NÃO são "READ"
+      },
+      { $set: { status: "READ" } }
     );
 
-    res.json({ message: "Todas as notificações marcadas como lidas" });
+    console.log(
+      `${updateResult.modifiedCount} notificações marcadas como lidas de ${updateResult.matchedCount} encontradas`
+    );
+
+    res.json({
+      message: "Todas as notificações marcadas como lidas",
+      modifiedCount: updateResult.modifiedCount,
+      matchedCount: updateResult.matchedCount,
+    });
   } catch (error) {
     console.error("Erro ao marcar todas as notificações como lidas:", error);
     res.status(500).json({ message: error.message });
@@ -610,6 +685,7 @@ router.post("/notifySupport", notifySupport);
 router.post("/generic", createNotificationGeneric);
 router.get("/", getNotifications);
 router.get("/all", getNotificationsAll);
+router.get("/has-unread", hasUnreadNotifications);
 router.get("/support", getSupportNotifications);
 router.post("/", createNotification);
 router.put("/", updateNotification);

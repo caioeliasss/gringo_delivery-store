@@ -1,24 +1,27 @@
+// src/components/ChatIndicator.js
 import React from "react";
 import { IconButton, Badge, Tooltip, Box, Typography } from "@mui/material";
 import {
-  Notifications as NotificationsIcon,
-  NotificationsActive as NotificationsActiveIcon,
-  NotificationsOff as NotificationsOffIcon,
+  Chat as ChatIcon,
+  ChatBubble as ChatBubbleIcon,
 } from "@mui/icons-material";
 import { useGlobalNotifications } from "../contexts/GlobalNotificationsContext";
 
-const NotificationIndicator = ({ onClick, sx = {}, children }) => {
-  const { isConnected, unreadCount, connectionError } =
-    useGlobalNotifications();
+const ChatIndicator = ({ onClick, sx = {}, children }) => {
+  const { 
+    hasUnreadChatMessages, 
+    chatUnreadCount, 
+    isConnected 
+  } = useGlobalNotifications();
 
   // Se children for fornecido, usar apenas como wrapper com badge
   if (children) {
     return (
       <Box sx={{ position: "relative", display: "inline-flex" }}>
         {children}
-        {unreadCount > 0 && (
+        {hasUnreadChatMessages && chatUnreadCount > 0 && (
           <Badge
-            badgeContent={unreadCount}
+            badgeContent={chatUnreadCount}
             color="error"
             max={99}
             sx={{
@@ -36,28 +39,26 @@ const NotificationIndicator = ({ onClick, sx = {}, children }) => {
   const getIconProps = () => {
     if (!isConnected) {
       return {
-        icon: NotificationsOffIcon,
+        icon: ChatIcon,
         color: "disabled",
-        tooltip: connectionError
-          ? `Erro: ${connectionError}`
-          : "Desconectado do servidor",
+        tooltip: "Chat desconectado",
       };
     }
 
-    if (unreadCount > 0) {
+    if (hasUnreadChatMessages && chatUnreadCount > 0) {
       return {
-        icon: NotificationsActiveIcon,
+        icon: ChatBubbleIcon,
         color: "error",
-        tooltip: `${unreadCount} notificação${
-          unreadCount > 1 ? "ões" : ""
-        } não lida${unreadCount > 1 ? "s" : ""}`,
+        tooltip: `${chatUnreadCount} mensagem${
+          chatUnreadCount > 1 ? "ns" : ""
+        } não lida${chatUnreadCount > 1 ? "s" : ""} no chat`,
       };
     }
 
     return {
-      icon: NotificationsIcon,
+      icon: ChatIcon,
       color: "inherit",
-      tooltip: "Nenhuma notificação nova",
+      tooltip: "Nenhuma mensagem nova no chat",
     };
   };
 
@@ -69,13 +70,8 @@ const NotificationIndicator = ({ onClick, sx = {}, children }) => {
         <Box>
           <Typography variant="body2">{tooltip}</Typography>
           <Typography variant="caption" color="textSecondary">
-            Status: {isConnected ? "✅ Conectado" : "❌ Desconectado"}
+            Chat: {isConnected ? "✅ Conectado" : "❌ Desconectado"}
           </Typography>
-          {connectionError && (
-            <Typography variant="caption" color="error" display="block">
-              {connectionError}
-            </Typography>
-          )}
         </Box>
       }
       arrow
@@ -85,7 +81,7 @@ const NotificationIndicator = ({ onClick, sx = {}, children }) => {
         color={color}
         sx={{
           ...sx,
-          animation: unreadCount > 0 ? "pulse 2s infinite" : "none",
+          animation: hasUnreadChatMessages && chatUnreadCount > 0 ? "pulse 2s infinite" : "none",
           "@keyframes pulse": {
             "0%": {
               transform: "scale(1)",
@@ -100,7 +96,7 @@ const NotificationIndicator = ({ onClick, sx = {}, children }) => {
         }}
       >
         <Badge
-          badgeContent={unreadCount > 0 ? unreadCount : null}
+          badgeContent={hasUnreadChatMessages && chatUnreadCount > 0 ? chatUnreadCount : null}
           color="error"
           max={99}
           overlap="circular"
@@ -112,4 +108,4 @@ const NotificationIndicator = ({ onClick, sx = {}, children }) => {
   );
 };
 
-export default NotificationIndicator;
+export default ChatIndicator;

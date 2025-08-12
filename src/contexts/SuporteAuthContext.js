@@ -1,6 +1,7 @@
 // src/contexts/SuporteAuthContext.js
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useAuth } from "./AuthContext";
+import { GlobalNotificationsProvider } from "./GlobalNotificationsContext";
 import api from "../services/api"; // Ajuste o caminho conforme sua estrutura
 
 const SuporteAuthContext = createContext();
@@ -109,7 +110,9 @@ export const SuporteAuthProvider = ({ children }) => {
   if (!isNotMember) {
     return (
       <SuporteAuthContext.Provider value={value}>
-        {children}
+        <GlobalNotificationsProvider userType="support">
+          {children}
+        </GlobalNotificationsProvider>
       </SuporteAuthContext.Provider>
     );
   } else {

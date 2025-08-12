@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const notificationService = require("../services/notificationService");
 
 // Configurar o multer para upload de arquivos
 const storage = multer.diskStorage({
@@ -551,6 +552,53 @@ const sendMessage = async (req, res) => {
     await newMessage.save();
     // O hook post-save já atualiza o chat com a última mensagem
 
+    if (chat.participants.some((p) => p.firebaseUid === sender)) {
+      // Se o remetente é um participante, enviar notificação para cada participante
+      const otherParticipants = chat.participants.filter(
+        (p) => p.firebaseUid !== sender
+      );
+
+      // Atualizar a última mensagem e incrementar unreadCount para outros participantes
+      await Chat.updateOne(
+        { _id: chat._id },
+        {
+          $set: { lastMessage: newMessage._id },
+          $inc: {
+            "participants.$[participant].unreadCount": 1,
+          },
+        },
+        {
+          arrayFilters: [
+            {
+              "participant.firebaseUid": {
+                $in: otherParticipants.map((p) => p.firebaseUid),
+              },
+            },
+          ],
+        }
+      );
+
+      // Enviar notificação individual para cada participante
+      for (const participant of otherParticipants) {
+        try {
+          await notificationService.createGenericNotification({
+            title: "Nova mensagem",
+            message: message.trim(),
+            firebaseUid: participant.firebaseUid, // Enviar como string, não array
+            screen: "/chat",
+            type: "CHAT_MESSAGE",
+            chatId: chat._id,
+            expiresAt: new Date(Date.now() + 16 * 60 * 60 * 1000), // Expira em 16 hrs
+          });
+        } catch (notifError) {
+          console.error(
+            `Erro ao enviar notificação para ${participant.firebaseUid}:`,
+            notifError
+          );
+        }
+      }
+    }
+
     res.status(201).json(newMessage);
   } catch (error) {
     console.error("Erro ao enviar mensagem:", error);
@@ -631,6 +679,20 @@ const markMessagesAsRead = async (req, res) => {
     // Usar o método definido no esquema
     await chat.markAsRead(firebaseUid);
 
+    // Zerar o unreadCount para o usuário específico
+    await Chat.updateOne(
+      { _id: chatId },
+      {
+        $set: {
+          "participants.$[participant].unreadCount": 0,
+          "participants.$[participant].lastRead": new Date(),
+        },
+      },
+      {
+        arrayFilters: [{ "participant.firebaseUid": firebaseUid }],
+      }
+    );
+
     // Também marcar todas as mensagens individuais como lidas
     await ChatMessage.updateMany(
       {
@@ -654,36 +716,92 @@ const markMessagesAsRead = async (req, res) => {
   }
 };
 
-// Obter contagem de mensagens não lidas
-const getUnreadMessageCount = async (req, res) => {
+// Verificar se há mensagens de chat não lidas (endpoint otimizado)
+const hasUnreadChatMessages = async (req, res) => {
   const { userId } = req.params;
 
   try {
-    // Encontrar todos os chats dos quais o usuário é participante
-    const chats = await Chat.find({ firebaseUid: userId });
-    const chatIds = chats.map((chat) => chat._id);
-
-    // Contar mensagens não lidas em cada chat
-    const unreadCounts = await Promise.all(
-      chatIds.map(async (chatId) => {
-        const count = await ChatMessage.countDocuments({
-          chatId: chatId.toString(),
-          sender: { $ne: userId },
-          read: false,
-        });
-
-        return { chatId: chatId.toString(), count };
-      })
-    );
-
-    // Filtrar apenas chats com mensagens não lidas
-    const filteredCounts = unreadCounts.filter((item) => item.count > 0);
+    // Encontrar se existe pelo menos uma mensagem não lida
+    const hasUnread = await ChatMessage.exists({
+      // Buscar em chats onde o usuário é participante
+      chatId: {
+        $in: await Chat.distinct("_id", {
+          "participants.firebaseUid": userId,
+          status: "ACTIVE",
+        }),
+      },
+      sender: { $ne: userId }, // Não contar próprias mensagens
+      "readBy.firebaseUid": { $ne: userId }, // Não foi lida pelo usuário
+    });
 
     res.json({
-      totalUnread: filteredCounts.reduce((sum, item) => sum + item.count, 0),
-      chats: filteredCounts,
+      hasUnreadMessages: !!hasUnread,
+      timestamp: new Date(),
     });
   } catch (error) {
+    console.error("Erro ao verificar mensagens não lidas:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Obter contagem de mensagens não lidas (versão otimizada usando unreadCount)
+const getUnreadMessageCountOptimized = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    // Buscar todos os chats onde o usuário é participante
+    const chats = await Chat.find({
+      "participants.firebaseUid": userId,
+      status: "ACTIVE",
+    });
+
+    let totalUnreadCount = 0;
+    const chatUnreadCounts = {};
+
+    for (const chat of chats) {
+      // Encontrar o participante específico no chat
+      const participant = chat.participants.find(
+        (p) => p.firebaseUid === userId
+      );
+
+      if (participant && participant.unreadCount > 0) {
+        chatUnreadCounts[chat._id] = participant.unreadCount;
+        totalUnreadCount += participant.unreadCount;
+      }
+    }
+
+    res.json({
+      totalUnreadCount,
+      chatUnreadCounts,
+      chats: chats.length,
+    });
+  } catch (error) {
+    console.error(
+      "Erro ao buscar contagem otimizada de mensagens não lidas:",
+      error
+    );
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Verificar se há mensagens não lidas (versão otimizada)
+const hasUnreadChatMessagesOptimized = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    // Verificar se existe pelo menos um chat com unreadCount > 0
+    const hasUnread = await Chat.exists({
+      "participants.firebaseUid": userId,
+      "participants.unreadCount": { $gt: 0 },
+      status: "ACTIVE",
+    });
+
+    res.json({
+      hasUnreadMessages: !!hasUnread,
+      timestamp: new Date(),
+    });
+  } catch (error) {
+    console.error("Erro ao verificar mensagens não lidas (otimizada):", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -704,7 +822,8 @@ router.delete("/:id", deleteChat);
 router.post("/message", sendMessage);
 router.get("/message/all", getAllChatMessages);
 router.get("/message/:chatId", getChatMessagesByChatId);
-router.put("/message/:chatId/read/:userId", markMessagesAsRead);
-router.get("/message/unread/:userId", getUnreadMessageCount);
+router.put("/message/:chatId/read/:firebaseUid", markMessagesAsRead);
+router.get("/message/unread/:userId", getUnreadMessageCountOptimized); // Usando versão otimizada
+router.get("/message/has-unread/:userId", hasUnreadChatMessagesOptimized); // Usando versão otimizada
 
 module.exports = router;

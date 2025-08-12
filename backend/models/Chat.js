@@ -76,4 +76,16 @@ chatSchema.methods.updateParticipantNames = async function (participantData) {
   await this.save();
 };
 
+// Método para marcar chat como lido para um usuário específico
+chatSchema.methods.markAsRead = async function (firebaseUid) {
+  const participant = this.participants.find(
+    (p) => p.firebaseUid === firebaseUid
+  );
+  if (participant) {
+    participant.unreadCount = 0;
+    participant.lastRead = new Date();
+    await this.save();
+  }
+};
+
 module.exports = mongoose.model("Chat", chatSchema);

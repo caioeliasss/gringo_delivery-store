@@ -41,6 +41,8 @@ import { buscarCnpj } from "../../services/cnpj";
 import api from "../../services/api";
 import { buscarGenero } from "../../services/gender";
 import SideDrawer from "../../components/SideDrawer/SideDrawer";
+import NotificationIndicator from "../../components/NotificationIndicator";
+import ChatIndicator from "../../components/ChatIndicator";
 import {
   SUPPORT_MENU_ITEMS,
   createSupportFooterItems,
@@ -179,6 +181,11 @@ const SuporteDashboard = () => {
             >
               Gringo Delivery
             </Typography>
+            {/* Adicionar indicador de notificação na AppBar móvel */}
+            <NotificationIndicator
+              onClick={() => navigate("/notificacoes")}
+              sx={{ color: "inherit" }}
+            />
           </Toolbar>
         </AppBar>
       )}

@@ -5,6 +5,225 @@ const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080/api";
 
 console.log(process.env.REACT_APP_API_URL);
 
+// Sistema de cache TTL para evitar sobrecarregamento
+class ApiCache {
+  constructor() {
+    this.cache = new Map();
+    this.defaultTTL = 5 * 60 * 1000; // 5 minutos padrão
+  }
+
+  // Gerar chave única para a requisição
+  generateKey(config) {
+    const { method = "GET", url, params, data } = config;
+    const key = `${method.toUpperCase()}:${url}`;
+
+    if (params) {
+      const sortedParams = Object.keys(params)
+        .sort()
+        .map((k) => `${k}=${params[k]}`)
+        .join("&");
+      return `${key}?${sortedParams}`;
+    }
+
+    if (
+      data &&
+      (method.toUpperCase() === "GET" || method.toUpperCase() === "HEAD")
+    ) {
+      return `${key}:${JSON.stringify(data)}`;
+    }
+
+    return key;
+  }
+
+  // Verificar se deve usar cache para esta requisição
+  shouldCache(config) {
+    const method = (config.method || "GET").toUpperCase();
+
+    // Apenas cachear GET requests por padrão
+    if (method !== "GET") return false;
+
+    // Não cachear se explicitamente desabilitado
+    if (config.noCache === true) return false;
+
+    // Não cachear requisições com parâmetros sensíveis
+    const url = config.url || "";
+    const sensitiveEndpoints = ["/auth", "/login", "/logout", "/token"];
+    if (sensitiveEndpoints.some((endpoint) => url.includes(endpoint)))
+      return false;
+
+    return true;
+  }
+
+  // Obter TTL específico baseado no endpoint
+  getTTL(config) {
+    const url = config.url || "";
+
+    // TTLs específicos para diferentes tipos de dados
+    const ttlConfig = {
+      // Dados que mudam raramente - TTL longo
+      "/stores/me": 10 * 60 * 1000, // 10 minutos
+      "/products": 5 * 60 * 1000, // 5 minutos
+      "/motoboys": 2 * 60 * 1000, // 2 minutos
+      "/stores": 5 * 60 * 1000, // 5 minutos
+      "/delivery-price": 15 * 60 * 1000, // 15 minutos
+
+      // Dados que mudam com frequência - TTL curto
+      "/orders": 30 * 1000, // 30 segundos
+      "/notifications": 30 * 1000, // 30 segundos
+      "/travels": 1 * 60 * 1000, // 1 minuto
+
+      // Dados em tempo real - TTL muito curto
+      "/motoboys/find": 10 * 1000, // 10 segundos
+      "update-location": 5 * 1000, // 5 segundos
+    };
+
+    // Verificar se há configuração específica
+    for (const [endpoint, ttl] of Object.entries(ttlConfig)) {
+      if (url.includes(endpoint)) {
+        return ttl;
+      }
+    }
+
+    // Usar TTL customizado se especificado
+    if (config.cacheTTL) return config.cacheTTL;
+
+    return this.defaultTTL;
+  }
+
+  // Obter do cache
+  get(key) {
+    const item = this.cache.get(key);
+
+    if (!item) return null;
+
+    // Verificar se expirou
+    if (Date.now() > item.expiresAt) {
+      this.cache.delete(key);
+      return null;
+    }
+
+    // Clonar para evitar mutação
+    return {
+      data: JSON.parse(JSON.stringify(item.data)),
+      status: item.status,
+      statusText: item.statusText,
+      headers: { ...item.headers },
+      config: { ...item.config },
+      fromCache: true,
+      cachedAt: item.cachedAt,
+    };
+  }
+
+  // Armazenar no cache
+  set(key, response, ttl) {
+    const item = {
+      data: JSON.parse(JSON.stringify(response.data)),
+      status: response.status,
+      statusText: response.statusText,
+      headers: { ...response.headers },
+      config: { ...response.config },
+      cachedAt: Date.now(),
+      expiresAt: Date.now() + ttl,
+    };
+
+    this.cache.set(key, item);
+
+    // Log em desenvolvimento
+    if (process.env.NODE_ENV === "development") {
+      console.log(`🗄️ Cache SET: ${key} (TTL: ${ttl}ms)`);
+    }
+  }
+
+  // Invalidar cache para uma chave específica
+  invalidate(keyPattern) {
+    let invalidatedCount = 0;
+
+    for (const [key] of this.cache) {
+      if (key.includes(keyPattern)) {
+        this.cache.delete(key);
+        invalidatedCount++;
+      }
+    }
+
+    if (process.env.NODE_ENV === "development" && invalidatedCount > 0) {
+      console.log(
+        `🗑️ Cache invalidated: ${invalidatedCount} entries for pattern "${keyPattern}"`
+      );
+    }
+
+    return invalidatedCount;
+  }
+
+  // Limpar cache expirado
+  cleanup() {
+    const now = Date.now();
+    let cleanedCount = 0;
+
+    for (const [key, item] of this.cache) {
+      if (now > item.expiresAt) {
+        this.cache.delete(key);
+        cleanedCount++;
+      }
+    }
+
+    if (process.env.NODE_ENV === "development" && cleanedCount > 0) {
+      console.log(`🧹 Cache cleanup: ${cleanedCount} expired entries removed`);
+    }
+
+    return cleanedCount;
+  }
+
+  // Limpar todo o cache
+  clear() {
+    const size = this.cache.size;
+    this.cache.clear();
+
+    if (process.env.NODE_ENV === "development") {
+      console.log(`🗑️ Cache cleared: ${size} entries removed`);
+    }
+
+    return size;
+  }
+
+  // Obter estatísticas do cache
+  getStats() {
+    const now = Date.now();
+    let expired = 0;
+    let active = 0;
+
+    for (const [, item] of this.cache) {
+      if (now > item.expiresAt) {
+        expired++;
+      } else {
+        active++;
+      }
+    }
+
+    return {
+      total: this.cache.size,
+      active,
+      expired,
+      memory: this.getMemoryUsage(),
+    };
+  }
+
+  // Estimar uso de memória (aproximado)
+  getMemoryUsage() {
+    let bytes = 0;
+
+    for (const [key, item] of this.cache) {
+      bytes += key.length * 2; // String chars = 2 bytes
+      bytes += JSON.stringify(item).length * 2;
+    }
+
+    return {
+      bytes,
+      kb: Math.round(bytes / 1024),
+      mb: Math.round((bytes / 1024 / 1024) * 100) / 100,
+    };
+  }
+}
+
 // Sistema de fila para controle de rate limiting
 class ApiQueue {
   constructor() {
@@ -115,6 +334,12 @@ class ApiQueue {
 }
 
 const apiQueue = new ApiQueue();
+const apiCache = new ApiCache();
+
+// Limpar cache expirado periodicamente
+setInterval(() => {
+  apiCache.cleanup();
+}, 5 * 60 * 1000); // A cada 5 minutos
 
 const api = axios.create({
   baseURL: API_URL,
@@ -123,9 +348,30 @@ const api = axios.create({
   },
 });
 
-// Interceptor para adicionar token de autenticação
+// Interceptor para adicionar token de autenticação e verificar cache
 api.interceptors.request.use(
   async (config) => {
+    // Verificar cache antes de fazer a requisição
+    if (apiCache.shouldCache(config)) {
+      const cacheKey = apiCache.generateKey(config);
+      const cachedResponse = apiCache.get(cacheKey);
+
+      if (cachedResponse) {
+        if (process.env.NODE_ENV === "development") {
+          console.log(`🗄️ Cache HIT: ${config.url}`);
+        }
+
+        // Retornar resposta do cache como uma Promise resolvida
+        return Promise.resolve(cachedResponse);
+      }
+
+      // Marcar para cache na resposta
+      config._shouldCache = true;
+      config._cacheKey = cacheKey;
+      config._cacheTTL = apiCache.getTTL(config);
+    }
+
+    // Adicionar token de autenticação
     const user = auth.currentUser;
     if (user) {
       const token = await user.getIdToken();
@@ -141,9 +387,22 @@ api.interceptors.request.use(
   }
 );
 
-// Interceptor de resposta para lidar com rate limiting
+// Interceptor de resposta para lidar com rate limiting e cache
 api.interceptors.response.use(
   (response) => {
+    // Armazenar no cache se necessário
+    if (response.config._shouldCache && response.config._cacheKey) {
+      apiCache.set(
+        response.config._cacheKey,
+        response,
+        response.config._cacheTTL
+      );
+
+      if (process.env.NODE_ENV === "development") {
+        console.log(`🗄️ Cache MISS -> SET: ${response.config.url}`);
+      }
+    }
+
     return response;
   },
   async (error) => {
@@ -363,6 +622,60 @@ export const configureApiQueue = (options = {}) => {
   if (options.maxConcurrent) apiQueue.maxConcurrent = options.maxConcurrent;
   if (options.minDelay) apiQueue.minDelay = options.minDelay;
   if (options.retryAttempts) apiQueue.retryAttempts = options.retryAttempts;
+};
+
+// Funções utilitárias para controle do cache
+export const getCacheStats = () => {
+  return apiCache.getStats();
+};
+
+export const clearCache = () => {
+  return apiCache.clear();
+};
+
+export const invalidateCache = (pattern) => {
+  return apiCache.invalidate(pattern);
+};
+
+export const cleanupCache = () => {
+  return apiCache.cleanup();
+};
+
+// Configurar cache (opcional)
+export const configureCacheDefaults = (ttlMs) => {
+  apiCache.defaultTTL = ttlMs;
+};
+
+// Função para requisições sem cache
+export const noCacheRequest = (config) => {
+  return api.request({ ...config, noCache: true, useQueue: false });
+};
+
+// Função para requisições com cache customizado
+export const cachedRequest = (config, ttlMs) => {
+  return api.request({ ...config, cacheTTL: ttlMs });
+};
+
+// Função para invalidar cache de um endpoint específico
+export const invalidateCacheForEndpoint = (endpoint) => {
+  return apiCache.invalidate(endpoint);
+};
+
+// Função para pré-carregar cache (prefetch)
+export const prefetchData = async (endpoints = []) => {
+  const prefetchPromises = endpoints.map(async (endpoint) => {
+    try {
+      await api.get(endpoint.url, {
+        ...endpoint.config,
+        cacheTTL: endpoint.ttl || apiCache.defaultTTL,
+      });
+      console.log(`✅ Prefetch success: ${endpoint.url}`);
+    } catch (error) {
+      console.warn(`⚠️ Prefetch failed: ${endpoint.url}`, error.message);
+    }
+  });
+
+  return Promise.allSettled(prefetchPromises);
 };
 
 // Função para requisições prioritárias (bypass da fila)

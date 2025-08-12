@@ -55,7 +55,8 @@ app.use(
 );
 
 // Configurar trust proxy para funcionar corretamente com proxies (GCP, Nginx, etc.)
-app.set("trust proxy", true);
+// Para Google Cloud Run, confiamos apenas no primeiro proxy
+app.set("trust proxy", 1);
 
 app.use(
   helmet({
@@ -170,6 +171,10 @@ app.locals.sendEventToStore = sendEventToStore;
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
   max: 100, // limite de 100 requisições por IP
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  // Para uso com proxy confiável
+  trustProxy: 1, // Confiar no primeiro proxy (Google Cloud Run)
 });
 app.use(limiter);
 

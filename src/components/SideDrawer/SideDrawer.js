@@ -20,6 +20,7 @@ import {
 } from "@mui/icons-material";
 import { useAuth } from "../../contexts/AuthContext";
 import NotificationIndicator from "../NotificationIndicator";
+import ChatIndicator from "../ChatIndicator";
 
 const SideDrawer = ({
   open,
@@ -101,6 +102,8 @@ const SideDrawer = ({
                 {/* Adicionar indicador de notificação se for o item de notificações */}
                 {item.path === "/notificacoes" ? (
                   <NotificationIndicator>{item.icon}</NotificationIndicator>
+                ) : item.path === "/chat" ? (
+                  <ChatIndicator>{item.icon}</ChatIndicator>
                 ) : (
                   item.icon
                 )}
