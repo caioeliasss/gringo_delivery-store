@@ -246,21 +246,57 @@ export default function SupportPage() {
 
   const handleSaveSupport = async () => {
     try {
+      // Validações básicas no frontend
+      if (!editForm.name?.trim()) {
+        alert("Nome é obrigatório");
+        return;
+      }
+
+      if (!editForm.email?.trim()) {
+        alert("Email é obrigatório");
+        return;
+      }
+
       if (selectedSupport) {
-        // Atualizar
-        await api.put(`/support/${selectedSupport._id}`, editForm);
+        // Atualizar usando a nova rota de edição
+        const response = await api.patch(
+          `/support/${selectedSupport._id}/edit`,
+          {
+            name: editForm.name,
+            email: editForm.email,
+            phone: editForm.phone,
+            whatsapp: editForm.whatsapp,
+            status: editForm.status,
+            active: editForm.active,
+          }
+        );
+
+        if (response.data.success) {
+          console.log("✅ Membro atualizado:", response.data.message);
+        }
       } else {
         // Criar novo
-        await api.post("/support", {
+        const response = await api.post("/support", {
           ...editForm,
           firebaseUid: `temp_${Date.now()}`, // Gerar UID temporário
         });
+
+        if (response.data.success) {
+          console.log("✅ Membro criado:", response.data.message);
+        }
       }
 
       await fetchSupportTeam();
       closeEditModal();
     } catch (error) {
       console.error("Erro ao salvar membro da equipe:", error);
+
+      // Tratar erros específicos da API
+      if (error.response?.data?.message) {
+        alert(error.response.data.message);
+      } else {
+        alert("Erro ao salvar. Tente novamente.");
+      }
     }
   };
 
@@ -269,11 +305,51 @@ export default function SupportPage() {
       window.confirm("Tem certeza que deseja remover este membro da equipe?")
     ) {
       try {
-        await api.delete(`/support/${supportId}`);
+        const response = await api.delete(`/support/${supportId}`);
+
+        if (response.data.success) {
+          console.log("✅ Membro removido:", response.data.message);
+        }
+
         await fetchSupportTeam();
         closeDetails();
       } catch (error) {
         console.error("Erro ao remover membro da equipe:", error);
+
+        if (error.response?.data?.message) {
+          alert(error.response.data.message);
+        } else {
+          alert("Erro ao remover. Tente novamente.");
+        }
+      }
+    }
+  };
+
+  // Nova função para alternar status ativo/inativo
+  const handleToggleActive = async (supportId, currentStatus) => {
+    const action = currentStatus ? "desativar" : "ativar";
+
+    if (window.confirm(`Tem certeza que deseja ${action} este membro?`)) {
+      try {
+        const response = await api.patch(`/support/${supportId}/toggle-active`);
+
+        if (response.data.success) {
+          console.log("✅ Status alterado:", response.data.message);
+          await fetchSupportTeam();
+
+          // Se o modal de detalhes estiver aberto, atualizar
+          if (selectedSupport && selectedSupport._id === supportId) {
+            setSelectedSupport(response.data.data);
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao alterar status:", error);
+
+        if (error.response?.data?.message) {
+          alert(error.response.data.message);
+        } else {
+          alert("Erro ao alterar status. Tente novamente.");
+        }
       }
     }
   };

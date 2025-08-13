@@ -5,11 +5,11 @@ import { getUserProfile, acceptTerms } from "../../services/api";
 import OrderStats from "../../components/orderStats";
 import OverdueBillings from "../../components/OverdueBillings";
 import TermsServiceModal from "../../components/TermsServiceModal";
+import ViewCoordinates from "../../components/ViewCoordinates/ViewCoordinates";
 import {
   Box,
   Container,
   Typography,
-  Button,
   Paper,
   CircularProgress,
   Avatar,
@@ -31,12 +31,10 @@ import {
   Dashboard as DashboardIcon,
   ShoppingBag as ProductsIcon,
   Menu as MenuIcon,
-  Person as ProfileIcon,
   Logout as LogoutIcon,
-  ShoppingBag,
   ReportProblem as OcorrenciasIcon,
   Chat as ChatIcon,
-  Map as MapIcon,
+  LocationOn as LocationIcon,
 } from "@mui/icons-material";
 import { buscarCnpj } from "../../services/cnpj";
 
@@ -390,52 +388,10 @@ const Dashboard = () => {
             </Grid>
           </Paper>
 
-          <Paper elevation={3} sx={{ p: 4, borderRadius: 3 }}>
-            <Typography
-              variant="h6"
-              component="h3"
-              sx={{ mb: 2, fontWeight: "bold", color: "primary.main" }}
-            >
-              Acesso Rápido
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6} md={4}>
-                <Button
-                  variant="outlined"
-                  component={Link}
-                  to="/produtos"
-                  startIcon={<ProductsIcon />}
-                  fullWidth
-                  sx={{
-                    p: 2,
-                    height: "100%",
-                    color: "primary.main",
-                    borderColor: "primary.main",
-                  }}
-                >
-                  Gerenciar Produtos
-                </Button>
-              </Grid>
-              <Grid item xs={12} sm={6} md={4}>
-                <Button
-                  variant="outlined"
-                  component={Link}
-                  to="/pedidos"
-                  startIcon={<OrdersIcon />}
-                  fullWidth
-                  sx={{
-                    p: 2,
-                    height: "100%",
-                    color: "primary.main",
-                    borderColor: "primary.main",
-                  }}
-                >
-                  Gerenciar Pedidos
-                </Button>
-              </Grid>
-              {/* Adicione outros botões de acesso rápido conforme necessário */}
-            </Grid>
-          </Paper>
+          {/* ✅ Componente de Coordenadas de Retirada */}
+          <Box sx={{ mt: 4 }}>
+            <ViewCoordinates />
+          </Box>
 
           {/* ✅ ADICIONAR: Componente de contas atrasadas */}
           <Paper elevation={3} sx={{ mt: 4, p: 4, borderRadius: 3 }}>

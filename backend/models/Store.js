@@ -35,6 +35,10 @@ const storeAddress = new mongoose.Schema({
     type: String,
     required: true,
   },
+  coordinates: {
+    type: [Number],
+    required: false,
+  },
 });
 
 const storeSchema = new mongoose.Schema({
@@ -51,6 +55,10 @@ const storeSchema = new mongoose.Schema({
     type: String,
     required: false,
     unique: true,
+  },
+  coordinates: {
+    type: [Number],
+    required: false,
   },
   email: {
     type: String,

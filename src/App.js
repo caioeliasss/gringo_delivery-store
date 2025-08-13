@@ -37,6 +37,7 @@ import PrecificacaoPage from "./pages/Precificacao/Precificacao";
 import SupportPage from "./pages/Admin/SuportTeam/SupportPage";
 import SupportNotifications from "./pages/Suporte/SupportNotifications";
 import Termos from "./pages/Termos/Termos";
+import ViewCoordinates from "./components/ViewCoordinates/ViewCoordinates";
 // Definir tema personalizado com a paleta de cores da Gringo Delivery
 const theme = createTheme({
   typography: {
@@ -261,6 +262,14 @@ function CustomerApp() {
             element={
               <PrivateRoute>
                 <ChatStore />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/coordenadas"
+            element={
+              <PrivateRoute>
+                <ViewCoordinates />
               </PrivateRoute>
             }
           />

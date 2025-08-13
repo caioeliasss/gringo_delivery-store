@@ -4,39 +4,175 @@ const admin = require("firebase-admin");
 const SupportTeam = require("../models/SupportTeam");
 
 const createSupportTeam = async (req, res) => {
-  const { name, email, phone, whatsapp, firebaseUid } = req.body;
+  const { name, email, phone, whatsapp, firebaseUid, status, active } =
+    req.body;
+
   try {
-    const supportTeam = new SupportTeam({
-      name: name,
-      firebaseUid: firebaseUid,
-      email: email,
-      phone: phone,
-      whatsapp: whatsapp || "",
+    // Validações básicas
+    if (!name || !name.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Nome é obrigatório",
+      });
+    }
+
+    if (!email || !email.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Email é obrigatório",
+      });
+    }
+
+    // Validar formato do email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      return res.status(400).json({
+        success: false,
+        message: "Formato de email inválido",
+      });
+    }
+
+    // Verificar se email já está em uso
+    const existingEmail = await SupportTeam.findOne({
+      email: email.trim().toLowerCase(),
     });
+
+    if (existingEmail) {
+      return res.status(409).json({
+        success: false,
+        message: "Email já está sendo usado por outro membro",
+      });
+    }
+
+    // Verificar se firebaseUid já está em uso (se fornecido)
+    if (firebaseUid) {
+      const existingFirebaseUid = await SupportTeam.findOne({ firebaseUid });
+      if (existingFirebaseUid) {
+        return res.status(409).json({
+          success: false,
+          message: "Firebase UID já está sendo usado",
+        });
+      }
+    }
+
+    const supportTeam = new SupportTeam({
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      phone: phone?.trim() || "",
+      whatsapp: whatsapp?.trim() || "",
+      firebaseUid: firebaseUid || "",
+      status: status || "offline",
+      active: false,
+    });
+
     await supportTeam.save();
-    res.json(supportTeam);
+
+    console.log(
+      `✅ Novo membro da equipe criado: ${supportTeam.name} (${supportTeam.email})`
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Membro da equipe criado com sucesso",
+      data: supportTeam,
+    });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: error.response.data });
+    console.error("❌ Erro ao criar membro da equipe:", error);
+
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: "Dados inválidos",
+        details: Object.values(error.errors).map((e) => e.message),
+      });
+    }
+
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "Email ou Firebase UID já está em uso",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Erro interno do servidor",
+      error:
+        process.env.NODE_ENV === "development" ? error.message : "Erro interno",
+    });
   }
 };
 const updateSupportTeam = async (req, res) => {
   const { id } = req.params;
-  const { name, email, phone, whatsapp } = req.body;
+  const { name, email, phone, whatsapp, status, active } = req.body;
+
   try {
+    // Validações básicas
+    if (!name || !email) {
+      return res.status(400).json({
+        message: "Nome e email são obrigatórios",
+      });
+    }
+
+    // Verificar se o email já está em uso por outro membro (se foi alterado)
+    const existingSupport = await SupportTeam.findById(id);
+    if (!existingSupport) {
+      return res.status(404).json({
+        message: "Membro da equipe não encontrado",
+      });
+    }
+
+    // Se o email foi alterado, verificar se não está em uso
+    if (email !== existingSupport.email) {
+      const emailInUse = await SupportTeam.findOne({
+        email: email,
+        _id: { $ne: id },
+      });
+
+      if (emailInUse) {
+        return res.status(409).json({
+          message: "Email já está sendo usado por outro membro",
+        });
+      }
+    }
+
     const supportTeam = await SupportTeam.findByIdAndUpdate(
       id,
       {
-        name: name,
-        email: email,
-        phone: phone,
-        whatsapp: whatsapp,
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone?.trim() || "",
+        whatsapp: whatsapp?.trim() || "",
+        status: status || "offline",
+        active: active !== undefined ? active : existingSupport.active,
+        updatedAt: new Date(),
       },
-      { new: true }
+      { new: true, runValidators: true }
     );
-    res.json(supportTeam);
+
+    console.log(
+      `✅ Membro da equipe atualizado: ${supportTeam.name} (${supportTeam.email})`
+    );
+
+    res.json({
+      success: true,
+      message: "Membro da equipe atualizado com sucesso",
+      data: supportTeam,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("❌ Erro ao atualizar membro da equipe:", error);
+
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        message: "Dados inválidos",
+        details: Object.values(error.errors).map((e) => e.message),
+      });
+    }
+
+    res.status(500).json({
+      message: "Erro interno do servidor",
+      error: error.message,
+    });
   }
 };
 const getSupportTeam = async (req, res) => {
@@ -86,16 +222,234 @@ const getSupportTeamByEmail = async (req, res) => {
 
 const deleteSupportTeam = async (req, res) => {
   const { id } = req.params;
+
   try {
-    const supportTeam = await SupportTeam.findByIdAndDelete(id);
-    res.json(supportTeam);
+    const supportTeam = await SupportTeam.findById(id);
+
+    if (!supportTeam) {
+      return res.status(404).json({
+        success: false,
+        message: "Membro da equipe não encontrado",
+      });
+    }
+
+    // Realizar soft delete ou hard delete baseado na necessidade
+    await SupportTeam.findByIdAndDelete(id);
+
+    console.log(
+      `🗑️ Membro da equipe removido: ${supportTeam.name} (${supportTeam.email})`
+    );
+
+    res.json({
+      success: true,
+      message: "Membro da equipe removido com sucesso",
+      data: supportTeam,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("❌ Erro ao remover membro da equipe:", error);
+
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        success: false,
+        message: "ID inválido",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Erro interno do servidor",
+    });
+  }
+};
+
+// Rota específica para edição de suporte com validações avançadas
+const editSupportTeam = async (req, res) => {
+  const { id } = req.params;
+  const updateData = req.body;
+
+  try {
+    console.log(`🔧 Editando membro da equipe ID: ${id}`, updateData);
+
+    // Verificar se o membro existe
+    const existingSupport = await SupportTeam.findById(id);
+    if (!existingSupport) {
+      return res.status(404).json({
+        success: false,
+        message: "Membro da equipe não encontrado",
+      });
+    }
+
+    // Preparar dados para atualização
+    const fieldsToUpdate = {};
+
+    if (updateData.name !== undefined) {
+      if (!updateData.name.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "Nome não pode estar vazio",
+        });
+      }
+      fieldsToUpdate.name = updateData.name.trim();
+    }
+
+    if (updateData.email !== undefined) {
+      const email = updateData.email.trim().toLowerCase();
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message: "Email não pode estar vazio",
+        });
+      }
+
+      // Verificar formato do email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({
+          success: false,
+          message: "Formato de email inválido",
+        });
+      }
+
+      // Verificar se email já está em uso
+      if (email !== existingSupport.email) {
+        const emailInUse = await SupportTeam.findOne({
+          email: email,
+          _id: { $ne: id },
+        });
+
+        if (emailInUse) {
+          return res.status(409).json({
+            success: false,
+            message: "Email já está sendo usado por outro membro",
+          });
+        }
+      }
+
+      fieldsToUpdate.email = email;
+    }
+
+    if (updateData.phone !== undefined) {
+      fieldsToUpdate.phone = updateData.phone.trim();
+    }
+
+    if (updateData.whatsapp !== undefined) {
+      fieldsToUpdate.whatsapp = updateData.whatsapp.trim();
+    }
+
+    if (updateData.status !== undefined) {
+      const validStatuses = ["online", "offline", "busy", "away"];
+      if (!validStatuses.includes(updateData.status)) {
+        return res.status(400).json({
+          success: false,
+          message: "Status inválido. Use: online, offline, busy ou away",
+        });
+      }
+      fieldsToUpdate.status = updateData.status;
+    }
+
+    if (updateData.active !== undefined) {
+      fieldsToUpdate.active = Boolean(updateData.active);
+    }
+
+    // Adicionar timestamp de atualização
+    fieldsToUpdate.updatedAt = new Date();
+
+    // Atualizar o membro
+    const updatedSupport = await SupportTeam.findByIdAndUpdate(
+      id,
+      { $set: fieldsToUpdate },
+      {
+        new: true,
+        runValidators: true,
+        context: "query",
+      }
+    );
+
+    console.log(
+      `✅ Membro da equipe editado com sucesso: ${updatedSupport.name}`
+    );
+
+    res.json({
+      success: true,
+      message: "Membro da equipe editado com sucesso",
+      data: updatedSupport,
+      updatedFields: Object.keys(fieldsToUpdate),
+    });
+  } catch (error) {
+    console.error("❌ Erro ao editar membro da equipe:", error);
+
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: "Dados inválidos",
+        details: Object.values(error.errors).map((e) => e.message),
+      });
+    }
+
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        success: false,
+        message: "ID inválido",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Erro interno do servidor",
+      error:
+        process.env.NODE_ENV === "development" ? error.message : "Erro interno",
+    });
+  }
+};
+
+// Rota para alternar status ativo/inativo
+const toggleSupportActive = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const existingSupport = await SupportTeam.findById(id);
+    if (!existingSupport) {
+      return res.status(404).json({
+        success: false,
+        message: "Membro da equipe não encontrado",
+      });
+    }
+
+    const updatedSupport = await SupportTeam.findByIdAndUpdate(
+      id,
+      {
+        active: !existingSupport.active,
+        updatedAt: new Date(),
+      },
+      { new: true }
+    );
+
+    console.log(
+      `🔄 Status ativo alterado: ${updatedSupport.name} - ${
+        updatedSupport.active ? "Ativo" : "Inativo"
+      }`
+    );
+
+    res.json({
+      success: true,
+      message: `Membro ${
+        updatedSupport.active ? "ativado" : "desativado"
+      } com sucesso`,
+      data: updatedSupport,
+    });
+  } catch (error) {
+    console.error("❌ Erro ao alterar status ativo:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erro interno do servidor",
+    });
   }
 };
 
 router.post("/", createSupportTeam);
 router.put("/:id", updateSupportTeam);
+router.patch("/:id/edit", editSupportTeam); // Rota específica para edição
+router.patch("/:id/toggle-active", toggleSupportActive); // Rota para alternar status ativo
 router.get("/", getSupportTeam);
 router.get("/:id", getSupportTeamById);
 router.get("/email/:email", getSupportTeamByEmail);

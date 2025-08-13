@@ -620,4 +620,41 @@ router.post("/setup-search-indexes", async (req, res) => {
   }
 });
 
+const changeCoordinates = async (req, res) => {
+  const { storeId, coordinates } = req.body;
+
+  if (!storeId || !coordinates) {
+    return res.status(400).json({
+      message: "storeId e coordinates são obrigatórios",
+    });
+  }
+
+  try {
+    const store = await Store.findById(storeId);
+    if (!store) {
+      return res.status(404).json({ message: "Loja não encontrada" });
+    }
+
+    // Atualizar as coordenadas
+    store.coordinates = coordinates;
+    await store.save();
+
+    res.status(200).json({
+      message: "Coordenadas atualizadas com sucesso",
+      store: {
+        _id: store._id,
+        coordinates: store.coordinates,
+      },
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar coordenadas:", error);
+    res.status(500).json({
+      message: "Erro ao atualizar coordenadas",
+      error: error.message,
+    });
+  }
+};
+
+router.post("/coordinates", changeCoordinates);
+
 module.exports = router;
