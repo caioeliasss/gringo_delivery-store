@@ -7,29 +7,10 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const notificationService = require("../services/notificationService");
+const admin = require("../config/firebase-admin");
 
-// Configurar o multer para upload de arquivos
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = path.join(__dirname, "../uploads/chat-files");
-
-    // Criar diretório se não existir
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    // Gerar nome único para o arquivo
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const sanitizedOriginalName = file.originalname.replace(
-      /[^a-zA-Z0-9.-]/g,
-      "_"
-    );
-    cb(null, `${uniqueSuffix}-${sanitizedOriginalName}`);
-  },
-});
+// Configurar o multer para upload em memória (para Firebase)
+const storage = multer.memoryStorage();
 
 // Validação de arquivos
 const fileFilter = (req, file, cb) => {
@@ -63,7 +44,26 @@ const upload = multer({
   fileFilter: fileFilter,
 });
 
-// Função para upload de arquivos do chat
+// Inicializar Firebase Storage bucket com fallback
+let bucket;
+try {
+  // Tentar obter bucket da configuração padrão
+  bucket = admin.storage().bucket();
+} catch (error) {
+  console.log(
+    "⚠️ Bucket padrão não encontrado, tentando com nome explícito..."
+  );
+
+  // Fallback: usar nome do projeto + .firebasestorage.app
+  const app = admin.app();
+  const projectId = app.options.projectId;
+  const bucketName = `${projectId}.firebasestorage.app`;
+
+  console.log(`🪣 Tentando bucket: ${bucketName}`);
+  bucket = admin.storage().bucket(bucketName);
+}
+
+// Função para upload de arquivos do chat usando Firebase Storage
 const uploadChatFile = async (req, res) => {
   try {
     if (!req.file) {
@@ -74,10 +74,6 @@ const uploadChatFile = async (req, res) => {
 
     // Validar dados obrigatórios
     if (!chatId || !sender) {
-      // Remover arquivo se validação falhar
-      if (req.file && req.file.path) {
-        fs.unlinkSync(req.file.path);
-      }
       return res.status(400).json({
         message: "chatId e sender são obrigatórios",
       });
@@ -86,43 +82,75 @@ const uploadChatFile = async (req, res) => {
     // Verificar se o chat existe
     const chat = await Chat.findById(chatId);
     if (!chat) {
-      // Remover arquivo se chat não existir
-      if (req.file && req.file.path) {
-        fs.unlinkSync(req.file.path);
-      }
       return res.status(404).json({ message: "Chat não encontrado" });
     }
 
     // Verificar se o remetente faz parte do chat
     if (!chat.participants.some((p) => p.firebaseUid === sender)) {
-      // Remover arquivo se usuário não autorizado
-      if (req.file && req.file.path) {
-        fs.unlinkSync(req.file.path);
-      }
       return res.status(403).json({
         message: "Remetente não faz parte deste chat",
       });
     }
 
-    // Gerar URL do arquivo baseada no ambiente
-    let baseUrl = process.env.BASE_URL;
+    // Gerar nome único para o arquivo no Firebase Storage
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const sanitizedOriginalName = req.file.originalname.replace(
+      /[^a-zA-Z0-9.-]/g,
+      "_"
+    );
+    const fileName = `chat-files/${chatId}/${timestamp}-${uniqueSuffix}-${sanitizedOriginalName}`;
 
-    // Se BASE_URL não estiver definida, construir baseada no ambiente
-    if (!baseUrl) {
-      const isProduction = process.env.NODE_ENV === "production";
-      if (isProduction) {
-        baseUrl = "https://gringodelivery.com.br";
-      } else {
-        baseUrl = `http://localhost:${process.env.PORT || 8080}`;
-      }
-    }
+    console.log(`📁 Iniciando upload para Firebase Storage: ${fileName}`);
 
-    const fileUrl = `${baseUrl}/uploads/chat-files/${req.file.filename}`;
+    // Criar referência do arquivo no Firebase Storage
+    const file = bucket.file(fileName);
 
-    console.log(`📁 Arquivo salvo: ${req.file.filename}`);
-    console.log(`🌐 URL gerada: ${fileUrl}`);
-    console.log(`🔧 BASE_URL: ${process.env.BASE_URL}`);
-    console.log(`🌍 NODE_ENV: ${process.env.NODE_ENV}`);
+    // Upload do arquivo para o Firebase Storage
+    const stream = file.createWriteStream({
+      metadata: {
+        contentType: req.file.mimetype,
+        metadata: {
+          originalName: req.file.originalname,
+          chatId: chatId,
+          sender: sender,
+          uploadedAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    // Promise para lidar com o upload
+    const uploadPromise = new Promise((resolve, reject) => {
+      stream.on("error", (error) => {
+        console.error("Erro no upload para Firebase Storage:", error);
+        reject(error);
+      });
+
+      stream.on("finish", async () => {
+        try {
+          console.log(`✅ Upload concluído: ${fileName}`);
+
+          // Tornar o arquivo público para acesso direto
+          await file.makePublic();
+
+          // Gerar URL pública do arquivo
+          const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+
+          console.log(`🌐 URL pública gerada: ${publicUrl}`);
+
+          resolve(publicUrl);
+        } catch (error) {
+          console.error("Erro ao tornar arquivo público:", error);
+          reject(error);
+        }
+      });
+    });
+
+    // Iniciar o upload
+    stream.end(req.file.buffer);
+
+    // Aguardar o upload terminar
+    const fileUrl = await uploadPromise;
 
     // Informações do arquivo para retornar
     const fileInfo = {
@@ -130,26 +158,22 @@ const uploadChatFile = async (req, res) => {
       fileName: req.file.originalname,
       fileSize: req.file.size,
       fileType: req.file.mimetype,
-      filePath: req.file.path,
+      storagePath: fileName,
       uploadedAt: new Date(),
     };
 
-    console.log("Arquivo carregado com sucesso:", {
+    console.log("Arquivo carregado com sucesso no Firebase Storage:", {
       originalName: req.file.originalname,
-      filename: req.file.filename,
+      storagePath: fileName,
       size: req.file.size,
       chatId,
       sender,
+      publicUrl: fileUrl,
     });
 
     res.status(200).json(fileInfo);
   } catch (error) {
-    // Remover arquivo em caso de erro
-    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
-    }
-
-    console.error("Erro no upload de arquivo:", error);
+    console.error("Erro no upload de arquivo para Firebase Storage:", error);
     res.status(500).json({
       message: "Erro interno do servidor no upload",
       error: error.message,
@@ -588,7 +612,7 @@ const sendMessage = async (req, res) => {
             screen: "/chat",
             type: "CHAT_MESSAGE",
             chatId: chat._id,
-            expiresAt: new Date(Date.now() + 16 * 60 * 60 * 1000), // Expira em 16 hrs
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // Expira em 24 hrs
           });
         } catch (notifError) {
           console.error(
@@ -806,6 +830,86 @@ const hasUnreadChatMessagesOptimized = async (req, res) => {
   }
 };
 
+// Endpoint de debug para verificar arquivos no Firebase Storage
+const debugFiles = async (req, res) => {
+  try {
+    const app = admin.app();
+    const stats = {
+      firebaseStorage: {
+        bucketName: bucket.name,
+        configured: !!bucket,
+        projectId: app.options.projectId,
+        credentialType: app.options.credential
+          ? "configured"
+          : "not configured",
+      },
+      containerInfo: {
+        hostname: process.env.HOSTNAME || "unknown",
+        port: process.env.PORT || "unknown",
+        nodeEnv: process.env.NODE_ENV,
+        platform: process.platform,
+        cwd: process.cwd(),
+      },
+      files: [],
+      totalSize: 0,
+    };
+
+    try {
+      // Listar arquivos na pasta chat-files do Firebase Storage
+      const [files] = await bucket.getFiles({
+        prefix: "chat-files/",
+        maxResults: 100,
+      });
+
+      for (const file of files) {
+        const [metadata] = await file.getMetadata();
+
+        stats.files.push({
+          name: file.name,
+          size: parseInt(metadata.size),
+          created: metadata.timeCreated,
+          updated: metadata.updated,
+          contentType: metadata.contentType,
+          publicUrl: `https://storage.googleapis.com/${bucket.name}/${file.name}`,
+          metadata: metadata.metadata || {},
+        });
+
+        stats.totalSize += parseInt(metadata.size);
+      }
+    } catch (storageError) {
+      stats.storageError = storageError.message;
+    }
+
+    // Verificar mensagens com arquivos no banco
+    try {
+      const fileMessages = await ChatMessage.find({
+        messageType: "FILE",
+      })
+        .sort({ createdAt: -1 })
+        .limit(20);
+
+      stats.databaseFiles = fileMessages.map((msg) => ({
+        id: msg._id,
+        fileName: msg.fileName,
+        fileUrl: msg.fileUrl,
+        createdAt: msg.createdAt,
+        chatId: msg.chatId,
+        fileSize: msg.fileSize,
+        fileType: msg.fileType,
+      }));
+    } catch (dbError) {
+      stats.databaseError = dbError.message;
+    }
+
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({
+      error: error.message,
+      stack: error.stack,
+    });
+  }
+};
+
 // Definir rotas
 router.post("/upload", upload.single("file"), uploadChatFile);
 router.post("/", createChat);
@@ -825,5 +929,8 @@ router.get("/message/:chatId", getChatMessagesByChatId);
 router.put("/message/:chatId/read/:firebaseUid", markMessagesAsRead);
 router.get("/message/unread/:userId", getUnreadMessageCountOptimized); // Usando versão otimizada
 router.get("/message/has-unread/:userId", hasUnreadChatMessagesOptimized); // Usando versão otimizada
+
+// Rota de debug para verificar arquivos
+router.get("/debug/files", debugFiles);
 
 module.exports = router;

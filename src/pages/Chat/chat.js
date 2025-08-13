@@ -378,18 +378,6 @@ export default function ChatStore() {
         (uid) => uid !== user.uid
       );
 
-      if (otherParticipants.length > 0) {
-        await api.post(`/notifications/generic`, {
-          title: "Nova mensagem",
-          message: `📎 Enviou um arquivo: ${selectedFile.name}`,
-          firebaseUid: otherParticipants,
-          screen: "/chat",
-          type: "CHAT_MESSAGE",
-          chatId: activeChat._id,
-          expiresAt: new Date(Date.now() + 16 * 60 * 60 * 1000),
-        });
-      }
-
       // Adicionar mensagem à lista local
       setMessages((prev) => [...prev, response.data]);
 
@@ -437,17 +425,6 @@ export default function ChatStore() {
       };
 
       const response = await api.post("/chat/message", messageData);
-
-      // Enviar notificação
-      await api.post(`/notifications/generic`, {
-        title: "Nova mensagem",
-        message: newMessage.trim(),
-        firebaseUid: activeChat.firebaseUid.filter((uid) => uid !== user.uid),
-        screen: "/chat",
-        type: "CHAT_MESSAGE",
-        chatId: activeChat._id,
-        expiresAt: new Date(Date.now() + 16 * 60 * 60 * 1000),
-      });
 
       setMessages((prev) => [...prev, response.data]);
       setNewMessage("");

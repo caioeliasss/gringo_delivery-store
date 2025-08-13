@@ -361,8 +361,12 @@ api.interceptors.request.use(
           console.log(`🗄️ Cache HIT: ${config.url}`);
         }
 
-        // Retornar resposta do cache como uma Promise resolvida
-        return Promise.resolve(cachedResponse);
+        // Para cache hit, precisamos cancelar a requisição e retornar o valor do cache
+        const cancelError = new Error("Cache hit");
+        cancelError.config = config;
+        cancelError.cachedResponse = cachedResponse;
+        cancelError.isCache = true;
+        throw cancelError;
       }
 
       // Marcar para cache na resposta
@@ -374,11 +378,16 @@ api.interceptors.request.use(
     // Adicionar token de autenticação
     const user = auth.currentUser;
     if (user) {
-      const token = await user.getIdToken();
-      if (process.env.NODE_ENV !== "production") {
-        console.log("Token de autenticação:", token);
+      try {
+        const token = await user.getIdToken();
+        if (process.env.NODE_ENV !== "production") {
+          console.log("Token de autenticação:", token);
+        }
+        config.headers = config.headers || {};
+        config.headers.Authorization = `Bearer ${token}`;
+      } catch (tokenError) {
+        console.error("Erro ao obter token:", tokenError);
       }
-      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
@@ -406,6 +415,11 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
+    // Verificar se é um cache hit
+    if (error.isCache && error.cachedResponse) {
+      return Promise.resolve(error.cachedResponse);
+    }
+
     const config = error.config;
 
     // Se é erro 429 e não foi marcado como retry

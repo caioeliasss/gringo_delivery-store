@@ -59,16 +59,45 @@ const OverdueBillings = () => {
 
       // Buscar perfil do usuário para pegar storeId
       const userProfile = await getUserProfile();
+
+      if (!userProfile?.data?._id) {
+        throw new Error("Perfil do usuário não encontrado");
+      }
+
       const storeId = userProfile.data._id;
+      console.log("📋 Buscando faturas para loja:", storeId);
 
-      // ✅ CORRIGIR: Buscar tanto pendentes quanto vencidas
-      const [overdueResponse, pendingResponse] = await Promise.all([
-        api.get(`/billing/overdue/${storeId}`),
-        api.get(`/billing/pending/${storeId}`), // Nova rota para pendentes
-      ]);
+      // ✅ SOLUÇÃO SIMPLES: Usar apenas o api configurado, sem axios direto
+      let overdueBillings = [];
+      let pendingBillings = [];
 
-      const overdueBillings = overdueResponse.data || [];
-      const pendingBillings = pendingResponse.data || [];
+      try {
+        console.log("📞 Buscando faturas vencidas...");
+        const overdueResponse = await api.get(`/billing/overdue/${storeId}`);
+        overdueBillings = Array.isArray(overdueResponse.data)
+          ? overdueResponse.data
+          : [];
+        console.log("✅ Faturas vencidas:", overdueBillings.length);
+      } catch (overdueError) {
+        console.warn(
+          "⚠️ Erro faturas vencidas:",
+          overdueError.response?.status || overdueError.message
+        );
+      }
+
+      try {
+        console.log("📞 Buscando faturas pendentes...");
+        const pendingResponse = await api.get(`/billing/pending/${storeId}`);
+        pendingBillings = Array.isArray(pendingResponse.data)
+          ? pendingResponse.data
+          : [];
+        console.log("✅ Faturas pendentes:", pendingBillings.length);
+      } catch (pendingError) {
+        console.warn(
+          "⚠️ Erro faturas pendentes:",
+          pendingError.response?.status || pendingError.message
+        );
+      }
 
       setBillings({
         overdue: overdueBillings,
@@ -82,8 +111,23 @@ const OverdueBillings = () => {
         total: overdueBillings.length + pendingBillings.length,
       });
     } catch (error) {
-      console.error("❌ Erro ao carregar faturas:", error);
-      setError("Erro ao carregar faturas");
+      console.error("❌ Erro geral ao carregar faturas:", error);
+
+      let errorMessage = "Erro ao carregar faturas";
+
+      if (error.message?.includes("Perfil do usuário")) {
+        errorMessage = "Erro ao identificar a loja. Faça login novamente.";
+      } else if (error.response?.status === 401) {
+        errorMessage = "Não autorizado. Faça login novamente.";
+      } else if (error.response?.status === 404) {
+        errorMessage = "Serviço de faturamento não encontrado.";
+      } else if (error.response?.status === 500) {
+        errorMessage = "Erro interno do servidor.";
+      } else {
+        errorMessage = error.message || "Erro desconhecido ao carregar faturas";
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

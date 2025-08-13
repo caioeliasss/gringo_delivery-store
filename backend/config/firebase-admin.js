@@ -48,6 +48,7 @@ if (!admin.apps.length) {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
       projectId: serviceAccount.project_id,
+      storageBucket: `${serviceAccount.project_id}.firebasestorage.app`, // Corrigir para .firebasestorage.app
     });
 
     console.log("✅ Firebase Admin inicializado com sucesso");

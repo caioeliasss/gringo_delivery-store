@@ -56,9 +56,10 @@ const RegisterSupport = () => {
       setError("");
       setLoading(true);
 
-      let user = await login(email, password);
+      const user = await signup(email, password);
       if (!user) {
-        user = await signup(email, password);
+        setError("Falha ao criar conta. Tente novamente.");
+        return;
       }
 
       try {
@@ -76,7 +77,7 @@ const RegisterSupport = () => {
         );
       }
     } catch (error) {
-      console.error("Erro no registro:", error.message);
+      console.error("Erro no registro:", error);
 
       let errorMessage = "Falha ao criar conta. Tente novamente.";
       if (error.code === "auth/email-already-in-use") {

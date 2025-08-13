@@ -25,6 +25,7 @@ import OcorrenciasPage from "./pages/Ocorrencias/ocorrencias";
 import ChatStore from "./pages/Chat/chat";
 import SupportMapPage from "./pages/Suporte/map";
 import { AdminAuthProvider } from "./contexts/AdminAuthContext";
+import { GlobalNotificationsProvider } from "./contexts/GlobalNotificationsContext";
 import AdminDashboard from "./pages/Admin/Dashboard/dashboard";
 import AdminFinanceiro from "./pages/Admin/Financeiro/financeiro";
 import { SuporteAuthProvider } from "./contexts/SuporteAuthContext";
@@ -385,31 +386,33 @@ function AdminApp() {
   return (
     <ThemeProvider theme={theme}>
       <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<LoginAdmin />} />
+        <GlobalNotificationsProvider userType="admin">
+          <Routes>
+            <Route path="/login" element={<LoginAdmin />} />
 
-          <Route
-            path="/*"
-            element={
-              <AdminAuthProvider>
-                <Routes>
-                  <Route path="/" element={<AdminDashboard />} />
-                  <Route path="/dashboard" element={<AdminDashboard />} />
-                  <Route path="/stores" element={<EstabelecimentosPage />} />
-                  <Route path="/pedidos" element={<OrdersPage />} />
-                  <Route path="/drivers" element={<MotoboysPage />} />
-                  <Route path="/occurrences" element={<Occurrences />} />
-                  <Route path="/financeiro" element={<AdminFinanceiro />} />
-                  <Route path="/settings" element={<PrecificacaoPage />} />
-                  <Route path="/mapa" element={<SupportMapPage />} />
-                  <Route path="/chat" element={<ChatPage />} />
-                  <Route path="*" element={<Navigate to="/dashboard" />} />
-                  <Route path="/suporte" element={<SupportPage />} />
-                </Routes>
-              </AdminAuthProvider>
-            }
-          />
-        </Routes>
+            <Route
+              path="/*"
+              element={
+                <AdminAuthProvider>
+                  <Routes>
+                    <Route path="/" element={<AdminDashboard />} />
+                    <Route path="/dashboard" element={<AdminDashboard />} />
+                    <Route path="/stores" element={<EstabelecimentosPage />} />
+                    <Route path="/pedidos" element={<OrdersPage />} />
+                    <Route path="/drivers" element={<MotoboysPage />} />
+                    <Route path="/occurrences" element={<Occurrences />} />
+                    <Route path="/financeiro" element={<AdminFinanceiro />} />
+                    <Route path="/settings" element={<PrecificacaoPage />} />
+                    <Route path="/mapa" element={<SupportMapPage />} />
+                    <Route path="/chat" element={<ChatPage />} />
+                    <Route path="*" element={<Navigate to="/dashboard" />} />
+                    <Route path="/suporte" element={<SupportPage />} />
+                  </Routes>
+                </AdminAuthProvider>
+              }
+            />
+          </Routes>
+        </GlobalNotificationsProvider>
       </AuthProvider>
     </ThemeProvider>
   );

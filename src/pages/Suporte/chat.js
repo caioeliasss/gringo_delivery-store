@@ -701,18 +701,6 @@ const ChatPage = () => {
         (uid) => uid !== currentUser.uid
       );
 
-      if (otherParticipants.length > 0) {
-        await api.post(`/notifications/generic`, {
-          title: senderName,
-          message: `📎 Enviou um arquivo: ${selectedFile.name}`,
-          firebaseUid: otherParticipants,
-          screen: "/(tabs)/chat",
-          type: "CHAT_MESSAGE",
-          chatId: activeChat._id,
-          expiresAt: new Date(Date.now() + 16 * 60 * 60 * 1000),
-        });
-      }
-
       // Adicionar mensagem à lista local
       setMessages((prev) => [...prev, response.data]);
 
@@ -789,18 +777,6 @@ const ChatPage = () => {
       const otherParticipants = activeChat.firebaseUid.filter(
         (uid) => uid !== currentUser.uid
       );
-
-      if (otherParticipants.length > 0) {
-        await api.post(`/notifications/generic`, {
-          title: senderName, // Nome do participante como título
-          message: newMessage.trim(),
-          firebaseUid: otherParticipants,
-          screen: "/(tabs)/chat",
-          type: "CHAT_MESSAGE",
-          chatId: activeChat._id,
-          expiresAt: new Date(Date.now() + 16 * 60 * 60 * 1000), // Expira em 16 hrs
-        });
-      }
 
       // Adicionar mensagem à lista local
       setMessages((prev) => [...prev, response.data]);
