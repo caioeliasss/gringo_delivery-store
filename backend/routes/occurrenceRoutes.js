@@ -150,6 +150,18 @@ router.put("/:id", async (req, res) => {
 
     const updatedOccurrence = await occurrence.save();
 
+    notificationService.createGenericNotification({
+      title: "Ocorrência Atualizada",
+      message: `A ocorrência ${updatedOccurrence._id} foi atualizada.`,
+      firebaseUid: occurrence.firebaseUid,
+      type: "OCCURRENCE_CHANGE",
+      data: {
+        occurrenceId: updatedOccurrence._id,
+        type: "OCCURRENCE_CHANGE",
+        status: updatedOccurrence.status,
+      },
+    });
+
     res.status(200).json(updatedOccurrence);
   } catch (error) {
     console.error("Erro ao atualizar ocorrência:", error);

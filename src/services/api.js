@@ -665,6 +665,12 @@ export const noCacheRequest = (config) => {
   return api.request({ ...config, noCache: true, useQueue: false });
 };
 
+export const getStoreNotifications = async (firebaseUid) => {
+  return api.get(`/notifications/firebase`, {
+    params: { firebaseUid },
+  });
+};
+
 // Função para requisições com cache customizado
 export const cachedRequest = (config, ttlMs) => {
   return api.request({ ...config, cacheTTL: ttlMs });

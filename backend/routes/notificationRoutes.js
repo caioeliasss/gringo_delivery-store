@@ -679,6 +679,27 @@ const markAllAsRead = async (req, res) => {
   }
 };
 
+const getFirebaseNotifications = async (req, res) => {
+  try {
+    const { firebaseUid } = req.query;
+    if (!firebaseUid) {
+      return res.status(400).json({
+        message: "firebaseUid é obrigatório",
+      });
+    }
+
+    const notifications = await Notification.find({
+      firebaseUid: firebaseUid,
+    });
+
+    res.json(notifications);
+  } catch (error) {
+    console.error("Erro ao buscar notificações do Firebase:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+router.get("/firebase", getFirebaseNotifications);
 router.put("/mark-as-all-read", markAllAsRead);
 router.post("/notifyOccurrence", notifyOccurrence);
 router.post("/notifySupport", notifySupport);
