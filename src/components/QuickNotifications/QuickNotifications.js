@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import {
   Accordion,
   AccordionSummary,
@@ -24,7 +24,7 @@ import { AuthContext } from "../../contexts/AuthContext";
 import { getStoreNotifications } from "../../services/api";
 
 const QuickNotifications = () => {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [error, setError] = useState("");
@@ -48,6 +48,10 @@ const QuickNotifications = () => {
     }
   };
 
+  useEffect(() => {
+    fetchNotifications();
+  }, [currentUser]);
+
   // Busca notificações do backend ao expandir
   const fetchNotifications = async () => {
     if (!currentUser) return;
@@ -64,13 +68,17 @@ const QuickNotifications = () => {
           n.type === "BILLING"
       );
       setNotifications(
-        (filteredData || []).map((n) => ({
-          id: n._id,
-          title: n.title || n.type || "Notificação",
-          body: n.message || n.body || "",
-          date: n.createdAt ? new Date(n.createdAt).toLocaleString() : "",
-          type: n.type, // Adicionar o tipo para usar no ícone
-        }))
+        (filteredData || [])
+          .map((n) => ({
+            id: n._id,
+            title: n.title || n.type || "Notificação",
+            body: n.message || n.body || "",
+            date: n.createdAt ? new Date(n.createdAt).toLocaleString() : "",
+            createdAt: n.createdAt, // Manter a data original para ordenação
+            type: n.type, // Adicionar o tipo para usar no ícone
+          }))
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) // Ordenar por data decrescente
+          .slice(0, 3) // Limitar às últimas 5 notificações
       );
     } catch (err) {
       setError("Erro ao buscar notificações");

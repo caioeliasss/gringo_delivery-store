@@ -32,6 +32,7 @@ const occurrenceSchema = new mongoose.Schema({
       "OUTRO",
       "ESTABELECIMENTO",
       "PRODUTO",
+      "PEDIDO",
       "MOTOBOY",
       "ENTREGADOR",
     ],

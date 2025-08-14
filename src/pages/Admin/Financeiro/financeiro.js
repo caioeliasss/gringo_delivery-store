@@ -576,6 +576,9 @@ const AdminFinanceiro = () => {
                         }))
                       }
                       InputLabelProps={{ shrink: true }}
+                      inputProps={{
+                        min: formatDateFns(new Date(), "yyyy-MM-dd"), // Não permite datas anteriores a hoje
+                      }}
                       fullWidth
                     />
                     <TextField

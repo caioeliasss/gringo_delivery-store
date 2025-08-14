@@ -163,27 +163,83 @@ const OverdueBillings = () => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString("pt-BR");
+    // Se é um objeto MongoDB com $date, extrair o valor
+    const dateValue = dateString?.$date || dateString;
+
+    // Criar a data em UTC e formatá-la sem conversão de fuso horário
+    const date = new Date(dateValue);
+
+    // Usar UTC para evitar problemas de fuso horário
+    return date.toLocaleDateString("pt-BR", {
+      timeZone: "UTC",
+    });
   };
 
   const calculateDaysOverdue = (dueDate) => {
     const today = new Date();
-    const due = new Date(dueDate);
-    const diffTime = today - due;
+    // Extrair valor se é objeto MongoDB
+    const dateValue = dueDate?.$date || dueDate;
+    const due = new Date(dateValue);
+
+    // Usar apenas as datas (sem horários) para evitar problemas de fuso
+    const todayDate = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+    const dueDateTime = new Date(
+      due.getUTCFullYear(),
+      due.getUTCMonth(),
+      due.getUTCDate()
+    );
+
+    const diffTime = todayDate - dueDateTime;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
   };
 
   const getDaysUntilDue = (dueDate) => {
     const today = new Date();
-    const due = new Date(dueDate);
-    const diffTime = due - today;
+    // Extrair valor se é objeto MongoDB
+    const dateValue = dueDate?.$date || dueDate;
+    const due = new Date(dateValue);
+
+    // Usar apenas as datas (sem horários) para evitar problemas de fuso
+    const todayDate = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+    const dueDateTime = new Date(
+      due.getUTCFullYear(),
+      due.getUTCMonth(),
+      due.getUTCDate()
+    );
+
+    const diffTime = dueDateTime - todayDate;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
   };
 
   const getStatusInfo = (billing) => {
-    const isOverdue = new Date(billing.dueDate) < new Date();
+    // Extrair valor se é objeto MongoDB
+    const dateValue = billing.dueDate?.$date || billing.dueDate;
+    const dueDate = new Date(dateValue);
+    const today = new Date();
+
+    // Usar apenas as datas (sem horários) para comparação precisa
+    const todayDate = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+    const dueDateOnly = new Date(
+      dueDate.getUTCFullYear(),
+      dueDate.getUTCMonth(),
+      dueDate.getUTCDate()
+    );
+
+    const isOverdue = dueDateOnly < todayDate;
 
     if (isOverdue) {
       return {

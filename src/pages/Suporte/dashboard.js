@@ -85,19 +85,6 @@ const SuporteDashboard = () => {
       }
     };
 
-    const checkIfIsSupportTeam = async () => {
-      try {
-        const response = await api.get(`/support/firebase/${currentUser?.uid}`);
-        if (!response.data) {
-          navigate("/login");
-        }
-      } catch (error) {
-        console.error("Erro ao verificar o usuário:", error);
-        navigate("/login");
-      }
-    };
-
-    checkIfIsSupportTeam();
     fetchData();
   }, []);
 
