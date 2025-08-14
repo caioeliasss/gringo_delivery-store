@@ -15,6 +15,10 @@ import {
 import {
   ExpandMore as ExpandMoreIcon,
   Notifications as NotificationsIcon,
+  Chat as ChatIcon,
+  LocalShipping as OrderIcon,
+  Warning as WarningIcon,
+  Receipt as BillingIcon,
 } from "@mui/icons-material";
 import { AuthContext } from "../../contexts/AuthContext";
 import { getStoreNotifications } from "../../services/api";
@@ -25,6 +29,24 @@ const QuickNotifications = () => {
   const [notifications, setNotifications] = useState([]);
   const [error, setError] = useState("");
   const { currentUser } = useContext(AuthContext);
+
+  // Função para retornar o ícone baseado no tipo da notificação
+  const getNotificationIcon = (type) => {
+    const iconProps = { color: "primary" };
+
+    switch (type) {
+      case "CHAT_MESSAGE":
+        return <ChatIcon {...iconProps} />;
+      case "ORDER_STATUS_UPDATE":
+        return <OrderIcon {...iconProps} />;
+      case "OCCURRENCE_CHANGE":
+        return <WarningIcon {...iconProps} />;
+      case "BILLING":
+        return <BillingIcon {...iconProps} />;
+      default:
+        return <NotificationsIcon {...iconProps} />;
+    }
+  };
 
   // Busca notificações do backend ao expandir
   const fetchNotifications = async () => {
@@ -38,7 +60,8 @@ const QuickNotifications = () => {
         (n) =>
           n.type === "CHAT_MESSAGE" ||
           n.type === "ORDER_STATUS_UPDATE" ||
-          n.type === "OCCURRENCE_CHANGE"
+          n.type === "OCCURRENCE_CHANGE" ||
+          n.type === "BILLING"
       );
       setNotifications(
         (filteredData || []).map((n) => ({
@@ -46,6 +69,7 @@ const QuickNotifications = () => {
           title: n.title || n.type || "Notificação",
           body: n.message || n.body || "",
           date: n.createdAt ? new Date(n.createdAt).toLocaleString() : "",
+          type: n.type, // Adicionar o tipo para usar no ícone
         }))
       );
     } catch (err) {
@@ -109,9 +133,7 @@ const QuickNotifications = () => {
           <List>
             {notifications.map((notif) => (
               <ListItem key={notif.id} alignItems="flex-start" sx={{ mb: 2 }}>
-                <ListItemIcon>
-                  <NotificationsIcon color="primary" />
-                </ListItemIcon>
+                <ListItemIcon>{getNotificationIcon(notif.type)}</ListItemIcon>
                 <ListItemText
                   primary={
                     <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>

@@ -229,6 +229,14 @@ class AsaasService {
         value: data.amount,
         dueDate: data.dueDate,
         description: data.description || "Fatura mensal",
+        fine: {
+          value: 0,
+          type: "FIXED",
+        },
+        discount: {
+          value: 0,
+          type: "FIXED",
+        },
         // Adicione outros campos conforme necessário
       });
 

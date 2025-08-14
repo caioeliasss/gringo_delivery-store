@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 const asaasService = require("../services/asaasService");
 const { default: mongoose } = require("mongoose");
+const notificationService = require("../services/notificationService");
 
 // Criar fatura
 const createBilling = async (req, res) => {
@@ -68,6 +69,13 @@ const createBilling = async (req, res) => {
       billing.asaasInvoiceId = asaasInvoice.id;
       billing.asaasData = asaasInvoice;
       await billing.save();
+
+      notificationService.createGenericNotification({
+        title: "Novo boleto pendente",
+        message: `Uma nova fatura foi criada para o cliente`,
+        firebaseUid: billing.firebaseUid,
+        type: "BILLING",
+      });
     }
 
     res.status(201).json({ billing, asaasInvoice });

@@ -27,6 +27,7 @@ const notificationSchema = new mongoose.Schema({
       "FULLSCREEN_CALL",
       "ORDER_STATUS_UPDATE",
       "OCCURRENCE_CHANGE",
+      "BILLING",
     ],
     required: true,
   },
