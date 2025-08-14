@@ -11,18 +11,51 @@ const http = require("http");
 const socketIO = require("socket.io");
 const path = require("path");
 
-// Configuração das variáveis de ambiente baseada no NODE_ENV
-const envFile =
-  process.env.NODE_ENV === "production"
-    ? ".env.production"
-    : process.env.NODE_ENV === "development"
-    ? ".env.development"
-    : ".env";
+// Configuração das variáveis de ambiente baseada no NODE_ENV com fallback inteligente
+const fs = require("fs");
+const resolveEnvFile = () => {
+  const requested = (process.env.NODE_ENV || "development").toLowerCase();
+  const priority = [];
+  if (requested === "production") {
+    priority.push(".env.production");
+  } else if (requested === "test") {
+    priority.push(".env.test");
+  } else {
+    priority.push(".env.development");
+  }
+  // Arquivo genérico sempre como fallback final
+  priority.push(".env");
 
-dotenv.config({ path: envFile });
+  // Se usuário removeu .env mas esqueceu de setar NODE_ENV, tentamos development primeiro
+  for (const file of priority) {
+    if (fs.existsSync(path.join(__dirname, file))) {
+      return file;
+    }
+  }
+  return null;
+};
 
-console.log(`🔧 Carregando variáveis do arquivo: ${envFile}`);
-console.log(`🌐 BASE_URL configurada: ${process.env.BASE_URL}`);
+const chosenEnvFile = resolveEnvFile();
+if (chosenEnvFile) {
+  dotenv.config({ path: chosenEnvFile });
+  console.log(`🔧 Variáveis carregadas de: ${chosenEnvFile}`);
+} else {
+  console.warn(
+    "⚠️ Nenhum arquivo .env encontrado (.env.production/.env.development/.env). Variáveis podem ficar undefined."
+  );
+}
+
+if (!process.env.MONGODB_URI) {
+  console.warn(
+    "⚠️ MONGODB_URI não definido após carregar env. Defina NODE_ENV corretamente ou crie um .env.development/.env.production."
+  );
+}
+
+console.log(
+  `🌐 Ambiente NODE_ENV=${
+    process.env.NODE_ENV || "(não definido)"
+  } | ASAAS_ENVIRONMENT=${process.env.ASAAS_ENVIRONMENT || "(não definido)"}`
+);
 
 // Inicializar app Express
 const app = express();

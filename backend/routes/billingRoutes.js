@@ -7,7 +7,7 @@ const { default: mongoose } = require("mongoose");
 // Criar fatura
 const createBilling = async (req, res) => {
   const {
-    customerId,
+    customerId: incomingCustomerId,
     firebaseUid,
     storeId,
     amount,
@@ -19,21 +19,42 @@ const createBilling = async (req, res) => {
   } = req.body;
 
   try {
+    if (!firebaseUid || !storeId || !amount) {
+      return res.status(400).json({
+        message: "Campos obrigatórios: firebaseUid, storeId, amount",
+      });
+    }
+
+    // Garantir customerId (Asaas) se não vier do frontend
+    let finalCustomerId = incomingCustomerId;
+    if (!finalCustomerId) {
+      const Store = require("../models/Store");
+      const store = await Store.findById(storeId);
+      if (!store) {
+        return res.status(404).json({ message: "Store não encontrada" });
+      }
+      // Usa ensureCustomer para criar/obter
+      const ensured = await asaasService.ensureCustomer(store.toObject());
+      finalCustomerId = ensured.id;
+      if (!store.asaasCustomerId) {
+        store.asaasCustomerId = finalCustomerId;
+        await store.save();
+      }
+    }
+
     const billing = new Billing({
-      customerId,
+      customerId: finalCustomerId,
       firebaseUid,
       storeId,
       amount,
-      dueDate: dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Default to 7 days from now
+      dueDate: dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       period: period || "MONTHLY",
       type: type || "SUBSCRIPTION",
       description: description || "Fatura mensal",
       paymentMethod: paymentMethod || "PIX",
     });
 
-    await billing.save();
-
-    // Chama o serviço Asaas para criar a fatura
+    // Cria fatura no Asaas
     const asaasInvoice = await asaasService.createInvoice({
       customerId: billing.customerId,
       amount: billing.amount,
@@ -41,6 +62,13 @@ const createBilling = async (req, res) => {
       description: billing.description,
       paymentMethod: billing.paymentMethod,
     });
+
+    // Persistir id da fatura Asaas se retornar
+    if (asaasInvoice?.id) {
+      billing.asaasInvoiceId = asaasInvoice.id;
+      billing.asaasData = asaasInvoice;
+      await billing.save();
+    }
 
     res.status(201).json({ billing, asaasInvoice });
   } catch (error) {
