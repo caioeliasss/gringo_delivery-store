@@ -3,12 +3,18 @@ const axios = require("axios");
 
 class AsaasService {
   constructor() {
-    this.baseURL =
-      process.env.ASAAS_ENVIRONMENT === "production"
-        ? "https://api.asaas.com/v3"
-        : "https://api-sandbox.asaas.com/v3";
+    const rawEnv = (process.env.ASAAS_ENVIRONMENT || "").trim().toLowerCase();
+    this.apiKey = process.env.ASAAS_API_KEY || "";
 
-    this.apiKey = process.env.ASAAS_API_KEY;
+    // FORÇAR: Se existe chave de produção, sempre usar produção
+    const hasProductionKey = this.apiKey.includes("$aact_prod_");
+    const isExplicitProd = rawEnv === "production";
+    const isProd = hasProductionKey || isExplicitProd;
+
+    this.environment = isProd ? "production" : "sandbox";
+    this.baseURL = isProd
+      ? "https://api.asaas.com/v3"
+      : "https://api-sandbox.asaas.com/v3";
 
     // CORRIGIR: Asaas usa $aact_ diretamente, NÃO Bearer!
     this.api = axios.create({
@@ -22,13 +28,26 @@ class AsaasService {
 
     // Log para debug
     console.log("🔑 Asaas configurado:");
-    console.log("  - Environment:", process.env.ASAAS_ENVIRONMENT || "sandbox");
+    console.log(
+      "  - Environment (FORÇADO):",
+      this.environment,
+      `(raw='${rawEnv || "(none)"}')`
+    );
     console.log("  - BaseURL:", this.baseURL);
     console.log("  - API Key presente:", !!this.apiKey);
     console.log(
       "  - API Key (primeiros 10 chars):",
       this.apiKey ? this.apiKey.substring(0, 10) + "..." : "AUSENTE"
     );
+    console.log("  - Chave é de produção:", hasProductionKey);
+    if (!this.apiKey) {
+      console.warn("⚠️ ASAAS_API_KEY não definida. As chamadas irão falhar.");
+    }
+    if (!hasProductionKey && isProd) {
+      console.warn(
+        "⚠️ Forçando produção mas chave não parece ser de produção!"
+      );
+    }
   }
 
   async createCustomer(data) {
@@ -197,9 +216,16 @@ class AsaasService {
 
   async createInvoice(data) {
     try {
+      // Permitir billingType dinâmico
+      const allowed = ["PIX", "BOLETO", "CREDIT_CARD"];
+      const billingType = allowed.includes(
+        (data.paymentMethod || "").toUpperCase()
+      )
+        ? data.paymentMethod.toUpperCase()
+        : "PIX"; // default seguro
       const response = await this.api.post("/payments", {
         customer: data.customerId,
-        billingType: "BOLETO",
+        billingType,
         value: data.amount,
         dueDate: data.dueDate,
         description: data.description || "Fatura mensal",
@@ -379,6 +405,16 @@ class AsaasService {
       console.error("Erro ao consultar saldo:", error.response?.data);
       throw error;
     }
+  }
+
+  // Info util para debug externo
+  getEnvironmentInfo() {
+    return {
+      configuredEnvironment: this.environment,
+      baseURL: this.baseURL,
+      keyPresent: !!this.apiKey,
+      keyPreview: this.apiKey ? this.apiKey.substring(0, 6) + "***" : null,
+    };
   }
 }
 

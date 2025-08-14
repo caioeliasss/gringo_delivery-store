@@ -14,19 +14,24 @@ const path = require("path");
 // Configuração das variáveis de ambiente baseada no NODE_ENV com fallback inteligente
 const fs = require("fs");
 const resolveEnvFile = () => {
-  const requested = (process.env.NODE_ENV || "development").toLowerCase();
+  const requestedRaw = process.env.NODE_ENV || "";
+  const requested = requestedRaw.toLowerCase();
   const priority = [];
-  if (requested === "production") {
+
+  if (!requested) {
+    // Sem NODE_ENV definido: preferir produção se existir (sua exigência), depois development
+    priority.push(".env.production", ".env.development");
+  } else if (requested === "production") {
     priority.push(".env.production");
   } else if (requested === "test") {
     priority.push(".env.test");
   } else {
     priority.push(".env.development");
   }
-  // Arquivo genérico sempre como fallback final
+
+  // Por fim o genérico
   priority.push(".env");
 
-  // Se usuário removeu .env mas esqueceu de setar NODE_ENV, tentamos development primeiro
   for (const file of priority) {
     if (fs.existsSync(path.join(__dirname, file))) {
       return file;
@@ -80,7 +85,11 @@ app.use(
   cors({
     origin: isDevelopment
       ? "*" // Desenvolvimento: permite qualquer origin
-      : ["https://gringodelivery.com.br"], // Produção: apenas seu domínio
+      : [
+          "https://gringodelivery.com.br",
+          "https://suporte.gringodelivery.com.br",
+          "https://admin.gringodelivery.com.br",
+        ], // Produção: apenas seus domínios
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
