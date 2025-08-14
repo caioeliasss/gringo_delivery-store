@@ -4,7 +4,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js",
+    "dev": "set NODE_ENV=development nodemon server.js",
+    "dev:win": "set NODE_ENV=development && nodemon server.js",
+    "dev:unix": "NODE_ENV=development nodemon server.js",
     "build:gcp": "gcloud builds submit --tag gcr.io/gringo-delivery/gringo-delivery-api",
     "deploy:gcp": "gcloud run deploy gringo-delivery-api --image gcr.io/gringo-delivery/gringo-delivery-api --platform managed --region us-central1 --allow-unauthenticated"
   },

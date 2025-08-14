@@ -306,7 +306,7 @@ const OverdueBillings = () => {
               )}
             </Box>
 
-            <Box ml={2}>
+            <Box ml={2} display="flex" flexDirection="column" gap={1}>
               <Button
                 variant="contained"
                 startIcon={<QrCodeIcon />}
@@ -316,6 +316,19 @@ const OverdueBillings = () => {
               >
                 Gerar PIX
               </Button>
+
+              {billing.asaasData?.bankSlipUrl && (
+                <Button
+                  variant="outlined"
+                  onClick={() =>
+                    window.open(billing.asaasData.bankSlipUrl, "_blank")
+                  }
+                  size="small"
+                  color={isOverdue ? "error" : "primary"}
+                >
+                  Acessar Boleto
+                </Button>
+              )}
             </Box>
           </Box>
         </CardContent>
