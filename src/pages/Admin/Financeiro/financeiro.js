@@ -72,6 +72,7 @@ import { UseAdminAuth } from "../../../contexts/AdminAuthContext";
 import { adminService } from "../../../services/adminService";
 import DrawerAdmin from "../../../components/drawerAdmin";
 import api from "../../../services/api";
+import { addDays, format as formatDateFns } from "date-fns";
 import SideDrawer from "../../../components/SideDrawer/SideDrawer";
 import {
   SUPPORT_MENU_ITEMS,
@@ -125,6 +126,80 @@ const AdminFinanceiro = () => {
     message: "",
     type: "info",
   });
+
+  // Estados do modal de nova cobrança
+  const [createBillingOpen, setCreateBillingOpen] = useState(false);
+  const [stores, setStores] = useState([]);
+  const [newBilling, setNewBilling] = useState({
+    storeId: "",
+    firebaseUid: "",
+    customerId: "",
+    amount: "",
+    dueDate: formatDateFns(addDays(new Date(), 7), "yyyy-MM-dd"),
+    description: "",
+    paymentMethod: "BOLETO",
+  });
+  const [creatingBilling, setCreatingBilling] = useState(false);
+
+  // Buscar lojas para o select quando abrir modal
+  useEffect(() => {
+    if (createBillingOpen && stores.length === 0) {
+      api
+        .get("/stores")
+        .then((res) => setStores(res.data))
+        .catch(() => setStores([]));
+    }
+  }, [createBillingOpen, stores.length]);
+
+  const showAlert = (message, type = "info") => {
+    setAlert({ open: true, message, type });
+    setTimeout(
+      () => setAlert({ open: false, message: "", type: "info" }),
+      5000
+    );
+  };
+
+  // Função para criar cobrança
+  const handleCreateBilling = async () => {
+    if (!newBilling.storeId || !newBilling.amount || !newBilling.dueDate) {
+      showAlert("Preencha todos os campos obrigatórios", "warning");
+      return;
+    }
+    if (!newBilling.firebaseUid) {
+      showAlert(
+        "Loja selecionada sem firebaseUid. Recarregue a lista de lojas.",
+        "error"
+      );
+      return;
+    }
+    setCreatingBilling(true);
+    try {
+      await api.post("/billing", {
+        ...newBilling,
+        amount: Number(newBilling.amount),
+        dueDate: newBilling.dueDate,
+        paymentMethod: newBilling.paymentMethod,
+        firebaseUid: newBilling.firebaseUid,
+        customerId: newBilling.customerId,
+      });
+      showAlert("Cobrança criada com sucesso!", "success");
+      setCreateBillingOpen(false);
+      setNewBilling({
+        storeId: "",
+        firebaseUid: "",
+        customerId: "",
+        amount: "",
+        dueDate: formatDateFns(addDays(new Date(), 7), "yyyy-MM-dd"),
+        description: "",
+        paymentMethod: "BOLETO",
+      });
+      fetchFinancialData();
+    } catch (err) {
+      showAlert("Erro ao criar cobrança", "error");
+    } finally {
+      setCreatingBilling(false);
+    }
+  };
 
   // Carregar dados iniciais
   useEffect(() => {
@@ -184,14 +259,6 @@ const AdminFinanceiro = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const showAlert = (message, type = "info") => {
-    setAlert({ open: true, message, type });
-    setTimeout(
-      () => setAlert({ open: false, message: "", type: "info" }),
-      5000
-    );
   };
 
   const formatCurrency = (value) => {
@@ -423,6 +490,14 @@ const AdminFinanceiro = () => {
             </Typography>
             <Box>
               <Button
+                variant="contained"
+                color="success"
+                sx={{ mr: 2 }}
+                onClick={() => setCreateBillingOpen(true)}
+              >
+                Nova Cobrança
+              </Button>
+              <Button
                 variant="outlined"
                 startIcon={<DownloadIcon />}
                 sx={{ mr: 2 }}
@@ -432,6 +507,120 @@ const AdminFinanceiro = () => {
               >
                 Exportar
               </Button>
+              {/* Modal Nova Cobrança */}
+              <Dialog
+                open={createBillingOpen}
+                onClose={() => setCreateBillingOpen(false)}
+                maxWidth="sm"
+                fullWidth
+              >
+                <DialogTitle>Criar Nova Cobrança para Loja</DialogTitle>
+                <DialogContent>
+                  <Box
+                    component="form"
+                    sx={{
+                      mt: 1,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 2,
+                    }}
+                  >
+                    <FormControl fullWidth required>
+                      <InputLabel>Loja</InputLabel>
+                      <Select
+                        value={newBilling.storeId}
+                        label="Loja"
+                        onChange={(e) => {
+                          const storeId = e.target.value;
+                          const storeObj = stores.find(
+                            (s) => s._id === storeId
+                          );
+                          setNewBilling((b) => ({
+                            ...b,
+                            storeId,
+                            firebaseUid: storeObj?.firebaseUid || "",
+                            customerId: storeObj?.asaasCustomerId || "",
+                          }));
+                        }}
+                      >
+                        {stores.map((store) => (
+                          <MenuItem key={store._id} value={store._id}>
+                            {store.businessName ||
+                              store.displayName ||
+                              store.email ||
+                              store._id}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    <TextField
+                      label="Valor (R$)"
+                      type="number"
+                      required
+                      value={newBilling.amount}
+                      onChange={(e) =>
+                        setNewBilling((b) => ({ ...b, amount: e.target.value }))
+                      }
+                      inputProps={{ min: 1, step: 0.01 }}
+                      fullWidth
+                    />
+                    <TextField
+                      label="Vencimento"
+                      type="date"
+                      required
+                      value={newBilling.dueDate}
+                      onChange={(e) =>
+                        setNewBilling((b) => ({
+                          ...b,
+                          dueDate: e.target.value,
+                        }))
+                      }
+                      InputLabelProps={{ shrink: true }}
+                      fullWidth
+                    />
+                    <TextField
+                      label="Descrição"
+                      value={newBilling.description}
+                      onChange={(e) =>
+                        setNewBilling((b) => ({
+                          ...b,
+                          description: e.target.value,
+                        }))
+                      }
+                      fullWidth
+                    />
+                    <FormControl fullWidth>
+                      <InputLabel>Método de Pagamento</InputLabel>
+                      <Select
+                        value={newBilling.paymentMethod}
+                        label="Método de Pagamento"
+                        onChange={(e) =>
+                          setNewBilling((b) => ({
+                            ...b,
+                            paymentMethod: e.target.value,
+                          }))
+                        }
+                      >
+                        <MenuItem value="BOLETO">Boleto</MenuItem>
+                        <MenuItem value="PIX">PIX</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Box>
+                </DialogContent>
+                <DialogActions>
+                  <Button onClick={() => setCreateBillingOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    onClick={handleCreateBilling}
+                    disabled={creatingBilling}
+                  >
+                    {creatingBilling ? "Criando..." : "Criar Cobrança"}
+                  </Button>
+                </DialogActions>
+              </Dialog>
               <Button
                 variant="contained"
                 startIcon={<RefreshIcon />}
