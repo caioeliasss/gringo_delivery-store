@@ -175,7 +175,7 @@ router.get("/", authenticateToken, async (req, res) => {
   }
 });
 
-router.get(`/store/:storeId`, authenticateToken, async (req, res) => {
+router.get(`/store/:storeId`, async (req, res) => {
   try {
     const { storeId } = req.params;
     const user = await Store.findById(storeId);
@@ -235,6 +235,7 @@ router.put("/status", authenticateToken, async (req, res) => {
       "pendente",
       "em_preparo",
       "em_entrega",
+      "pronto",
       "entregue",
       "cancelado",
     ];
