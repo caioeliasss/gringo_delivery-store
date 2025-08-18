@@ -66,6 +66,7 @@ import {
   Check as CheckIcon,
   Schedule as ScheduleIcon,
   Category as CategoryIcon,
+  Badge as BadgeIcon,
 } from "@mui/icons-material";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -79,7 +80,6 @@ import api, {
   approveStore,
   reproveStore,
   updateStoreBilling,
-  updateStoreName,
 } from "../../services/api";
 import { getFileURL, getUserDocuments } from "../../services/storageService";
 import {
@@ -713,6 +713,11 @@ export default function EstabelecimentosPage() {
   const [originalName, setOriginalName] = useState("");
   const [savingName, setSavingName] = useState(false);
 
+  // Estados para edição do CNPJ
+  const [editingCnpj, setEditingCnpj] = useState(false);
+  const [originalCnpj, setOriginalCnpj] = useState("");
+  const [savingCnpj, setSavingCnpj] = useState(false);
+
   const handleEditName = () => {
     setOriginalName(selectedStore?.businessName || "");
     setEditingName(true);
@@ -743,7 +748,10 @@ export default function EstabelecimentosPage() {
         newName: newName,
       });
 
-      await updateStoreName(selectedStore._id, newName);
+      await api.put(`/stores/name`, {
+        businessName: newName,
+        storeId: selectedStore._id,
+      });
 
       // Atualizar a lista de lojas
       const response = await getStores();
@@ -788,6 +796,111 @@ export default function EstabelecimentosPage() {
       businessName: originalName,
     });
     setEditingName(false);
+  };
+
+  // Funções para edição do CNPJ
+  const handleEditCnpj = () => {
+    setOriginalCnpj(selectedStore?.cnpj || "");
+    setEditingCnpj(true);
+  };
+
+  const formatCnpj = (value) => {
+    if (!value) return "";
+    // Remove tudo que não é número
+    const cnpjNumbers = value.replace(/\D/g, "");
+    // Formata o CNPJ (XX.XXX.XXX/XXXX-XX)
+    return cnpjNumbers
+      .replace(/(\d{2})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1/$2")
+      .replace(/(\d{4})(\d)/, "$1-$2")
+      .replace(/(-\d{2})\d+?$/, "$1");
+  };
+
+  const handleSaveCnpj = async () => {
+    if (!selectedStore || !selectedStore._id) {
+      console.error("Nenhuma loja selecionada para atualizar");
+      alert("Erro: Nenhuma loja selecionada");
+      return;
+    }
+
+    const newCnpj = selectedStore.cnpj?.replace(/\D/g, ""); // Remove formatação
+    if (!newCnpj) {
+      alert("CNPJ não pode estar vazio");
+      return;
+    }
+
+    if (newCnpj.length !== 14) {
+      alert("CNPJ deve ter 14 dígitos");
+      return;
+    }
+
+    const originalCnpjNumbers = originalCnpj.replace(/\D/g, "");
+    if (newCnpj === originalCnpjNumbers) {
+      setEditingCnpj(false);
+      return;
+    }
+
+    setSavingCnpj(true);
+    try {
+      console.log("Atualizando CNPJ da loja:", {
+        storeId: selectedStore._id,
+        newCnpj: newCnpj,
+      });
+
+      // Chamar API para atualizar CNPJ
+      await api.put(`/stores/cnpj`, {
+        cnpj: newCnpj,
+        storeId: selectedStore._id,
+      });
+
+      // Atualizar a lista de lojas
+      const response = await getStores();
+      setStores(response.data);
+
+      // Atualizar a loja selecionada na lista
+      const updatedStore = response.data.find(
+        (store) => store._id === selectedStore._id
+      );
+
+      updatedStore.cnpj = formatCnpj(newCnpj); // Formatar CNPJ antes de atualizar
+
+      if (updatedStore) {
+        setSelectedStore(updatedStore);
+      }
+
+      setEditingCnpj(false);
+      console.log("CNPJ atualizado com sucesso!");
+
+      // Mostrar feedback visual de sucesso
+      const originalTitle = document.title;
+      document.title = "✅ CNPJ salvo!";
+      setTimeout(() => {
+        document.title = originalTitle;
+      }, 2000);
+    } catch (error) {
+      console.error("Erro ao atualizar CNPJ da loja:", error);
+
+      const errorMessage =
+        error.response?.data?.message || "Erro ao atualizar CNPJ da loja";
+      alert(errorMessage);
+
+      // Reverter o CNPJ para o original
+      setSelectedStore({
+        ...selectedStore,
+        cnpj: originalCnpj,
+      });
+    } finally {
+      setSavingCnpj(false);
+    }
+  };
+
+  const handleCancelEditCnpj = () => {
+    setSelectedStore({
+      ...selectedStore,
+      cnpj: originalCnpj,
+    });
+    setEditingCnpj(false);
   };
 
   return (
@@ -1534,6 +1647,99 @@ export default function EstabelecimentosPage() {
                                   </Typography>
                                 </Box>
                               )}
+
+                              {/* CNPJ editável */}
+                              <Box
+                                sx={{ display: "flex", alignItems: "center" }}
+                              >
+                                <BadgeIcon
+                                  sx={{
+                                    mr: 1,
+                                    fontSize: 16,
+                                    color: "text.secondary",
+                                  }}
+                                />
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    flexGrow: 1,
+                                  }}
+                                >
+                                  <TextField
+                                    value={
+                                      editingCnpj
+                                        ? selectedStore?.cnpj || ""
+                                        : formatCnpj(selectedStore?.cnpj || "")
+                                    }
+                                    onChange={(e) => {
+                                      if (editingCnpj) {
+                                        const value = e.target.value.replace(
+                                          /\D/g,
+                                          ""
+                                        );
+                                        if (value.length <= 14) {
+                                          setSelectedStore({
+                                            ...selectedStore,
+                                            cnpj: value,
+                                          });
+                                        }
+                                      }
+                                    }}
+                                    disabled={!editingCnpj}
+                                    variant="standard"
+                                    size="small"
+                                    sx={{ flexGrow: 1, mr: 1 }}
+                                    placeholder="Digite o CNPJ"
+                                    inputProps={{
+                                      maxLength: editingCnpj ? 14 : undefined,
+                                    }}
+                                  />
+                                  {!editingCnpj ? (
+                                    <IconButton
+                                      onClick={handleEditCnpj}
+                                      size="small"
+                                      title="Editar CNPJ"
+                                    >
+                                      <EditIcon fontSize="small" />
+                                    </IconButton>
+                                  ) : (
+                                    <Box sx={{ display: "flex", gap: 0.5 }}>
+                                      <IconButton
+                                        onClick={handleSaveCnpj}
+                                        size="small"
+                                        disabled={savingCnpj}
+                                        title="Salvar CNPJ"
+                                        sx={{
+                                          color: "success.main",
+                                          "&:hover": {
+                                            backgroundColor: "success.light",
+                                          },
+                                        }}
+                                      >
+                                        {savingCnpj ? (
+                                          <CircularProgress size={12} />
+                                        ) : (
+                                          <CheckIcon fontSize="small" />
+                                        )}
+                                      </IconButton>
+                                      <IconButton
+                                        onClick={handleCancelEditCnpj}
+                                        size="small"
+                                        title="Cancelar edição"
+                                        sx={{
+                                          color: "error.main",
+                                          "&:hover": {
+                                            backgroundColor: "error.light",
+                                          },
+                                        }}
+                                      >
+                                        <CloseIcon fontSize="small" />
+                                      </IconButton>
+                                    </Box>
+                                  )}
+                                </Box>
+                              </Box>
 
                               {selectedStore.address && (
                                 <Box

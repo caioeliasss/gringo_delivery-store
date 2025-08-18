@@ -3,7 +3,7 @@ import axios from "axios";
 import { useAuth } from "../../contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../services/api";
-import { findMotoboys } from "../../services/api";
+import { findMotoboys, getStoreOrders } from "../../services/api";
 import SideDrawer from "../../components/SideDrawer/SideDrawer";
 import {
   Container,
@@ -295,19 +295,37 @@ const Pedidos = () => {
   const handleFetchPedidos = () => {
     const fetchPedidos = async () => {
       try {
+        if (!storeId) {
+          console.log("⚠️ StoreId não disponível ainda, aguardando...");
+          return;
+        }
+
         setLoading(true);
-        const response = await api.get("/orders");
+        console.log("🔍 Iniciando fetch de pedidos para loja:", storeId);
+        console.log("👤 Usuário atual:", currentUser);
+
+        const response = await getStoreOrders(storeId);
+        console.log("✅ Pedidos carregados com sucesso:", response.data);
         setPedidos(response.data);
         setFilteredPedidos(response.data);
         setLoading(false);
       } catch (err) {
-        console.error("Erro ao carregar pedidos:", err);
+        console.error("❌ Erro ao carregar pedidos:", err);
+        console.error("📋 Detalhes do erro:", {
+          message: err.message,
+          status: err.response?.status,
+          statusText: err.response?.statusText,
+          data: err.response?.data,
+        });
+
         setError(
           "Não foi possível carregar os pedidos. Tente novamente mais tarde."
         );
         setSnackbar({
           open: true,
-          message: "Erro ao carregar pedidos",
+          message: `Erro ao carregar pedidos: ${
+            err.response?.status || err.message
+          }`,
           severity: "error",
         });
         setLoading(false);
@@ -342,19 +360,39 @@ const Pedidos = () => {
   useEffect(() => {
     const fetchPedidos = async () => {
       try {
+        if (!currentUser) {
+          console.log("⚠️ Usuário não autenticado, aguardando...");
+          return;
+        }
+
+        if (!storeId) {
+          console.log("⚠️ StoreId não disponível ainda, aguardando...");
+          return;
+        }
+
         setLoading(true);
-        const response = await api.get("/orders");
+        const response = await getStoreOrders(storeId);
+        console.log("✅ Pedidos carregados no useEffect:", response.data);
         setPedidos(response.data);
         setFilteredPedidos(response.data);
         setLoading(false);
       } catch (err) {
-        console.error("Erro ao carregar pedidos:", err);
+        console.error("❌ Erro no useEffect ao carregar pedidos:", err);
+        console.error("📋 Detalhes do erro no useEffect:", {
+          message: err.message,
+          status: err.response?.status,
+          statusText: err.response?.statusText,
+          data: err.response?.data,
+        });
+
         setError(
           "Não foi possível carregar os pedidos. Tente novamente mais tarde."
         );
         setSnackbar({
           open: true,
-          message: "Erro ao carregar pedidos",
+          message: `Erro ao carregar pedidos: ${
+            err.response?.status || err.message
+          }`,
           severity: "error",
         });
         setLoading(false);
@@ -362,14 +400,13 @@ const Pedidos = () => {
     };
 
     fetchPedidos();
-  }, []);
+  }, [currentUser, storeId]); // Adicionadas dependências do currentUser e storeId
 
   useEffect(() => {
     const fetchStore = async () => {
       try {
         const userProfileResponse = await api.get("/stores/me");
         const userProfile = userProfileResponse.data;
-        console.log("userProfile:", userProfile._id);
         setStoreId(userProfile._id);
         setStoreOrigin({
           name:
@@ -558,7 +595,6 @@ const Pedidos = () => {
     }
     const driverCode = pedido.motoboy.phone.slice(-4);
     if (code === driverCode) {
-      console.log("pedido:", pedido._id);
       handleUpdateStatus(pedido._id, "em_entrega");
       setSnackbar({
         open: true,
@@ -1243,6 +1279,7 @@ const Pedidos = () => {
     try {
       const phoneNumber = pedido.motoboy.phone;
       const motoboyId = pedido.motoboy.motoboyId;
+      pedido.hasArrived = true;
 
       const orderReady = require("../../services/api").updateOrderStatus;
       const response = await orderReady(pedido._id, "pronto");
@@ -2552,6 +2589,7 @@ const Pedidos = () => {
                                     Enviar para Entrega
                                   </Button>
                                   <Button
+                                    disabled={currentPedido.hasArrived}
                                     variant="contained"
                                     color="info"
                                     startIcon={<NotificationAdd />}

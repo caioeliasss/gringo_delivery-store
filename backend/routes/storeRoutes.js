@@ -228,6 +228,31 @@ router.post("/profile", authenticateToken, async (req, res) => {
   }
 });
 
+router.put("/cnpj", authenticateToken, async (req, res) => {
+  try {
+    const { cnpj, storeId } = req.body;
+    if (!cnpj) {
+      return res.status(400).json({ message: "CNPJ é obrigatório" });
+    }
+
+    const user = await Store.findById(storeId);
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    user.cnpj = cnpj;
+    await user.save();
+
+    res.status(200).json(user);
+  } catch (error) {
+    console.error("Erro ao atualizar CNPJ:", error);
+    res.status(500).json({
+      message: "Erro ao atualizar CNPJ",
+      error: error.message,
+    });
+  }
+});
+
 // Atualizar apenas a geolocalização do estabelecimento
 router.put("/location", authenticateToken, async (req, res) => {
   try {

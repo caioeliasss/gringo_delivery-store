@@ -73,6 +73,7 @@ import { adminService } from "../../../services/adminService";
 import DrawerAdmin from "../../../components/drawerAdmin";
 import api from "../../../services/api";
 import { addDays, format as formatDateFns } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import SideDrawer from "../../../components/SideDrawer/SideDrawer";
 import {
   SUPPORT_MENU_ITEMS,
@@ -138,6 +139,7 @@ const AdminFinanceiro = () => {
     dueDate: formatDateFns(addDays(new Date(), 7), "yyyy-MM-dd"),
     description: "",
     paymentMethod: "BOLETO",
+    type: "SUBSCRIPTION",
   });
   const [creatingBilling, setCreatingBilling] = useState(false);
 
@@ -179,6 +181,7 @@ const AdminFinanceiro = () => {
         amount: Number(newBilling.amount),
         dueDate: newBilling.dueDate,
         paymentMethod: newBilling.paymentMethod,
+        type: newBilling.type,
         firebaseUid: newBilling.firebaseUid,
         customerId: newBilling.customerId,
       });
@@ -192,6 +195,7 @@ const AdminFinanceiro = () => {
         dueDate: formatDateFns(addDays(new Date(), 7), "yyyy-MM-dd"),
         description: "",
         paymentMethod: "BOLETO",
+        type: "SUBSCRIPTION",
       });
       fetchFinancialData();
     } catch (err) {
@@ -269,13 +273,32 @@ const AdminFinanceiro = () => {
   };
 
   const formatDate = (date) => {
-    return new Date(date).toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    if (!date) return "Data inválida";
+
+    try {
+      // Criar um objeto Date e ajustar para o fuso horário brasileiro (UTC-3)
+      const utcDate = new Date(date);
+
+      // Verificar se a data é válida
+      if (isNaN(utcDate.getTime())) {
+        return "Data inválida";
+      }
+
+      // Ajustar para UTC-3 (fuso horário de Brasília)
+      // Se a data vier em UTC, subtraímos 3 horas para obter o horário local
+      const brasiliaOffset = -3 * 60; // -3 horas em minutos
+      const localOffset = utcDate.getTimezoneOffset(); // offset local em minutos
+      const brasiliaTime = new Date(
+        utcDate.getTime() + (localOffset - brasiliaOffset) * 60 * 1000
+      );
+
+      return formatDateFns(brasiliaTime, "dd/MM/yyyy HH:mm", {
+        locale: ptBR,
+      });
+    } catch (error) {
+      console.error("Erro ao formatar data:", error);
+      return "Data inválida";
+    }
   };
 
   const getStatusChip = (status, type = "withdrawal") => {
@@ -592,6 +615,28 @@ const AdminFinanceiro = () => {
                       }
                       fullWidth
                     />
+                    <FormControl fullWidth>
+                      <InputLabel>Tipo de Cobrança</InputLabel>
+                      <Select
+                        value={newBilling.type}
+                        label="Tipo de Cobrança"
+                        onChange={(e) =>
+                          setNewBilling((b) => ({
+                            ...b,
+                            type: e.target.value,
+                          }))
+                        }
+                      >
+                        <MenuItem value="SUBSCRIPTION">Assinatura</MenuItem>
+                        <MenuItem value="MOTOBOY_FEE">
+                          Taxa de Acionamento
+                        </MenuItem>
+                        <MenuItem value="MOTOBOY_BILLING">
+                          Cobrança de Motoboy
+                        </MenuItem>
+                        <MenuItem value="EARNING">Ganhos</MenuItem>
+                      </Select>
+                    </FormControl>
                     <FormControl fullWidth>
                       <InputLabel>Método de Pagamento</InputLabel>
                       <Select

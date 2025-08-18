@@ -35,7 +35,7 @@ const billingSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["SUBSCRIPTION", "MOTOBOY_FEE", "MOTOBOY_BILLING"],
+      enum: ["SUBSCRIPTION", "MOTOBOY_FEE", "MOTOBOY_BILLING", "EARNING"],
       default: "SUBSCRIPTION",
     },
     description: {

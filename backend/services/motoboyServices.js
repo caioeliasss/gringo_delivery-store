@@ -25,6 +25,11 @@ class MotoboyService {
     this.processingOrders = new Map();
     // Map to store active timers for cancellation
     this.activeTimers = new Map();
+
+    // Limpeza periódica de requests expirados a cada 30 segundos
+    setInterval(() => {
+      this.cleanExpiredRequests();
+    }, 30000);
   }
 
   async findBestMotoboys(coordinates, maxDistance = 5000, limit = 50) {
@@ -188,6 +193,8 @@ class MotoboyService {
         };
       }
 
+      order.motoboy.timer = Date.now();
+
       const accepted = await this.requestMotoboy(motoboy, order);
 
       if (accepted) {
@@ -247,8 +254,8 @@ class MotoboyService {
   }
 
   /**
-   * Request a motoboy to take a delivery using polling method
-   * Checks if the order.motoboy.motoboyId matches the requested motoboy ID
+   * Request a motoboy to take a delivery using WebSocket method
+   * Waits for acceptOrder:success socket event from the motoboy
    *
    * @param {Object} motoboy - The motoboy to request
    * @param {Object} order - The order to deliver
@@ -276,82 +283,41 @@ class MotoboyService {
       }
 
       try {
-        // Iniciar polling para verificar se o motoboy aceitou
+        // Aguardar aceitação via WebSocket
         return new Promise((resolve) => {
-          let attempts = 0;
-          const maxAttempts = 60; // 60 tentativas = 60 segundos
           const orderId = order._id.toString();
           const motoboyId = motoboy._id.toString();
+          const timeout = 60000; // 60 segundos timeout
 
           console.log(
-            `🔍 Iniciando polling para pedido ${orderId} e motoboy ${motoboy.name}`
+            `� Aguardando aceitação via WebSocket para pedido ${orderId} e motoboy ${motoboy.name}`
           );
 
-          const checkAcceptance = async () => {
-            try {
-              attempts++;
+          // Criar chave única para este request
+          const requestKey = `${orderId}-${motoboyId}`;
 
-              // Buscar o pedido atualizado
-              const updatedOrder = await Order.findById(orderId).select(
-                "motoboy"
+          // Armazenar o resolver na queue para ser chamado quando o socket receber acceptOrder:success
+          this.requestQueue.set(requestKey, {
+            resolve,
+            orderId,
+            motoboyId,
+            motoboyName: motoboy.name,
+            timestamp: Date.now(),
+          });
+
+          // Timeout para casos onde o motoboy não responde
+          const timeoutId = setTimeout(() => {
+            if (this.requestQueue.has(requestKey)) {
+              console.log(
+                `⏰ Timeout atingido para motoboy ${motoboy.name} no pedido ${orderId}`
               );
-
-              if (!updatedOrder) {
-                console.log(`❌ Pedido ${orderId} não encontrado`);
-                resolve(false);
-                return;
-              }
-
-              // Verificar se o motoboy foi atribuído ao pedido
-              if (
-                updatedOrder.motoboy &&
-                updatedOrder.motoboy.motoboyId &&
-                updatedOrder.motoboy.motoboyId.toString() === motoboyId
-              ) {
-                console.log(
-                  `✅ Motoboy ${motoboy.name} aceitou o pedido ${orderId}`
-                );
-                resolve(true);
-                return;
-              }
-
-              // Verificar se outro motoboy já aceitou o pedido
-              if (
-                updatedOrder.motoboy &&
-                updatedOrder.motoboy.motoboyId &&
-                updatedOrder.motoboy.motoboyId.toString() !== motoboyId &&
-                updatedOrder.motoboy.queue &&
-                updatedOrder.motoboy.queue.status === "confirmado"
-              ) {
-                console.log(
-                  `❌ Pedido ${orderId} já foi aceito por outro motoboy (${updatedOrder.motoboy.motoboyId})`
-                );
-                resolve(false);
-                return;
-              }
-
-              // Verificar se atingiu o limite de tentativas
-              if (attempts >= maxAttempts) {
-                console.log(
-                  `⏰ Timeout atingido para motoboy ${motoboy.name} no pedido ${orderId}`
-                );
-                resolve(false);
-                return;
-              }
-
-              // Continuar verificando em 1 segundo
-              setTimeout(checkAcceptance, 1000);
-            } catch (error) {
-              console.error(
-                `❌ Erro durante polling para ${motoboy.name}:`,
-                error
-              );
+              this.requestQueue.delete(requestKey);
               resolve(false);
             }
-          };
+          }, timeout);
 
-          // Iniciar verificação
-          checkAcceptance();
+          // Armazenar o timeout ID para limpeza
+          this.requestQueue.get(requestKey).timeoutId = timeoutId;
         });
       } catch (error) {
         console.error(`❌ Erro ao enviar oferta para ${motoboy.name}:`, error);
@@ -360,6 +326,76 @@ class MotoboyService {
     } catch (error) {
       console.error("❌ Erro ao solicitar motoboy:", error);
       return false;
+    }
+  }
+
+  /**
+   * Processa aceitação de pedido via WebSocket
+   * Chamado quando recebe evento acceptOrder:success
+   *
+   * @param {String} orderId - ID do pedido
+   * @param {String} motoboyId - ID do motoboy que aceitou
+   */
+  handleOrderAcceptance(orderId, motoboyId) {
+    console.log(
+      `✅ [SOCKET] Recebido acceptOrder:success - Pedido: ${orderId}, Motoboy: ${motoboyId}`
+    );
+
+    // Buscar request pendente na queue
+    const requestKey = `${orderId}-${motoboyId}`;
+    const pendingRequest = this.requestQueue.get(requestKey);
+
+    if (pendingRequest) {
+      console.log(
+        `🎯 [SOCKET] Encontrado request pendente para ${pendingRequest.motoboyName}`
+      );
+
+      // Limpar timeout
+      if (pendingRequest.timeoutId) {
+        clearTimeout(pendingRequest.timeoutId);
+      }
+
+      // Remover da queue
+      this.requestQueue.delete(requestKey);
+
+      // Resolver a Promise com sucesso
+      pendingRequest.resolve(true);
+
+      console.log(
+        `✅ [SOCKET] Aceitação processada com sucesso para pedido ${orderId}`
+      );
+    } else {
+      console.log(
+        `❌ [SOCKET] Nenhum request pendente encontrado para chave ${requestKey}`
+      );
+
+      // Listar todas as chaves pendentes para debug
+      const pendingKeys = Array.from(this.requestQueue.keys());
+      console.log(`🔍 [SOCKET DEBUG] Requests pendentes:`, pendingKeys);
+    }
+  }
+
+  /**
+   * Limpa requests expirados da queue
+   * Útil para evitar memory leaks
+   */
+  cleanExpiredRequests() {
+    const now = Date.now();
+    const maxAge = 120000; // 2 minutos
+
+    for (const [key, request] of this.requestQueue.entries()) {
+      if (now - request.timestamp > maxAge) {
+        console.log(`🧹 Limpando request expirado: ${key}`);
+
+        if (request.timeoutId) {
+          clearTimeout(request.timeoutId);
+        }
+
+        this.requestQueue.delete(key);
+
+        // Resolver com false para não travar o processamento
+        request.resolve(false);
+      }
     }
   }
 

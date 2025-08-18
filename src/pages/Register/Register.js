@@ -87,57 +87,77 @@ const Register = () => {
       // Obter a geolocalização do navegador
       let geolocation = null;
 
-      // Função para obter a localização atual do navegador
+      // Função para obter a localização atual do navegador (compatível com Safari)
       const getCurrentPosition = () => {
         return new Promise((resolve, reject) => {
           if (!navigator.geolocation) {
-            reject(
-              new Error("Geolocalização não é suportada pelo seu navegador")
-            );
-          } else {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              enableHighAccuracy: true,
-              timeout: 5000,
-              maximumAge: 0,
-            });
+            resolve(null); // Resolver com null em vez de rejeitar
+            return;
           }
+
+          const timeoutId = setTimeout(() => {
+            reject(new Error("Timeout na geolocalização"));
+          }, 5000);
+
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              clearTimeout(timeoutId);
+              resolve(position);
+            },
+            (error) => {
+              clearTimeout(timeoutId);
+              resolve(null); // Resolver com null em caso de erro
+            },
+            {
+              enableHighAccuracy: false, // Safari funciona melhor com false
+              timeout: 10000, // Timeout maior para Safari
+              maximumAge: 60000, // Cache por 1 minuto
+            }
+          );
         });
       };
 
       try {
         const position = await getCurrentPosition();
-        geolocation = {
-          type: "Point",
-          coordinates: [
-            position.coords.longitude, // Longitude primeiro
-            position.coords.latitude, // Latitude depois
-          ],
-        };
-        console.log("Localização obtida:", geolocation);
+        if (position && position.coords) {
+          geolocation = {
+            type: "Point",
+            coordinates: [
+              position.coords.longitude, // Longitude primeiro
+              position.coords.latitude, // Latitude depois
+            ],
+          };
+        }
       } catch (geoError) {
-        console.error("Erro ao obter localização:", geoError);
-        // Caso falhe, podemos manter o CEP como fallback ou deixar null
+        // Silencioso no Safari para evitar travamentos
+        geolocation = null;
       }
 
-      let storeAddress;
-      let businessName;
+      let storeAddress = null;
+      let businessName = null;
       try {
         const response = await buscarCnpj(cnpjNumbers);
-        const data = response.data;
-        businessName = data.nome_fantasia || data.razao_social;
-        storeAddress = {
-          cep: data.cep,
-          address: data.logradouro,
-          bairro: data.bairro,
-          addressNumber: data.numero,
-          cidade: data.municipio,
-        };
-      } catch (error) {}
-      console.log(storeAddress);
+        if (response && response.data) {
+          const data = response.data;
+          businessName = data.nome_fantasia || data.razao_social || null;
+          storeAddress = {
+            cep: data.cep || "",
+            address: data.logradouro || "",
+            bairro: data.bairro || "",
+            addressNumber: data.numero || "",
+            cidade: data.municipio || "",
+          };
+        }
+      } catch (error) {
+        // Silencioso para compatibilidade com Safari
+        storeAddress = null;
+        businessName = null;
+      }
+
       // Após registro no Firebase, criar perfil no backend com CNPJ
       try {
         await createUserProfile({
-          displayName: businessName, // Nome baseado no email
+          displayName: businessName || email.split("@")[0], // Fallback para nome baseado no email
           email: email,
           cnpj: cnpjNumbers,
           location: geolocation,
@@ -146,19 +166,39 @@ const Register = () => {
         });
         navigate("/dashboard");
       } catch (profileError) {
-        console.error("Erro ao criar perfil:", profileError);
-        setError(
-          "Conta criada, mas ocorreu um erro ao salvar os dados do perfil."
-        );
+        // Tratamento de erro mais robusto para Safari
+        let errorMessage =
+          "Conta criada, mas ocorreu um erro ao salvar os dados do perfil.";
+
+        // Verificar se é um erro de rede específico do Safari
+        if (
+          profileError.name === "TypeError" &&
+          profileError.message.includes("Failed to fetch")
+        ) {
+          errorMessage =
+            "Erro de conexão. Verifique sua internet e tente novamente.";
+        }
+
+        setError(errorMessage);
       }
     } catch (error) {
-      console.error("Erro no registro:", error.message);
-
+      // Tratamento de erro melhorado para Safari
       let errorMessage = "Falha ao criar conta. Tente novamente.";
+
       if (error.code === "auth/email-already-in-use") {
         errorMessage = "Este email já está em uso";
       } else if (error.code === "auth/invalid-email") {
         errorMessage = "Email inválido";
+      } else if (error.code === "auth/weak-password") {
+        errorMessage = "Senha muito fraca";
+      } else if (
+        error.name === "TypeError" &&
+        error.message.includes("Failed to fetch")
+      ) {
+        errorMessage =
+          "Erro de conexão. Verifique sua internet e tente novamente.";
+      } else if (error.code === "auth/network-request-failed") {
+        errorMessage = "Erro de rede. Verifique sua conexão com a internet.";
       }
 
       setError(errorMessage);

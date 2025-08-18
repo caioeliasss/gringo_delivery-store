@@ -3,8 +3,6 @@ import { auth } from "../firebase";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080/api";
 
-console.log(process.env.REACT_APP_API_URL);
-
 // Sistema de cache TTL para evitar sobrecarregamento
 class ApiCache {
   constructor() {

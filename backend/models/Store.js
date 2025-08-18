@@ -66,9 +66,9 @@ const storeSchema = new mongoose.Schema({
     unique: true,
   },
   cnpj: {
-    type: Number,
+    type: String,
     required: false,
-    default: null,
+    default: "",
   },
   cnpj_approved: {
     type: Boolean,

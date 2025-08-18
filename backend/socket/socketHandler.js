@@ -3,6 +3,7 @@ const Motoboy = require("../models/Motoboy");
 const Order = require("../models/Order");
 const Travel = require("../models/Travel");
 const notificationService = require("../services/notificationService");
+const motoboyServices = require("../services/motoboyServices");
 
 module.exports = (io, socketManager) => {
   io.on("connection", (socket) => {
@@ -97,7 +98,7 @@ module.exports = (io, socketManager) => {
       try {
         const { orderId, motoboyId, travelId } = data;
         console.log(
-          `Pedido ${orderId} aceito pelo motoboy ${motoboyId} e travelId ${travelId}`
+          `🔌 [SOCKET] Pedido ${orderId} aceito pelo motoboy ${motoboyId} e travelId ${travelId}`
         );
 
         const motoboy = await Motoboy.findById(motoboyId);
@@ -126,8 +127,11 @@ module.exports = (io, socketManager) => {
         });
 
         console.log(
-          `✅ Pedido ${orderId} aceito e motoboy ${motoboyId} marcado como indisponível`
+          `✅ [SOCKET] Pedido ${orderId} aceito e motoboy ${motoboyId} marcado como indisponível`
         );
+
+        // **NOVA INTEGRAÇÃO** - Notificar motoboyServices sobre a aceitação
+        motoboyServices.handleOrderAcceptance(orderId, motoboyId);
 
         // Notificar loja sobre aceite
         io.emit("orderAccepted", {
@@ -153,7 +157,24 @@ module.exports = (io, socketManager) => {
     socket.on("declineOrder", async (data) => {
       try {
         const { orderId, motoboyId, reason } = data;
-        console.log(`Pedido ${orderId} recusado pelo motoboy ${motoboyId}`);
+        console.log(
+          `🔌 [SOCKET] Pedido ${orderId} recusado pelo motoboy ${motoboyId}`
+        );
+
+        // **NOVA INTEGRAÇÃO** - Notificar motoboyServices sobre a recusa
+        const requestKey = `${orderId}-${motoboyId}`;
+        const pendingRequest = motoboyServices.requestQueue.get(requestKey);
+
+        if (pendingRequest) {
+          console.log(`❌ [SOCKET] Limpando request pendente devido à recusa`);
+
+          if (pendingRequest.timeoutId) {
+            clearTimeout(pendingRequest.timeoutId);
+          }
+
+          motoboyServices.requestQueue.delete(requestKey);
+          pendingRequest.resolve(false);
+        }
 
         // Notificar sistema sobre recusa
         io.emit("orderDeclined", {

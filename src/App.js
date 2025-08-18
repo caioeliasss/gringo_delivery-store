@@ -221,61 +221,63 @@ function CustomerApp() {
   return (
     <ThemeProvider theme={theme}>
       <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route
-            path="/dashboard"
-            element={
-              <PrivateRoute>
-                <Dashboard />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/produtos"
-            element={
-              <PrivateRoute>
-                <Produtos />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/pedidos"
-            element={
-              <PrivateRoute>
-                <Pedidos />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/ocorrencias"
-            element={
-              <PrivateRoute>
-                <OcorrenciasPage />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/chat"
-            element={
-              <PrivateRoute>
-                <ChatStore />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/coordenadas"
-            element={
-              <PrivateRoute>
-                <ViewCoordinates />
-              </PrivateRoute>
-            }
-          />
-          <Route path="/termos/:type" element={<Termos />} />
-          <Route path="/" element={<Navigate to="/login" />} />
-        </Routes>
+        <GlobalNotificationsProvider userType="customer">
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route
+              path="/dashboard"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/produtos"
+              element={
+                <PrivateRoute>
+                  <Produtos />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/pedidos"
+              element={
+                <PrivateRoute>
+                  <Pedidos />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/ocorrencias"
+              element={
+                <PrivateRoute>
+                  <OcorrenciasPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/chat"
+              element={
+                <PrivateRoute>
+                  <ChatStore />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/coordenadas"
+              element={
+                <PrivateRoute>
+                  <ViewCoordinates />
+                </PrivateRoute>
+              }
+            />
+            <Route path="/termos/:type" element={<Termos />} />
+            <Route path="/" element={<Navigate to="/login" />} />
+          </Routes>
+        </GlobalNotificationsProvider>
       </AuthProvider>
     </ThemeProvider>
   );

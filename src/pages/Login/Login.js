@@ -41,12 +41,30 @@ const Login = () => {
       await login(email, password);
       navigate("/dashboard");
     } catch (error) {
-      console.error("Erro no login:", error.message);
-      setError(
-        error.code === "auth/invalid-credential"
-          ? "Email ou senha incorretos"
-          : "Falha ao fazer login. Tente novamente."
-      );
+      // Tratamento de erro melhorado para Safari
+      let errorMessage = "Falha ao fazer login. Tente novamente.";
+
+      if (error.code === "auth/invalid-credential") {
+        errorMessage = "Email ou senha incorretos";
+      } else if (error.code === "auth/user-not-found") {
+        errorMessage = "Usuário não encontrado";
+      } else if (error.code === "auth/wrong-password") {
+        errorMessage = "Senha incorreta";
+      } else if (error.code === "auth/invalid-email") {
+        errorMessage = "Email inválido";
+      } else if (error.code === "auth/user-disabled") {
+        errorMessage = "Conta desabilitada";
+      } else if (error.code === "auth/network-request-failed") {
+        errorMessage = "Erro de rede. Verifique sua conexão com a internet.";
+      } else if (
+        error.name === "TypeError" &&
+        error.message.includes("Failed to fetch")
+      ) {
+        errorMessage =
+          "Erro de conexão. Verifique sua internet e tente novamente.";
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -60,8 +78,24 @@ const Login = () => {
       await loginWithGoogle();
       navigate("/dashboard");
     } catch (error) {
-      console.error("Erro no login com Google:", error.message);
-      setError("Falha ao fazer login com Google");
+      // Tratamento de erro melhorado para Safari
+      let errorMessage = "Falha ao fazer login com Google";
+
+      if (error.code === "auth/popup-blocked") {
+        errorMessage = "Popup bloqueado. Permita popups para este site.";
+      } else if (error.code === "auth/popup-closed-by-user") {
+        errorMessage = "Login cancelado pelo usuário";
+      } else if (error.code === "auth/network-request-failed") {
+        errorMessage = "Erro de rede. Verifique sua conexão com a internet.";
+      } else if (
+        error.name === "TypeError" &&
+        error.message.includes("Failed to fetch")
+      ) {
+        errorMessage =
+          "Erro de conexão. Verifique sua internet e tente novamente.";
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -85,7 +119,7 @@ const Login = () => {
       );
       setShowPasswordReset(false);
     } catch (error) {
-      console.error("Erro ao enviar email de recuperação:", error.message);
+      // Tratamento de erro melhorado para Safari
       let errorMessage = "Falha ao enviar email de recuperação";
 
       if (error.code === "auth/user-not-found") {
@@ -94,6 +128,14 @@ const Login = () => {
         errorMessage = "Email inválido";
       } else if (error.code === "auth/too-many-requests") {
         errorMessage = "Muitas tentativas. Tente novamente mais tarde";
+      } else if (error.code === "auth/network-request-failed") {
+        errorMessage = "Erro de rede. Verifique sua conexão com a internet.";
+      } else if (
+        error.name === "TypeError" &&
+        error.message.includes("Failed to fetch")
+      ) {
+        errorMessage =
+          "Erro de conexão. Verifique sua internet e tente novamente.";
       }
 
       setError(errorMessage);

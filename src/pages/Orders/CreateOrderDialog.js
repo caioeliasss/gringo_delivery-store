@@ -1994,13 +1994,6 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
               Cliente incompleto: verifique nome, telefone e numero do endereço.
             </Typography>
           )}
-
-        {customers.length > 0 &&
-          customers[activeCustomerIndex]?.customerAddress?.addressNumber && (
-            <Typography>
-              {customers[activeCustomerIndex].customerAddress.addressNumber}
-            </Typography>
-          )}
       </DialogContent>
 
       <DialogActions sx={{ p: 3, pt: 1 }}>

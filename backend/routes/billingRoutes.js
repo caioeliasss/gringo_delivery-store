@@ -72,7 +72,7 @@ const createBilling = async (req, res) => {
 
       notificationService.createGenericNotification({
         title: "Novo boleto pendente",
-        message: `Uma nova fatura foi criada para o cliente`,
+        message: `Uma nova fatura foi criada para você`,
         firebaseUid: billing.firebaseUid,
         type: "BILLING",
       });
