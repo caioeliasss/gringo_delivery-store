@@ -169,18 +169,6 @@ const pushNotificationService = {
         vibrate: [0, 1000, 500, 1000, 500, 1000], // Padrão de vibração
         importance: "max",
         category: "call",
-        actions: [
-          {
-            id: "accept",
-            title: "Aceitar",
-            pressAction: { id: "accept" },
-          },
-          {
-            id: "decline",
-            title: "Recusar",
-            pressAction: { id: "decline" },
-          },
-        ],
       },
       badge: 1,
       priority: "high", // Máxima prioridade

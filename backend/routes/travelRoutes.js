@@ -75,13 +75,76 @@ const updateTravel = async (req, res) => {
 const getTravels = async (req, res) => {
   try {
     const { motoboyId } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+
     if (!motoboyId) {
       return res.status(401).json({ message: "Não foi informado o motoboyId" });
     }
-    const travels = await Travel.find({ motoboyId: motoboyId });
 
-    res.status(200).json(travels);
+    // Converter para números
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Buscar travels com paginação e ordenação por data de criação (mais recentes primeiro)
+    const travels = await Travel.find({ motoboyId: motoboyId })
+      .sort({ createdAt: -1 }) // Ordenação decrescente por data de criação
+      .skip(skip)
+      .limit(limitNum);
+
+    // Para compatibilidade, se não houver parâmetros de paginação, retornar o formato antigo
+    if (!req.query.page && !req.query.limit) {
+      return res.status(200).json(travels);
+    }
+
+    // Calcular resumo financeiro completo (TODOS os travels, não apenas os paginados)
+    const allTravels = await Travel.find({ motoboyId: motoboyId }).select(
+      "finance.value finance.status"
+    );
+
+    const summary = {
+      totalPendente: 0,
+      totalLiberado: 0,
+      totalPago: 0,
+      totalCancelado: 0,
+      totalGeral: 0,
+    };
+
+    allTravels.forEach((travel) => {
+      const value = travel.finance?.value || 0;
+      const status = travel.finance?.status || "pendente";
+
+      switch (status) {
+        case "pendente":
+          summary.totalPendente += value;
+          break;
+        case "liberado":
+          summary.totalLiberado += value;
+          break;
+        case "pago":
+          summary.totalPago += value;
+          break;
+        case "cancelado":
+          summary.totalCancelado += value;
+          break;
+      }
+
+      if (status !== "cancelado") {
+        summary.totalGeral += value;
+      }
+    });
+
+    // Retornar formato paginado com resumo completo
+    res.status(200).json({
+      travels: travels,
+      page: pageNum,
+      limit: limitNum,
+      hasMore: travels.length === limitNum,
+      summary: summary, // Resumo baseado em TODOS os travels
+      totalTravels: allTravels.length, // Total de travels do motoboy
+    });
   } catch (error) {
+    console.error("Erro ao buscar travels:", error);
     res.status(500).json({ message: error.message });
   }
 };

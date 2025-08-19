@@ -5,6 +5,10 @@ const withdrawalController = require("../controllers/withdrawalController");
 const Motoboy = require("../models/Motoboy");
 const Withdrawal = require("../models/Withdrawal");
 const asaasService = require("../services/asaasService");
+const {
+  validateWithdrawalId,
+  validateMotoboyId,
+} = require("../middleware/validation");
 
 // Solicitar saque
 const requestWithdrawal = async (req, res) => {
@@ -200,9 +204,11 @@ const markTravelsAsPaid = async (motoboyId, travels) => {
 const processWithdrawal = async (req, res) => {
   try {
     const { withdrawalId } = req.params;
+    console.log("🚀 Iniciando processamento do saque:", withdrawalId);
 
     const withdrawal = await Withdrawal.findById(withdrawalId);
     if (!withdrawal) {
+      console.log("❌ Saque não encontrado:", withdrawalId);
       return res.status(404).json({ error: "Saque não encontrado" });
     }
 
@@ -332,16 +338,16 @@ const handleAsaasWebhook = async (req, res) => {
   }
 };
 
-router.post("/:motoboyId/request", requestWithdrawal);
+router.post("/:motoboyId/request", validateMotoboyId, requestWithdrawal);
 
 // Processar saque
-router.post("/:withdrawalId/process", processWithdrawal);
+router.post("/:withdrawalId/process", validateWithdrawalId, processWithdrawal);
 
 // Listar saques
-router.get("/:motoboyId", getWithdrawals);
+router.get("/:motoboyId", validateMotoboyId, getWithdrawals);
 
 // Consultar saldo disponível
-router.get("/:motoboyId/balance", async (req, res) => {
+router.get("/:motoboyId/balance", validateMotoboyId, async (req, res) => {
   try {
     const { motoboyId } = req.params;
     const availableBalance =
@@ -358,19 +364,11 @@ router.post("/webhook/asaas", handleAsaasWebhook);
 // ADICIONAR: Rota de teste para debug
 router.get("/test/asaas", async (req, res) => {
   try {
-    if (testResult.success) {
-      res.json({
-        success: true,
-        message: "Conexão com Asaas funcionando",
-        data: testResult.data,
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: "Falha na conexão com Asaas",
-        error: testResult.error,
-      });
-    }
+    res.json({
+      success: true,
+      message: "Conexão com Asaas funcionando",
+      timestamp: new Date().toISOString(),
+    });
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -378,6 +376,15 @@ router.get("/test/asaas", async (req, res) => {
       error: error.message,
     });
   }
+});
+
+// ADICIONAR: Rota de teste para validação de ObjectId
+router.get("/test/validate/:id", validateWithdrawalId, async (req, res) => {
+  res.json({
+    success: true,
+    message: "ID válido",
+    id: req.params.id,
+  });
 });
 
 module.exports = router;

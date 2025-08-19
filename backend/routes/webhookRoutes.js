@@ -42,10 +42,10 @@ const verifyAsaasWebhook = (req, res, next) => {
 // Webhook principal do Asaas
 router.post("/asaas", verifyAsaasWebhook, async (req, res) => {
   try {
-    console.log(
-      "🔔 Webhook bruto recebido:",
-      JSON.stringify(req.body, null, 2)
-    );
+    // console.log(
+    //   "🔔 Webhook bruto recebido:",
+    //   JSON.stringify(req.body, null, 2)
+    // );
 
     const { event, payment, transfer } = req.body;
 
@@ -131,7 +131,7 @@ async function handlePaymentReceived(payment) {
       return;
     }
 
-    console.log("💰 Processando pagamento recebido:", payment.id);
+    // console.log("💰 Processando pagamento recebido:", payment.id);
 
     // Buscar a fatura no banco local
     const billing = await Billing.findOne({

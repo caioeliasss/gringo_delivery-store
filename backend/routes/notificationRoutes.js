@@ -679,6 +679,58 @@ const markAllAsRead = async (req, res) => {
   }
 };
 
+const deleteNotification = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        message: "ID da notificação é obrigatório",
+      });
+    }
+
+    const notification = await Notification.findByIdAndDelete(id);
+
+    if (!notification) {
+      return res.status(404).json({
+        message: "Notificação não encontrada",
+      });
+    }
+
+    console.log(`🗑️ Notificação excluída: ${id}`);
+
+    res.json({
+      message: "Notificação excluída com sucesso",
+      deletedNotification: notification,
+    });
+  } catch (error) {
+    console.error("Erro ao excluir notificação:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const deleteDeliveryRequestNotifications = async (req, res) => {
+  try {
+    const { motoboyId, orderId } = req.body;
+
+    if (!motoboyId || !orderId) {
+      return res.status(400).json({
+        message: "motoboyId e orderId são obrigatórios",
+      });
+    }
+
+    const result = await notificationService.deleteDeliveryRequestNotification(
+      motoboyId,
+      orderId
+    );
+
+    res.json(result);
+  } catch (error) {
+    console.error("Erro ao excluir notificação de entrega:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 const getFirebaseNotifications = async (req, res) => {
   try {
     const { firebaseUid } = req.query;
@@ -701,6 +753,8 @@ const getFirebaseNotifications = async (req, res) => {
 
 router.get("/firebase", getFirebaseNotifications);
 router.put("/mark-as-all-read", markAllAsRead);
+router.delete("/:id", deleteNotification);
+router.delete("/delivery-request", deleteDeliveryRequestNotifications);
 router.post("/notifyOccurrence", notifyOccurrence);
 router.post("/notifySupport", notifySupport);
 router.post("/generic", createNotificationGeneric);

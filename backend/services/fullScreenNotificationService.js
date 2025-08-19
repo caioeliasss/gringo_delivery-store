@@ -190,16 +190,6 @@ class FullScreenNotificationService {
           full_screen_intent: true,
           importance: "max",
           category: "call",
-          actions: [
-            {
-              action: "ACCEPT_CALL",
-              title: "Aceitar",
-            },
-            {
-              action: "DECLINE_CALL",
-              title: "Recusar",
-            },
-          ],
         },
       },
       apns: {

@@ -133,6 +133,27 @@ module.exports = (io, socketManager) => {
         // **NOVA INTEGRAÇÃO** - Notificar motoboyServices sobre a aceitação
         motoboyServices.handleOrderAcceptance(orderId, motoboyId);
 
+        // **EXCLUIR NOTIFICAÇÕES** - Remover todas as notificações de entrega para este pedido
+        try {
+          // Excluir a notificação específica do motoboy que aceitou
+          await notificationService.deleteDeliveryRequestNotification(
+            motoboyId,
+            orderId
+          );
+
+          // Excluir todas as outras notificações pendentes para este pedido
+          await notificationService.deleteAllDeliveryRequestNotifications(
+            orderId
+          );
+
+          console.log(
+            `🗑️ Todas as notificações de entrega para o pedido ${orderId} foram excluídas`
+          );
+        } catch (notificationError) {
+          console.error("Erro ao excluir notificações:", notificationError);
+          // Não falhar o processo de aceitação se a exclusão das notificações falhar
+        }
+
         // Notificar loja sobre aceite
         io.emit("orderAccepted", {
           orderId,

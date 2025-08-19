@@ -142,6 +142,67 @@ class NotificationService {
   }
 
   /**
+   * Exclui uma notificação de solicitação de entrega quando aceita
+   * @param {string} motoboyId - ID do motoboy
+   * @param {string} orderId - ID do pedido
+   * @returns {Promise<Object>} - Resultado da exclusão
+   */
+  async deleteDeliveryRequestNotification(motoboyId, orderId) {
+    try {
+      // Buscar e excluir notificação de DELIVERY_REQUEST para este motoboy e pedido
+      const result = await Notification.findOneAndDelete({
+        motoboyId: motoboyId,
+        type: "DELIVERY_REQUEST",
+        "data.orderId": orderId,
+        status: "PENDING",
+      });
+
+      if (result) {
+        console.log(
+          `🗑️ Notificação de entrega excluída: ${result._id} para motoboy ${motoboyId} e pedido ${orderId}`
+        );
+        return { deleted: true, notificationId: result._id };
+      } else {
+        console.log(
+          `⚠️ Nenhuma notificação de entrega encontrada para exclusão: motoboy ${motoboyId}, pedido ${orderId}`
+        );
+        return { deleted: false, message: "Notificação não encontrada" };
+      }
+    } catch (error) {
+      console.error("Erro ao excluir notificação de entrega:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Exclui todas as notificações de solicitação de entrega pendentes para um pedido específico
+   * @param {string} orderId - ID do pedido
+   * @returns {Promise<Object>} - Resultado da exclusão
+   */
+  async deleteAllDeliveryRequestNotifications(orderId) {
+    try {
+      // Excluir todas as notificações de DELIVERY_REQUEST pendentes para este pedido
+      const result = await Notification.deleteMany({
+        type: "DELIVERY_REQUEST",
+        "data.orderId": orderId,
+        status: "PENDING",
+      });
+
+      console.log(
+        `🗑️ ${result.deletedCount} notificações de entrega excluídas para o pedido ${orderId}`
+      );
+
+      return {
+        deleted: result.deletedCount > 0,
+        deletedCount: result.deletedCount,
+      };
+    } catch (error) {
+      console.error("Erro ao excluir todas as notificações de entrega:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Atualiza o status de uma notificação
    * @param {Object} data - Dados da atualização
    * @param {string} data.id - ID da notificação

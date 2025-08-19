@@ -187,4 +187,24 @@ travelSchema.pre("findOneAndUpdate", function (next) {
   next();
 });
 
+// Middleware adicional para updateOne, updateMany, etc.
+travelSchema.pre(
+  ["updateOne", "updateMany", "findByIdAndUpdate"],
+  function (next) {
+    const update = this.getUpdate();
+
+    // Atualizar finance.value se price foi alterado
+    if (update.price && !update["finance.value"]) {
+      this.set({ "finance.value": update.price });
+    }
+
+    // Atualizar status financeiro se a viagem foi cancelada
+    if (update.status === "cancelado" && !update["finance.status"]) {
+      this.set({ "finance.status": "cancelado" });
+    }
+
+    next();
+  }
+);
+
 module.exports = mongoose.model("Travel", travelSchema);

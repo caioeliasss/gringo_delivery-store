@@ -409,8 +409,11 @@ class MotoboyService {
 
       const travel = await Travel.findById(motoboy.race?.travelId);
       if (travel) {
-        // Cancel the travel if it exists
-        await travel.updateOne({ status: "cancelado" });
+        // Cancel the travel if it exists - usando findByIdAndUpdate para garantir que o middleware seja executado
+        await Travel.findByIdAndUpdate(travel._id, {
+          status: "cancelado",
+          "finance.status": "cancelado", // Garantir que o status financeiro seja cancelado
+        });
       }
 
       // Reset motoboy race data
