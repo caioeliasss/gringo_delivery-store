@@ -5,7 +5,6 @@ import { getUserProfile, acceptTerms } from "../../services/api";
 import OrderStats from "../../components/orderStats";
 import OverdueBillings from "../../components/OverdueBillings";
 import TermsServiceModal from "../../components/TermsServiceModal";
-import ViewCoordinates from "../../components/ViewCoordinates/ViewCoordinates";
 import QuickNotifications from "../../components/QuickNotifications/QuickNotifications";
 import {
   Box,
@@ -390,9 +389,6 @@ const Dashboard = () => {
           </Paper>
 
           {/* ✅ Componente de Coordenadas de Retirada */}
-          <Box sx={{ mt: 4 }}>
-            <ViewCoordinates />
-          </Box>
 
           {/* ✅ Componente de Notificações Rápidas */}
           <QuickNotifications />

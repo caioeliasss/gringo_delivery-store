@@ -22,6 +22,7 @@ import {
   MyLocation as MyLocationIcon,
   Save as SaveIcon,
   ExpandMore as ExpandMoreIcon,
+  Settings as SettingsIcon,
 } from "@mui/icons-material";
 
 const ViewCoordinates = () => {
@@ -31,13 +32,13 @@ const ViewCoordinates = () => {
   const { isLoaded, loadError } = useJsApiLoader({
     id: "google-map-script",
     googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
-    libraries: ["places"],
+    libraries: ["places", "maps"],
   });
 
   // Estados principais
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [userProfile, setUserProfile] = useState(null);
   const [coordinates, setCoordinates] = useState([]);
   const [searchAddress, setSearchAddress] = useState("");
@@ -368,12 +369,15 @@ const ViewCoordinates = () => {
     return (
       <Accordion>
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-          <Typography
-            variant="h6"
-            sx={{ fontWeight: "bold", color: "primary.main" }}
-          >
-            Coordenadas de Retirada
-          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <SettingsIcon />
+            <Typography
+              variant="h6"
+              sx={{ fontWeight: "bold", color: "primary.main" }}
+            >
+              Coordenadas de Retirada
+            </Typography>
+          </Box>
         </AccordionSummary>
         <AccordionDetails>
           <Alert severity="error">
@@ -431,9 +435,12 @@ const ViewCoordinates = () => {
           },
         }}
       >
-        <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-          Coordenadas de Retirada
-        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <SettingsIcon />
+          <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+            Coordenadas de Retirada
+          </Typography>
+        </Box>
       </AccordionSummary>
       <AccordionDetails sx={{ p: 4 }}>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>

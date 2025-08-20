@@ -606,8 +606,8 @@ class NotificationService {
         message = `O pedido ${orderNumber} foi confirmado pela loja ${storeName}. Prepare-se para a retirada.`;
         break;
       case "em_entrega":
-        title = "Pedido Pronto";
-        message = `O pedido ${orderNumber} está pronto para retirada na loja ${storeName}.`;
+        title = "Pedido em Entrega";
+        message = `Você já pode entregar o pedido ${orderNumber} da loja ${storeName}.`;
         break;
       case "pronto":
         title = "Pedido Pronto";

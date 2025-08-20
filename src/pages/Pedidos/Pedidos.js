@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import { findMotoboys, getStoreOrders } from "../../services/api";
 import SideDrawer from "../../components/SideDrawer/SideDrawer";
+import ViewCoordinates from "../../components/ViewCoordinates/ViewCoordinates";
 import {
   Container,
   Typography,
@@ -79,6 +80,7 @@ import {
   NotificationAdd,
 } from "@mui/icons-material";
 import eventService from "../../services/eventService";
+import socketService from "../../services/socketService";
 import Avaliate from "../../components/Avaliate";
 import BuscandoMotoboy from "../../components/BuscandoMotoboy/BuscandoMotoboy";
 import GoogleMapReact from "google-map-react";
@@ -172,6 +174,7 @@ const Pedidos = () => {
   const [storeOrigin, setStoreOrigin] = useState(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [storeId, setStoreId] = useState(null); // ID da loja atual
+  const [socketConnected, setSocketConnected] = useState(false); // Status da conexão socket
   // Estado para o formulário de novo pedido
   const [novoPedido, setNovoPedido] = useState({
     store: {
@@ -291,6 +294,239 @@ const Pedidos = () => {
       };
     }
   }, [currentUser, currentPedido]);
+
+  // useEffect para conectar e escutar eventos do WebSocket
+  useEffect(() => {
+    if (currentUser && storeId) {
+      // Conectar socket
+      socketService
+        .connect(currentUser.uid, "store")
+        .then(() => {
+          console.log("🏪 Socket da loja conectado com sucesso!");
+          setSocketConnected(true);
+        })
+        .catch((error) => {
+          console.error("❌ Erro ao conectar socket da loja:", error);
+          setSocketConnected(false);
+        });
+
+      // Monitorar status da conexão
+      const handleConnectionSuccess = () => setSocketConnected(true);
+      const handleConnectionFailed = () => setSocketConnected(false);
+      const handleConnectionLost = () => setSocketConnected(false);
+
+      socketService.on("connection:success", handleConnectionSuccess);
+      socketService.on("connection:failed", handleConnectionFailed);
+      socketService.on("connection:lost", handleConnectionLost);
+
+      // === LISTENERS PARA ATUALIZAÇÕES DOS PEDIDOS ===
+
+      // Pedido aceito pelo motoboy
+      const handleOrderAcceptedByMotoboy = (data) => {
+        console.log("✅ Pedido aceito pelo motoboy via socket:", data);
+
+        setPedidos((prevPedidos) =>
+          prevPedidos.map((pedido) =>
+            pedido._id === data.orderId
+              ? {
+                  ...pedido,
+                  status: "em_preparo",
+                  motoboy: data.motoboy || pedido.motoboy,
+                }
+              : pedido
+          )
+        );
+
+        // Atualizar pedido atual se estiver aberto
+        if (currentPedido && currentPedido._id === data.orderId) {
+          setCurrentPedido((prevPedido) => ({
+            ...prevPedido,
+            status: "em_preparo",
+            motoboy: data.motoboy || prevPedido.motoboy,
+          }));
+        }
+
+        setSnackbar({
+          open: true,
+          message: `Pedido #${
+            data.orderNumber || data.orderId
+          } foi aceito pelo motoboy!`,
+          severity: "success",
+        });
+
+        // Fechar dialog de busca se estiver aberto
+        if (data.orderId === orderCreated?._id) {
+          setBuscandoMotoboy(false);
+          setOrderCreated(null);
+        }
+      };
+
+      // Pedido recusado pelo motoboy
+      const handleOrderDeclinedByMotoboy = (data) => {
+        console.log("❌ Pedido recusado pelo motoboy via socket:", data);
+
+        setSnackbar({
+          open: true,
+          message: `Pedido #${
+            data.orderNumber || data.orderId
+          } foi recusado. Buscando outro motoboy...`,
+          severity: "warning",
+        });
+      };
+
+      // Status atualizado pelo motoboy
+      const handleOrderStatusUpdatedByMotoboy = (data) => {
+        console.log("📊 Status atualizado pelo motoboy via socket:", data);
+
+        const statusMessages = {
+          em_entrega: "está a caminho para entrega",
+          entregue: "foi entregue com sucesso",
+          em_preparo: "está sendo preparado",
+          cancelado: "foi cancelado",
+        };
+
+        setPedidos((prevPedidos) =>
+          prevPedidos.map((pedido) =>
+            pedido._id === data.orderId
+              ? { ...pedido, status: data.status }
+              : pedido
+          )
+        );
+
+        // Atualizar pedido atual se estiver aberto
+        if (currentPedido && currentPedido._id === data.orderId) {
+          setCurrentPedido((prevPedido) => ({
+            ...prevPedido,
+            status: data.status,
+          }));
+        }
+
+        // Atualizar status do dialog de busca
+        if (data.orderId === orderCreated?._id) {
+          setStatusBuscandoMotoboy(data.status);
+        }
+
+        const message =
+          statusMessages[data.status] ||
+          `teve status atualizado para ${data.status}`;
+        setSnackbar({
+          open: true,
+          message: `Pedido #${data.orderNumber || data.orderId} ${message}`,
+          severity: data.status === "entregue" ? "success" : "info",
+        });
+      };
+
+      // Motoboy atribuído
+      const handleMotoboyAssigned = (data) => {
+        console.log("👤 Motoboy atribuído via socket:", data);
+
+        setPedidos((prevPedidos) =>
+          prevPedidos.map((pedido) =>
+            pedido._id === data.orderId
+              ? {
+                  ...pedido,
+                  motoboy: data.motoboy,
+                  status: data.status || pedido.status,
+                }
+              : pedido
+          )
+        );
+
+        // Atualizar pedido atual se estiver aberto
+        if (currentPedido && currentPedido._id === data.orderId) {
+          setCurrentPedido((prevPedido) => ({
+            ...prevPedido,
+            motoboy: data.motoboy,
+            status: data.status || prevPedido.status,
+          }));
+        }
+
+        setSnackbar({
+          open: true,
+          message: `Motoboy ${
+            data.motoboy?.name || "atribuído"
+          } foi designado para o pedido #${data.orderNumber || data.orderId}`,
+          severity: "info",
+        });
+      };
+
+      // Localização do motoboy atualizada
+      const handleMotoboyLocationUpdated = (data) => {
+        // Atualizar localização do motoboy se necessário para rastreamento em tempo real
+        console.log("📍 Localização do motoboy atualizada:", data);
+        // Implementar se houver rastreamento em tempo real
+      };
+
+      // Pedido entregue
+      const handleOrderDelivered = (data) => {
+        console.log("📦 Pedido entregue via socket:", data);
+
+        setPedidos((prevPedidos) =>
+          prevPedidos.map((pedido) =>
+            pedido._id === data.orderId
+              ? { ...pedido, status: "entregue" }
+              : pedido
+          )
+        );
+
+        // Atualizar pedido atual se estiver aberto
+        if (currentPedido && currentPedido._id === data.orderId) {
+          setCurrentPedido((prevPedido) => ({
+            ...prevPedido,
+            status: "entregue",
+          }));
+        }
+
+        setSnackbar({
+          open: true,
+          message: `🎉 Pedido #${
+            data.orderNumber || data.orderId
+          } foi entregue com sucesso!`,
+          severity: "success",
+        });
+      };
+
+      // Registrar todos os listeners
+      socketService.on("orderAcceptedByMotoboy", handleOrderAcceptedByMotoboy);
+      socketService.on("orderDeclinedByMotoboy", handleOrderDeclinedByMotoboy);
+      socketService.on(
+        "orderStatusUpdatedByMotoboy",
+        handleOrderStatusUpdatedByMotoboy
+      );
+      socketService.on("motoboyAssigned", handleMotoboyAssigned);
+      socketService.on("motoboyLocationUpdated", handleMotoboyLocationUpdated);
+      socketService.on("orderDelivered", handleOrderDelivered);
+
+      // Cleanup na desmontagem
+      return () => {
+        socketService.off("connection:success", handleConnectionSuccess);
+        socketService.off("connection:failed", handleConnectionFailed);
+        socketService.off("connection:lost", handleConnectionLost);
+        socketService.off(
+          "orderAcceptedByMotoboy",
+          handleOrderAcceptedByMotoboy
+        );
+        socketService.off(
+          "orderDeclinedByMotoboy",
+          handleOrderDeclinedByMotoboy
+        );
+        socketService.off(
+          "orderStatusUpdatedByMotoboy",
+          handleOrderStatusUpdatedByMotoboy
+        );
+        socketService.off("motoboyAssigned", handleMotoboyAssigned);
+        socketService.off(
+          "motoboyLocationUpdated",
+          handleMotoboyLocationUpdated
+        );
+        socketService.off("orderDelivered", handleOrderDelivered);
+
+        setSocketConnected(false);
+        // Não desconectar completamente pois outros componentes podem usar
+        // socketService.disconnect();
+      };
+    }
+  }, [currentUser, storeId, currentPedido, orderCreated]);
 
   const handleFetchPedidos = () => {
     const fetchPedidos = async () => {
@@ -552,6 +788,9 @@ const Pedidos = () => {
 
       // Chamar API para atualizar status
       await api.put(`/orders/status`, { status: newStatus, id: pedidoId });
+
+      // Também notificar via socket para comunicação em tempo real
+      socketService.updateOrderStatus(pedidoId, newStatus);
 
       // Atualizar estado local
       const updatedPedidos = pedidos.map((pedido) =>
@@ -1279,28 +1518,46 @@ const Pedidos = () => {
     try {
       const phoneNumber = pedido.motoboy.phone;
       const motoboyId = pedido.motoboy.motoboyId;
-      pedido.hasArrived = true;
 
+      // Usar API REST
       const orderReady = require("../../services/api").updateOrderStatus;
       const response = await orderReady(pedido._id, "pronto");
+
       if (response.status > 199 && response.status < 300) {
+        // Também notificar via socket
+        socketService.confirmOrderReady(pedido._id, motoboyId);
+
+        // Marcar que o entregador foi chamado
+        pedido.hasArrived = true;
+
+        // Atualizar o estado do pedido atual para refletir a mudança
+        setCurrentPedido({ ...pedido, hasArrived: true });
+
+        // Atualizar também na lista de pedidos
+        setPedidos((prevPedidos) =>
+          prevPedidos.map((p) =>
+            p._id === pedido._id ? { ...p, hasArrived: true } : p
+          )
+        );
+
         setSnackbar({
           open: true,
-          message: "Motoboy notificado sobre o pedido.",
+          message:
+            "Entregador chamado com sucesso! Agora você pode enviar para entrega.",
           severity: "success",
         });
       } else {
         setSnackbar({
           open: true,
-          message: `Erro ao notificar motoboy. Este é o telefone do motoboy: ${phoneNumber}`,
+          message: `Erro ao chamar entregador. Telefone do entregador: ${phoneNumber}`,
           severity: "error",
         });
       }
     } catch (error) {
-      console.error("Erro ao notificar motoboy:", error);
+      console.error("Erro ao chamar entregador:", error);
       setSnackbar({
         open: true,
-        message: `Erro ao notificar motoboy. Este é o telefone do motoboy: ${pedido.motoboy.phone}`,
+        message: `Erro ao chamar entregador. Telefone do entregador: ${pedido.motoboy.phone}`,
         severity: "error",
       });
     }
@@ -1782,14 +2039,36 @@ const Pedidos = () => {
             >
               Pedidos
             </Typography>
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<AddIcon />}
-              onClick={() => setCreateDialogOpen(true)}
-            >
-              Novo Pedido
-            </Button>
+
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+              {/* Indicador de conexão Socket */}
+              <Chip
+                icon={
+                  socketConnected ? (
+                    <Icon sx={{ color: "success.main" }}>wifi</Icon>
+                  ) : (
+                    <Icon sx={{ color: "error.main" }}>wifi_off</Icon>
+                  )
+                }
+                label={socketConnected ? "Conectado" : "Desconectado"}
+                size="small"
+                color={socketConnected ? "success" : "error"}
+                variant="outlined"
+                sx={{
+                  fontSize: "0.75rem",
+                  "& .MuiChip-icon": { fontSize: "16px" },
+                }}
+              />
+
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<AddIcon />}
+                onClick={() => setCreateDialogOpen(true)}
+              >
+                Novo Pedido
+              </Button>
+            </Box>
           </Box>
 
           {/* Filtros */}
@@ -1921,6 +2200,10 @@ const Pedidos = () => {
               </Box>
             )}
           </Paper>
+
+          <Box sx={{ mt: 4 }}>
+            <ViewCoordinates />
+          </Box>
 
           {/* Contagem de pedidos */}
           <Box
@@ -2064,254 +2347,180 @@ const Pedidos = () => {
                 </DialogTitle>
                 <DialogContent sx={{ p: 3, mt: 2 }}>
                   <Grid container spacing={3}>
-                    {/* Informações do Cliente */}
+                    {/* Informações dos Clientes */}
                     <Grid item xs={12} width="100%" mt={3}>
                       <Paper elevation={1} sx={{ p: 2 }}>
-                        <Box
+                        <Typography
+                          variant="h6"
                           sx={{
+                            color: "primary.main",
+                            fontWeight: "bold",
                             display: "flex",
-                            justifyContent: "space-between",
                             alignItems: "center",
                             mb: 2,
                           }}
                         >
-                          <Typography
-                            variant="h6"
-                            sx={{
-                              color: "primary.main",
-                              fontWeight: "bold",
-                              display: "flex",
-                              alignItems: "center",
-                            }}
-                          >
-                            <PersonIcon sx={{ mr: 1 }} /> Clientes e Endereços
-                            de Entrega
-                          </Typography>
-                          <Button
-                            variant="contained"
-                            startIcon={<AddIcon />}
-                            onClick={handleAddCustomer}
-                          >
-                            Adicionar Cliente
-                          </Button>
-                        </Box>
+                          <PersonIcon sx={{ mr: 1 }} /> Clientes e Endereços de
+                          Entrega
+                        </Typography>
 
-                        {/* Tabs para navegar entre os clientes */}
-                        <Box
-                          sx={{
-                            borderBottom: 1,
-                            borderColor: "divider",
-                            mb: 2,
-                          }}
-                        >
-                          <Tabs
-                            value={activeCustomerIndex}
-                            onChange={(e, newValue) =>
-                              setActiveCustomerIndex(newValue)
-                            }
-                            variant="scrollable"
-                            scrollButtons="auto"
-                          >
-                            {novoPedido.customer.map((customer, index) => (
-                              <Tab
-                                key={index}
-                                label={
-                                  <Box
-                                    sx={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                    }}
-                                  >
-                                    <Typography variant="body2">
-                                      {customer.name
-                                        ? `${customer.name.substr(0, 15)}...`
-                                        : `Cliente ${index + 1}`}
-                                    </Typography>
-                                    {novoPedido.customer.length > 1 && (
-                                      <IconButton
-                                        size="small"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleRemoveCustomer(index);
-                                        }}
-                                      >
-                                        <CloseIcon fontSize="small" />
-                                      </IconButton>
-                                    )}
-                                  </Box>
-                                }
-                              />
-                            ))}
-                          </Tabs>
-                        </Box>
-
-                        {/* Formulário para o cliente atual */}
-                        <Grid container spacing={2}>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              label="Nome do Cliente"
-                              name="name"
-                              value={
-                                novoPedido.customer[activeCustomerIndex]
-                                  ?.name || ""
-                              }
-                              onChange={handleCustomerChange}
-                              required
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              label="Telefone"
-                              name="phone"
-                              value={
-                                novoPedido.customer[activeCustomerIndex]
-                                  ?.phone || ""
-                              }
-                              onChange={handleCustomerChange}
-                              required
-                              placeholder="(XX) XXXXX-XXXX"
-                              InputProps={{
-                                startAdornment: (
-                                  <InputAdornment position="start">
-                                    <PhoneIcon color="primary" />
-                                  </InputAdornment>
-                                ),
-                              }}
-                            />
-                          </Grid>
-
-                          {/* Endereço do cliente atual */}
-                          <Grid item xs={12}>
-                            <Typography
-                              variant="subtitle1"
-                              sx={{ mt: 2, mb: 1, fontWeight: "bold" }}
-                            >
-                              Endereço de Entrega
-                            </Typography>
+                        {/* Lista de clientes do pedido atual */}
+                        {currentPedido.customer &&
+                        Array.isArray(currentPedido.customer) ? (
+                          currentPedido.customer.map((customer, index) => (
                             <Box
-                              sx={{ p: 0, display: "flex", flexWrap: "wrap" }}
-                              columnGap={1}
-                              rowGap={2}
+                              key={index}
+                              sx={{
+                                mb: 2,
+                                p: 2,
+                                border: 1,
+                                borderColor: "divider",
+                                borderRadius: 1,
+                              }}
                             >
-                              <TextField
-                                sx={{ minWidth: "120px", flexGrow: 1 }}
-                                label="CEP"
-                                name="cep"
-                                value={
-                                  novoPedido.customer[activeCustomerIndex]
-                                    .customerAddress.cep || ""
-                                }
-                                onChange={(e) =>
-                                  handleCustomerChange(e, activeCustomerIndex)
-                                }
-                                required
-                                inputProps={{
-                                  inputMode: "numeric",
-                                  pattern: "[0-9]*",
+                              <Typography
+                                variant="subtitle1"
+                                sx={{
+                                  fontWeight: "bold",
+                                  mb: 1,
+                                  color: "primary.main",
                                 }}
-                                InputProps={{
-                                  startAdornment: (
-                                    <InputAdornment position="start">
-                                      <LocationIcon color="primary" />
-                                    </InputAdornment>
-                                  ),
-                                }}
-                              />
+                              >
+                                Cliente {index + 1}
+                              </Typography>
 
-                              <TextField
-                                sx={{ minWidth: "200px", flexGrow: 3 }}
-                                label="Logradouro"
-                                name="logradouro"
-                                value={
-                                  novoPedido.customer[activeCustomerIndex]
-                                    .customerAddress.logradouro
-                                }
-                                onChange={(e) =>
-                                  handleCustomerChange(e, activeCustomerIndex)
-                                }
-                                required
-                              />
+                              <Grid container spacing={2}>
+                                <Grid item xs={12} sm={6}>
+                                  <Typography variant="body2">
+                                    <strong>Nome:</strong>{" "}
+                                    {customer.name || "Não informado"}
+                                  </Typography>
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                  <Typography variant="body2">
+                                    <strong>Telefone:</strong>{" "}
+                                    {customer.phone || "Não informado"}
+                                  </Typography>
+                                </Grid>
 
-                              <TextField
-                                sx={{ minWidth: "100px", flexGrow: 1 }}
-                                label="Número"
-                                name="numero"
-                                value={
-                                  novoPedido.customer[activeCustomerIndex]
-                                    .customerAddress.addressNumber
-                                }
-                                onChange={(e) =>
-                                  handleCustomerChange(e, activeCustomerIndex)
-                                }
-                                required
-                              />
+                                {customer.customerAddress && (
+                                  <Grid item xs={12}>
+                                    <Typography variant="body2" sx={{ mb: 1 }}>
+                                      <strong>Endereço de Entrega:</strong>
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ ml: 2 }}>
+                                      {customer.customerAddress.address &&
+                                      customer.customerAddress.addressNumber
+                                        ? `${customer.customerAddress.address}, ${customer.customerAddress.addressNumber}`
+                                        : "Endereço não informado"}
+                                      {customer.customerAddress.bairro && (
+                                        <span>
+                                          {" "}
+                                          - {customer.customerAddress.bairro}
+                                        </span>
+                                      )}
+                                      {customer.customerAddress.cidade && (
+                                        <span>
+                                          , {customer.customerAddress.cidade}
+                                        </span>
+                                      )}
+                                      {customer.customerAddress.estado && (
+                                        <span>
+                                          {" "}
+                                          - {customer.customerAddress.estado}
+                                        </span>
+                                      )}
+                                      {customer.customerAddress.cep && (
+                                        <span>
+                                          {" "}
+                                          (CEP: {customer.customerAddress.cep})
+                                        </span>
+                                      )}
+                                    </Typography>
 
-                              <TextField
-                                sx={{ minWidth: "150px", flexGrow: 2 }}
-                                label="Bairro"
-                                name="bairro"
-                                value={
-                                  novoPedido.customer[activeCustomerIndex]
-                                    .customerAddress.bairro
-                                }
-                                onChange={(e) =>
-                                  handleCustomerChange(e, activeCustomerIndex)
-                                }
-                                required
-                              />
+                                    {customer.customerAddress.coordinates &&
+                                      customer.customerAddress.coordinates
+                                        .length === 2 && (
+                                        <Chip
+                                          label={`Coordenadas: ${customer.customerAddress.coordinates[1].toFixed(
+                                            6
+                                          )}, ${customer.customerAddress.coordinates[0].toFixed(
+                                            6
+                                          )}`}
+                                          color="white"
+                                          variant="outlined"
+                                          size="small"
+                                          sx={{ mt: 1 }}
+                                        />
+                                      )}
+                                  </Grid>
+                                )}
 
-                              <TextField
-                                sx={{ minWidth: "150px", flexGrow: 2 }}
-                                label="Cidade"
-                                name="cidade"
-                                value={
-                                  novoPedido.customer[activeCustomerIndex]
-                                    .customerAddress.cidade
-                                }
-                                onChange={(e) =>
-                                  handleCustomerChange(e, activeCustomerIndex)
-                                }
-                                required
-                              />
-
-                              <TextField
-                                sx={{ minWidth: "100px", flexGrow: 1 }}
-                                label="Estado"
-                                name="estado"
-                                value={
-                                  novoPedido.customer[activeCustomerIndex]
-                                    .customerAddress.estado || ""
-                                }
-                                onChange={(e) =>
-                                  handleCustomerChange(e, activeCustomerIndex)
-                                }
-                              />
+                                {customer.cliente_cod && (
+                                  <Grid item xs={12}>
+                                    <Chip
+                                      label={`Código do Cliente: ${customer.cliente_cod}`}
+                                      color="secondary"
+                                      variant="outlined"
+                                      size="small"
+                                    />
+                                  </Grid>
+                                )}
+                              </Grid>
                             </Box>
-                          </Grid>
-                        </Grid>
-
-                        {/* Informações de coordenadas para o cliente atual */}
-                        <Box sx={{ mt: 2 }}>
-                          {novoPedido.customer[activeCustomerIndex]
-                            .customerAddress.coordinates &&
-                            novoPedido.customer[activeCustomerIndex]
-                              .customerAddress.coordinates.length === 2 && (
-                              <Chip
-                                label={`Coordenadas: ${novoPedido.customer[
-                                  activeCustomerIndex
-                                ].customerAddress.coordinates[1].toFixed(
-                                  6
-                                )}, ${novoPedido.customer[
-                                  activeCustomerIndex
-                                ].customerAddress.coordinates[0].toFixed(6)}`}
-                                color="primary"
-                                variant="outlined"
-                                sx={{ mr: 1 }}
-                              />
+                          ))
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            {currentPedido.customer?.name ? (
+                              // Compatibilidade com pedidos antigos (customer como objeto único)
+                              <Box
+                                sx={{
+                                  p: 2,
+                                  border: 1,
+                                  borderColor: "divider",
+                                  borderRadius: 1,
+                                }}
+                              >
+                                <Typography
+                                  variant="subtitle1"
+                                  sx={{
+                                    fontWeight: "bold",
+                                    mb: 1,
+                                    color: "primary.main",
+                                  }}
+                                >
+                                  Cliente
+                                </Typography>
+                                <Grid container spacing={2}>
+                                  <Grid item xs={12} sm={6}>
+                                    <Typography variant="body2">
+                                      <strong>Nome:</strong>{" "}
+                                      {currentPedido.customer.name}
+                                    </Typography>
+                                  </Grid>
+                                  <Grid item xs={12} sm={6}>
+                                    <Typography variant="body2">
+                                      <strong>Telefone:</strong>{" "}
+                                      {currentPedido.customer.phone ||
+                                        "Não informado"}
+                                    </Typography>
+                                  </Grid>
+                                  {currentPedido.customer.customerAddress && (
+                                    <Grid item xs={12}>
+                                      <Typography variant="body2">
+                                        <strong>Endereço:</strong>{" "}
+                                        {currentPedido.customer.customerAddress
+                                          .address || "Não informado"}
+                                      </Typography>
+                                    </Grid>
+                                  )}
+                                </Grid>
+                              </Box>
+                            ) : (
+                              "Nenhum cliente informado"
                             )}
-                        </Box>
+                          </Typography>
+                        )}
                       </Paper>
                     </Grid>
 
@@ -2556,71 +2765,78 @@ const Pedidos = () => {
                               )}
 
                               {currentPedido.status === "em_preparo" && (
-                                <Box sx={{ display: "flex", gap: 2 }}>
-                                  <TextField
-                                    fullWidth
-                                    variant="outlined"
-                                    size="small"
-                                    label="Código do entregador"
-                                    onChange={(e) =>
-                                      setDriverCode(e.target.value)
-                                    }
-                                    value={driverCode || ""}
-                                    sx={{
-                                      maxWidth: { sm: "220px" },
-                                    }}
-                                  />
-                                  <Button
-                                    variant="contained"
-                                    color="info"
-                                    startIcon={<DeliveryIcon />}
-                                    onClick={() =>
-                                      handleDriverCode(
-                                        driverCode,
-                                        currentPedido
-                                      )
-                                    }
-                                    sx={{
-                                      py: 1,
-                                      px: 2,
-                                      height: "40px",
-                                    }}
-                                  >
-                                    Enviar para Entrega
-                                  </Button>
-                                  <Button
-                                    disabled={currentPedido.hasArrived}
-                                    variant="contained"
-                                    color="info"
-                                    startIcon={<NotificationAdd />}
-                                    onClick={() =>
-                                      handleCallDeliveryPerson(currentPedido)
-                                    }
-                                    sx={{
-                                      py: 1,
-                                      px: 2,
-                                      height: "40px",
-                                    }}
-                                  >
-                                    Chamar Entregador
-                                  </Button>
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    gap: 2,
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+                                  {/* Primeiro: Botão para chamar entregador */}
+                                  {!currentPedido.hasArrived && (
+                                    <Button
+                                      variant="contained"
+                                      color="warning"
+                                      startIcon={<NotificationAdd />}
+                                      onClick={() =>
+                                        handleCallDeliveryPerson(currentPedido)
+                                      }
+                                      sx={{
+                                        py: 1,
+                                        px: 2,
+                                        height: "40px",
+                                      }}
+                                    >
+                                      Chamar Entregador
+                                    </Button>
+                                  )}
+
+                                  {/* Segundo: Campo de código e botão para enviar (só aparece após chamar entregador) */}
+                                  {currentPedido.hasArrived && (
+                                    <>
+                                      <TextField
+                                        fullWidth
+                                        variant="outlined"
+                                        size="small"
+                                        label="Código do entregador"
+                                        onChange={(e) =>
+                                          setDriverCode(e.target.value)
+                                        }
+                                        value={driverCode || ""}
+                                        sx={{
+                                          maxWidth: { sm: "220px" },
+                                        }}
+                                      />
+                                      <Button
+                                        variant="contained"
+                                        color="info"
+                                        startIcon={<DeliveryIcon />}
+                                        onClick={() =>
+                                          handleDriverCode(
+                                            driverCode,
+                                            currentPedido
+                                          )
+                                        }
+                                        sx={{
+                                          py: 1,
+                                          px: 2,
+                                          height: "40px",
+                                        }}
+                                      >
+                                        Enviar para Entrega
+                                      </Button>
+                                    </>
+                                  )}
                                 </Box>
                               )}
 
                               {currentPedido.status === "em_entrega" && (
-                                <Button
-                                  variant="contained"
-                                  color="success"
-                                  startIcon={<DoneAllIcon />}
-                                  onClick={() =>
-                                    handleUpdateStatus(
-                                      currentPedido._id,
-                                      "entregue"
-                                    )
-                                  }
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
                                 >
-                                  Confirmar Entrega
-                                </Button>
+                                  Pedido em entrega
+                                </Typography>
                               )}
                             </Box>
 

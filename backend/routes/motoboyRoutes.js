@@ -259,29 +259,10 @@ const findMotoboys = async (req, res) => {
     let count = 0;
     let motoboyRequest;
     let motoboys;
-    do {
-      motoboys = await motoboyServices.findBestMotoboys(storeCoordinates);
 
-      motoboyRequest = await motoboyServices.processMotoboyQueue(
-        motoboys,
-        order
-      );
-      count++;
-      if (count === 1 && motoboyRequest.success === false) {
-        console.log(`ERRO Tentativa ${count}`);
-        OccurrenceService.createOccurrence({
-          orderId: order._id,
-          storeId: order.store._id,
-          type: "MOTOBOY",
-          amount: 0,
-          description: `Tentativa de encontrar motoboy falhou e já reniciamos a fila automaticamente.
-          `,
-          firebaseUid: "system",
-          expiresAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // Expira em 30 dias
-        });
-      }
-    } while (motoboyRequest.success === true && count < 3);
+    motoboys = await motoboyServices.findBestMotoboys(storeCoordinates);
 
+    motoboyRequest = await motoboyServices.processMotoboyQueue(motoboys, order);
     res.status(200).json({
       success: true,
       motoboy: motoboys || [],
