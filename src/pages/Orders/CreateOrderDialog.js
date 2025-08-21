@@ -456,8 +456,8 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
       // Atualizar coordenadas da loja selecionada
       const updatedStore = {
         ...selectedStore,
-        address: {
-          ...selectedStore.address,
+        geolocation: {
+          ...selectedStore.geolocation,
           coordinates: [lng, lat],
         },
       };
@@ -1085,12 +1085,14 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                               );
                             }}
                           >
-                            {selectedStore?.address?.coordinates?.length ===
+                            {selectedStore?.geolocation?.coordinates?.length ===
                               2 && (
                               <Marker
                                 position={{
-                                  lat: selectedStore.address.coordinates[1],
-                                  lng: selectedStore.address.coordinates[0],
+                                  lat: selectedStore.geolocation
+                                    ?.coordinates[1],
+                                  lng: selectedStore.geolocation
+                                    ?.coordinates[0],
                                 }}
                                 icon={{
                                   url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='%23FF5722'%3E%3Cpath d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z'/%3E%3C/svg%3E",

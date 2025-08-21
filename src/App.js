@@ -28,6 +28,7 @@ import { AdminAuthProvider } from "./contexts/AdminAuthContext";
 import { GlobalNotificationsProvider } from "./contexts/GlobalNotificationsContext";
 import AdminDashboard from "./pages/Admin/Dashboard/dashboard";
 import AdminFinanceiro from "./pages/Admin/Financeiro/financeiro";
+import AdminCorridas from "./pages/Admin/Corridas/Corridas";
 import { SuporteAuthProvider } from "./contexts/SuporteAuthContext";
 import LoginAdmin from "./pages/Admin/Login/login";
 import OrdersPage from "./pages/Orders/Orders";
@@ -411,6 +412,7 @@ function AdminApp() {
                     <Route path="/stores" element={<EstabelecimentosPage />} />
                     <Route path="/pedidos" element={<OrdersPage />} />
                     <Route path="/drivers" element={<MotoboysPage />} />
+                    <Route path="/corridas" element={<AdminCorridas />} />
                     <Route path="/occurrences" element={<Occurrences />} />
                     <Route path="/financeiro" element={<AdminFinanceiro />} />
                     <Route path="/settings" element={<PrecificacaoPage />} />

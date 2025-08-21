@@ -15,6 +15,7 @@ import {
   Support as SupportIcon,
   DriveEta as DriversIcon,
   Notifications as NotificationsIcon,
+  DirectionsCar as CorridasIcon,
 } from "@mui/icons-material";
 
 // Configuração centralizada dos itens de menu para o sistema de suporte
@@ -86,6 +87,11 @@ export const ADMIN_MENU_ITEMS = [
     path: "/drivers",
     text: "Entregadores",
     icon: <DriversIcon />,
+  },
+  {
+    path: "/corridas",
+    text: "Corridas",
+    icon: <CorridasIcon />,
   },
   {
     path: "/occurrences",

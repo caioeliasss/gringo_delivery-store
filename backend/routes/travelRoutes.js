@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Travel = require("../models/Travel");
 const Order = require("../models/Order");
+const Motoboy = require("../models/Motoboy");
 
 const createTravel = async (req, res) => {
   const { price, rain, distance, coordinatesFrom, coordinatesTo, order } =
@@ -268,7 +269,134 @@ const updateTravelByOrder = async (req, res) => {
   }
 };
 
+// Função para admin buscar todas as corridas
+const getAllTravelsForAdmin = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, status, dateFilter, motoboyId } = req.query;
+
+    // Converter para números
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Construir filtros
+    let filters = {};
+
+    if (status && status !== "all") {
+      filters.status = status;
+    }
+
+    if (motoboyId && motoboyId !== "all") {
+      filters.motoboyId = motoboyId;
+    }
+
+    if (dateFilter && dateFilter !== "all") {
+      const now = new Date();
+      let startDate;
+
+      switch (dateFilter) {
+        case "today":
+          startDate = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate()
+          );
+          break;
+        case "week":
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case "month":
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          break;
+      }
+
+      if (startDate) {
+        filters.createdAt = { $gte: startDate };
+      }
+    }
+
+    // Buscar travels com paginação
+    const travels = await Travel.find(filters)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .lean();
+
+    // Buscar informações dos motoboys separadamente
+    const motoboyIds = [
+      ...new Set(travels.map((t) => t.motoboyId).filter(Boolean)),
+    ];
+    const motoboys = await Motoboy.find({ _id: { $in: motoboyIds } }).lean();
+    const motoboyMap = motoboys.reduce((map, motoboy) => {
+      map[motoboy._id.toString()] = motoboy;
+      return map;
+    }, {});
+
+    // Enriquecer dados com nome do motoboy
+    const enrichedTravels = travels.map((travel) => ({
+      ...travel,
+      motoboyName: motoboyMap[travel.motoboyId?.toString()]?.name || "N/A",
+    }));
+
+    // Calcular total de registros
+    const total = await Travel.countDocuments(filters);
+
+    // Calcular estatísticas gerais
+    const allTravels = await Travel.find({}).lean();
+
+    const stats = {
+      totalTravels: allTravels.length,
+      completedTravels: allTravels.filter((t) => t.status === "completed")
+        .length,
+      canceledTravels: allTravels.filter((t) => t.status === "canceled").length,
+      activeTravels: allTravels.filter((t) => t.status === "active").length,
+      totalRevenue: allTravels
+        .filter((t) => t.status === "completed")
+        .reduce((sum, t) => sum + (t.price || 0), 0),
+      averagePrice:
+        allTravels.length > 0
+          ? allTravels.reduce((sum, t) => sum + (t.price || 0), 0) /
+            allTravels.length
+          : 0,
+      totalDistance: allTravels.reduce((sum, t) => sum + (t.distance || 0), 0),
+      averageDistance:
+        allTravels.length > 0
+          ? allTravels.reduce((sum, t) => sum + (t.distance || 0), 0) /
+            allTravels.length
+          : 0,
+    };
+
+    res.status(200).json({
+      travels: enrichedTravels,
+      total: total,
+      page: pageNum,
+      limit: limitNum,
+      hasMore: total > skip + limitNum,
+      stats: stats,
+    });
+  } catch (error) {
+    console.error("Erro ao buscar travels para admin:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Função para buscar todos os motoboys para filtro
+const getAllMotoboys = async (req, res) => {
+  try {
+    const motoboys = await Motoboy.find({}, { _id: 1, name: 1, email: 1 })
+      .sort({ name: 1 })
+      .lean();
+
+    res.status(200).json(motoboys);
+  } catch (error) {
+    console.error("Erro ao buscar motoboys:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Adicione a rota
+router.get("/admin", getAllTravelsForAdmin); // Nova rota para admin
+router.get("/admin/motoboys", getAllMotoboys); // Nova rota para buscar motoboys
 router.get("/price/:id", getCurrentTravelPrice);
 router.get("/details/:id", getTravelById);
 router.get("/order/:id", getTravelByOrderId);
