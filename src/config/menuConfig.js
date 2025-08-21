@@ -55,6 +55,11 @@ const ORIGINAL_SUPPORT_MENU_ITEMS = [
     icon: <OrdersIcon />,
   },
   {
+    path: "/mapa",
+    text: "Mapa",
+    icon: <MapIcon />,
+  },
+  {
     path: "/precificacao",
     text: "Precificação",
     icon: <PriceChangeIcon />,

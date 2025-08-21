@@ -56,12 +56,18 @@ export const GlobalNotificationsProvider = ({
     if (!user?.uid) return;
 
     try {
-      const response = await api.get(`/chat/message/has-unread/${user.uid}`);
+      // Usar função otimizada com cache automático de 45 segundos
+      const response = (await api.checkUnreadChatMessagesOptimized)
+        ? await api.checkUnreadChatMessagesOptimized(user.uid)
+        : await api.get(`/chat/message/has-unread/${user.uid}`);
+
       setHasUnreadChatMessages(response.data.hasUnreadMessages);
 
       // Também buscar a contagem detalhada se necessário
       if (response.data.hasUnreadMessages) {
-        const countResponse = await api.get(`/chat/message/unread/${user.uid}`);
+        const countResponse = await (api.getUnreadChatCount
+          ? api.getUnreadChatCount(user.uid)
+          : api.get(`/chat/message/unread/${user.uid}`));
         setChatUnreadCount(countResponse.data.totalUnreadCount || 0);
       } else {
         setChatUnreadCount(0);

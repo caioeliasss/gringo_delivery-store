@@ -12,7 +12,7 @@ class CronService {
   // Agendar criação automática de faturas no dia 01 de cada mês
   scheduleMonthlyBilling() {
     const job = new cron.CronJob(
-      "0 9 1 * *", // Executa todo dia 01 às 09:00
+      "0 9 10 * *", // Executa todo dia 10 às 09:00
       this.createMonthlyBillings.bind(this),
       null,
       true,
@@ -66,8 +66,8 @@ class CronService {
     const dueDate = new Date(
       currentDate.getFullYear(),
       currentDate.getMonth() + 1,
-      5
-    ); // Vencimento dia 10
+      15
+    ); // Vencimento dia 15
 
     // Calcular valor baseado no plano da loja
     const amount = this.calculateBillingAmount(store);
@@ -93,7 +93,7 @@ class CronService {
         "pt-BR",
         { month: "long", year: "numeric" }
       )}`,
-      paymentMethod: "PIX",
+      paymentMethod: "BOLETO",
     });
 
     await billing.save();
@@ -355,7 +355,7 @@ class CronService {
         period: "WEEKLY", // ALTERADO: de MONTHLY para WEEKLY
         type: "MOTOBOY_FEE",
         description: description,
-        paymentMethod: store.preferredPaymentMethod || "PIX",
+        paymentMethod: store.preferredPaymentMethod || "BOLETO",
         status: "PENDING",
         metadata: {
           deliveryCount: deliveredOrders.length,
@@ -561,7 +561,7 @@ class CronService {
         period: "WEEKLY", // ALTERADO: de MONTHLY para WEEKLY
         type: "MOTOBOY_BILLING",
         description: description,
-        paymentMethod: store.preferredPaymentMethod || "PIX",
+        paymentMethod: store.preferredPaymentMethod || "BOLETO",
         status: "PENDING",
         metadata: {
           deliveryCount: deliveredOrders.length,

@@ -486,6 +486,34 @@ const Pedidos = () => {
         });
       };
 
+      // Handler para atualizações gerais de pedidos
+      const handleOrderUpdateSocket = (data) => {
+        console.log("🔄 [SOCKET] Pedido atualizado:", data);
+
+        setPedidos((prevPedidos) =>
+          prevPedidos.map((pedido) =>
+            pedido._id === data.orderId
+              ? { ...pedido, status: data.status, ...data }
+              : pedido
+          )
+        );
+
+        // Atualizar pedido atual se estiver aberto
+        if (currentPedido && currentPedido._id === data.orderId) {
+          setCurrentPedido((prevPedido) => ({
+            ...prevPedido,
+            status: data.status,
+            ...data,
+          }));
+        }
+
+        setSnackbar({
+          open: true,
+          message: `Pedido atualizado para ${data.status}`,
+          severity: "info",
+        });
+      };
+
       // Registrar todos os listeners
       socketService.on("orderAcceptedByMotoboy", handleOrderAcceptedByMotoboy);
       socketService.on("orderDeclinedByMotoboy", handleOrderDeclinedByMotoboy);
@@ -496,6 +524,7 @@ const Pedidos = () => {
       socketService.on("motoboyAssigned", handleMotoboyAssigned);
       socketService.on("motoboyLocationUpdated", handleMotoboyLocationUpdated);
       socketService.on("orderDelivered", handleOrderDelivered);
+      socketService.on("orderUpdate", handleOrderUpdateSocket);
 
       // Cleanup na desmontagem
       return () => {
@@ -520,6 +549,7 @@ const Pedidos = () => {
           handleMotoboyLocationUpdated
         );
         socketService.off("orderDelivered", handleOrderDelivered);
+        socketService.off("orderUpdate", handleOrderUpdateSocket);
 
         setSocketConnected(false);
         // Não desconectar completamente pois outros componentes podem usar

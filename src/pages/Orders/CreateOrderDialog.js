@@ -606,14 +606,16 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
 
     // Verificar se a loja tem coordenadas válidas
     const storeCoords =
+      selectedStore.geolocation?.coordinates ||
       selectedStore.address?.coordinates ||
-      selectedStore.geolocation.coordinates;
+      selectedStore.coordinates;
     if (
       !storeCoords ||
       !Array.isArray(storeCoords) ||
       storeCoords.length !== 2
     ) {
       alert("A loja selecionada não possui coordenadas válidas");
+      console.log("Coordenadas da loja:", selectedStore);
       return;
     }
 
@@ -753,9 +755,9 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
           name: selectedStore.businessName || selectedStore.name,
           cnpj: selectedStore.cnpj,
           coordinates:
+            selectedStore.geolocation?.coordinates ||
             selectedStore.address?.coordinates ||
-            selectedStore.coordinates ||
-            selectedStore.geolocation.coordinates,
+            selectedStore.coordinates,
           address: selectedStore.address,
         },
         customer: customers,
@@ -2007,11 +2009,18 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
           color="primary"
           disabled={
             loading ||
+            loadingPreview ||
             !selectedStore ||
             customers.some((c) => !c.name || !c.phone)
           }
         >
-          {loading ? <CircularProgress size={20} /> : "Criar Corrida"}
+          {loading ? (
+            <CircularProgress size={20} color="white" />
+          ) : loadingPreview ? (
+            <CircularProgress size={20} color="white" />
+          ) : (
+            "Criar Corrida"
+          )}
         </Button>
       </DialogActions>
     </Dialog>

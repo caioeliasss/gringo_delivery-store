@@ -32,7 +32,7 @@ class MotoboyService {
     }, 30000);
   }
 
-  async findBestMotoboys(coordinates, maxDistance = 5000, limit = 50) {
+  async findBestMotoboys(coordinates, maxDistance = 15000, limit = 100) {
     // Filtrando os motoboys que cancelaram a corrida ou que aceitaram e depois cancelaram
     try {
       // First find all available and approved motoboys within the max distance
@@ -235,12 +235,7 @@ class MotoboyService {
           console.warn(
             `All motoboys rejected the delivery for order ${order._id}`
           );
-          order.motoboy.queue.status = "cancelado";
-          await order.save();
-          return {
-            success: false,
-            message: "All motoboys rejected the delivery",
-          };
+          this.restartQueue(order);
         }
         return this.processMotoboyQueue(motoboys.slice(1), order);
       }
@@ -250,6 +245,28 @@ class MotoboyService {
 
       // Try next motoboy
       return this.processMotoboyQueue(motoboys.slice(1), order);
+    }
+  }
+
+  async restartQueue(order) {
+    try {
+      if (order.motoboy.priceAdded < 5) {
+        order.motoboy.price = order.motoboy.price + 3;
+        order.motoboy.priceAdded = (order.motoboy.priceAdded || 0) + 3;
+        await order.save();
+      }
+
+      const motoboys = await this.findBestMotoboys(
+        order.store.coordinates,
+        15000,
+        100
+      );
+      await this.processMotoboyQueue(motoboys, order);
+    } catch (error) {
+      console.error(
+        `❌ Erro ao reiniciar fila de motoboys para pedido ${order._id}:`,
+        error
+      );
     }
   }
 

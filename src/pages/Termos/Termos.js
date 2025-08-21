@@ -148,7 +148,7 @@ CLÁUSULA PRIMEIRA – DO OBJETO
 1. O presente contrato tem por objeto a prestação de serviços de entrega, indicação e ou intermediação pela CONTRATADA, por meio de sua plataforma de entregas, utilizando-se de motoboys terceirizados para a prestação dos serviços da CONTRATANTE aos seus clientes.
 
 CLÁUSULA SEGUNDA – DO VALOR DOS SERVIÇOS
-2.1. A CONTRATANTE pagará à CONTRATADA o valor mensal de R$ {{VALOR_MENSAL}} pelos serviços supracitados, que será pago todo dia 05 através da chave pix da Contratada ou mediante outra forma de pagamento previamente informada.
+2.1. A CONTRATANTE pagará à CONTRATADA o valor mensal de R$ {{VALOR_MENSAL}} pelos serviços supracitados, que será pago todo dia 15 através da chave pix da Contratada ou mediante outra forma de pagamento previamente informada.
 2.2. Além do valor mensal, será cobrada uma taxa de R$ {{TAXA_MOTOBOY}} por cada acionamento de motoboy, pago semanalmente, salvo acordo diferente entre as partes.
 2.3. Em caso de atraso no pagamento, a CONTRATANTE estará sujeita a juros diários de 0,3% e multa de 2%, além de correção monetária.
 2.4. O inadimplemento de 3 mensalidades consecutivas dará direito à CONTRATADA de rescindir o contrato e cobrar os valores pendentes.
@@ -157,7 +157,7 @@ CLÁUSULA SEGUNDA – DO VALOR DOS SERVIÇOS
 
 CLÁUSULA TERCEIRA – DA PROTEÇÃO CONTRA CONCORRÊNCIA E CONTRATAÇÃO DIRETA
 3.1. A CONTRATANTE compromete-se a não contratar diretamente nenhum dos motoboys cadastrados na plataforma da CONTRATADA, salvo mediante autorização expressa e por escrito da CONTRATADA.
-3.2. Durante a vigência deste contrato e por um período de 12 (doze) meses após o término, a CONTRATANTE compromete-se a não aderir ou contratar os serviços de plataformas concorrentes sem antes comunicar a CONTRATADA, com antecedência mínima de 90 (noventa) dias, para permitir uma nova negociação.
+3.2. Durante a vigência deste contrato e por um período de 12 (doze) meses após o término, a CONTRATANTE compromete-se a não aderir ou contratar os serviços de plataformas concorrentes que exijam exclusividade ou utilizem de concorrência desleal, sem antes comunicar a CONTRATADA, com antecedência mínima de 90 (noventa) dias, para permitir uma nova negociação.
 3.3. A CONTRATANTE poderá aderir a outras empresas de entrega para atender a sua demanda.
 
 CLÁUSULA QUARTA – DO PRAZO E RESCISÃO
@@ -169,12 +169,12 @@ CLÁUSULA QUINTA – DA PROTEÇÃO DAS INFORMAÇÕES
 5.2. As partes comprometem-se a não divulgar ou compartilhar tais informações, bem como quaisquer dados confidenciais ou de mercado das empresas com terceiros sem o consentimento prévio e por escrito da outra parte, sob pena de responsabilização civil e penal, seguindo os termos da LGPD.
 
 CLÁUSULA SEXTA – DA RESPONSABILIDADE DOS ENTREGADORES
-6.1. A CONTRATADA não será responsável por eventuais problemas decorrentes das entregas, tais como atrasos, erros de entrega ou reclamações dos clientes, sendo que toda a responsabilidade por esses fatos será exclusiva dos motoboys que realizarem o serviço.
-6.2. Eventuais reclamações ou ações judiciais decorrentes de falhas nas entregas realizadas serão de inteira responsabilidade dos motoboys, sem que haja qualquer responsabilização direta da CONTRATADA.
+6.1. A CONTRATADA não será responsável por eventuais problemas decorrentes das entregas por condutas únicas dos motoboys, tais como atrasos, erros de entrega ou reclamações dos clientes, sendo que toda a responsabilidade por esses fatos será exclusiva dos motoboys que realizarem o serviço.
+6.2. Eventuais problemas, reclamações ou ações judiciais decorrentes de falhas nas entregas realizadas serão de inteira responsabilidade dos motoboys, na qual a CONTRATADA intermediará e auxiliará a solução do caso, porém, sem que haja qualquer responsabilização direta da CONTRATADA por condutas exclusivas dos motoboys.
 6.3. A CONTRATANTE poderá solicitar informações ou determinar restrições a determinados entregadores por eventuais problemas, desde que comunicado à CONTRATADA com antecedência de 1 dia, para fins de gestão dos prestadores de serviços.
 
 CLÁUSULA SÉTIMA – DA LIMITAÇÃO DE RESPONSABILIDADE
-7.1. A CONTRATADA não será responsável por lucros cessantes ou qualquer perda financeira decorrente de atrasos, falhas na entrega ou no pedido causados por fatores externos, como trânsito intenso, condições climáticas adversas ou eventos de força maior, instabilidade de sistema de terceiros, etc.
+7.1. A CONTRATADA não será responsável por lucros cessantes ou qualquer perda financeira decorrente de atrasos, falhas na entrega ou no pedido causados por fatores externos, como trânsito intenso, condições climáticas adversas ou eventos de força maior, instabilidade de sistema de terceiros, que comprometam a entrega, mas auxiliará a empresa a solucionar a demanda através do suporte.
 
 CLÁUSULA OITAVA – DA PROTEÇÃO À PROPRIEDADE INTELECTUAL
 8.1. A CONTRATANTE compromete-se a não utilizar o nome, logotipo, marca, estratégia comercial, logística ou qualquer outra propriedade intelectual da CONTRATADA em materiais externos ou internos sem autorização prévia por escrito.
@@ -190,6 +190,13 @@ E por estarem de acordo, as partes assinam o presente contrato de forma eletrôn
 
 {{DATA_ATUAL}}
 Mogi-Guaçu, Estado de São Paulo.
+
+                   
+____________________________                                   _____________________________________________
+GRINGO DELIVERY LTDA                                      {{NOME_ESTABELECIMENTO}}
+
+ _____________________                                               _____________________________
+ TESTEMUNHA                                                           TESTEMUNHA 
 
 ACORDO DE CONFIDENCIALIDADE (NDA)
 

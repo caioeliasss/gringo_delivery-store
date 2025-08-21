@@ -156,6 +156,10 @@ const orderSchema = new mongoose.Schema({
       type: Number,
       required: true,
     },
+    priceAdded: {
+      type: Number,
+      default: 0,
+    },
     motoboyId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Motoboy",

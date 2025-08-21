@@ -75,6 +75,14 @@ const withdrawalSchema = mongoose.Schema(
         type: Number,
         default: 0,
       },
+      isFree: {
+        type: Boolean,
+        default: false,
+      },
+      freeReason: {
+        type: String,
+        required: false,
+      },
     },
     netAmount: {
       type: Number,

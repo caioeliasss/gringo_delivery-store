@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useJsApiLoader } from "@react-google-maps/api";
 import { useAuth } from "../../contexts/AuthContext";
-import { getUserProfile } from "../../services/api";
+import { getUserProfile, changeStoreCoordinates } from "../../services/api";
 import {
   Box,
   Paper,
@@ -318,19 +318,13 @@ const ViewCoordinates = () => {
 
     setSaving(true);
     try {
-      const response = await fetch("/api/stores/coordinates", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${await currentUser.getIdToken()}`,
-        },
-        body: JSON.stringify({
-          storeId: userProfile._id,
-          coordinates: coordinates,
-        }),
-      });
+      const response = await changeStoreCoordinates(
+        userProfile._id,
+        coordinates
+      );
+      console.log("Resposta da API:", response);
 
-      if (response.ok) {
+      if (response.statusText === "OK") {
         setMessage({
           type: "success",
           text: "Coordenadas salvas com sucesso!",

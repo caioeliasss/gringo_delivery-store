@@ -39,9 +39,14 @@ const requestWithdrawal = async (req, res) => {
     //   return res.status(400).json({ error: "Chave PIX inválida" });
     // }
 
-    // Calcular taxas
-    const fees = calculateFees(amount);
+    // Calcular taxas baseado no número de corridas
+    const numberOfTravels = travels ? travels.length : 0;
+    const fees = calculateFees(amount, numberOfTravels);
     const netAmount = amount - fees.total;
+
+    console.log(
+      `💰 Calculando taxas: ${numberOfTravels} corridas, taxa grátis: ${fees.isFree}`
+    );
 
     if (travels && travels.length > 0) {
       // Atualizar viagens no banco de dados
@@ -77,6 +82,8 @@ const requestWithdrawal = async (req, res) => {
       fees: {
         asaasFee: fees.asaas,
         platformFee: fees.platform,
+        isFree: fees.isFree,
+        freeReason: fees.reason,
       },
       status: "pending",
     });
@@ -146,14 +153,27 @@ const requestWithdrawal = async (req, res) => {
   }
 };
 
-const calculateFees = (amount) => {
+const calculateFees = (amount, numberOfTravels = 0) => {
+  // Se tiver 100 ou mais corridas, taxas são grátis
+  if (numberOfTravels >= 100) {
+    console.log(`🎉 Taxa grátis aplicada! ${numberOfTravels} corridas (≥100)`);
+    return {
+      asaas: 0,
+      platform: 0,
+      total: 0,
+      isFree: true,
+      reason: `${numberOfTravels} corridas liberadas`,
+    };
+  }
+
   const asaasFee = 3.0; // Taxa fixa do Asaas para PIX
-  const platformFee = amount * 0.02; // 2% de taxa da plataforma (exemplo)
+  const platformFee = amount * 0.02; // 2% de taxa da plataforma
 
   return {
     asaas: asaasFee,
     platform: platformFee,
     total: asaasFee + platformFee,
+    isFree: false,
   };
 };
 
