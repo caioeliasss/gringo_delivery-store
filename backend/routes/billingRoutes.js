@@ -198,6 +198,68 @@ const checkBillingStatus = async (req, res) => {
   }
 };
 
+// Deletar fatura
+const deleteBilling = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const billing = await Billing.findById(id);
+    if (!billing) {
+      return res.status(404).json({ message: "Fatura não encontrada" });
+    }
+
+    // Verificar se a fatura pode ser excluída (apenas pendentes ou vencidas)
+    if (
+      !["PENDING", "OVERDUE", "ERROR", "CANCELLED"].includes(billing.status)
+    ) {
+      return res.status(400).json({
+        message: "Apenas cobranças pendentes ou vencidas podem ser excluídas",
+      });
+    }
+
+    // Se houver ID do Asaas, tentar cancelar lá primeiro
+    if (billing.asaasInvoiceId) {
+      try {
+        await asaasService.cancelInvoice(billing.asaasInvoiceId);
+        console.log("Fatura cancelada no Asaas:", billing.asaasInvoiceId);
+      } catch (asaasError) {
+        console.warn(
+          "Erro ao cancelar no Asaas (continuando):",
+          asaasError.message
+        );
+        // Continua mesmo se falhar no Asaas, para permitir limpeza do banco local
+      }
+    }
+
+    // Remover do banco de dados local
+    await Billing.findByIdAndDelete(id);
+
+    // Notificar a loja sobre o cancelamento
+    try {
+      await notificationService.createGenericNotification({
+        title: "Cobrança cancelada",
+        message: `Uma cobrança de ${billing.amount} foi cancelada pelo administrador`,
+        firebaseUid: billing.firebaseUid,
+        type: "BILLING_CANCELLED",
+      });
+    } catch (notifError) {
+      console.warn("Erro ao enviar notificação:", notifError.message);
+    }
+
+    res.status(200).json({
+      message: "Cobrança excluída com sucesso",
+      deletedBilling: {
+        id: billing._id,
+        amount: billing.amount,
+        status: billing.status,
+      },
+    });
+  } catch (error) {
+    console.error("Erro ao excluir fatura:", error);
+    res.status(500).json({ message: "Erro interno do servidor" });
+  }
+};
+
 // ✅ ADICIONAR: Função para buscar faturas pendentes
 const getBillingPending = async (req, res) => {
   const { storeId } = req.params;
@@ -225,5 +287,6 @@ router.post("/", createBilling);
 router.get("/", listBillings);
 router.get("/:id", getBilling);
 router.put("/:id", updateBilling);
+router.delete("/:id", deleteBilling); // ← Nova rota para deletar
 
 module.exports = router;

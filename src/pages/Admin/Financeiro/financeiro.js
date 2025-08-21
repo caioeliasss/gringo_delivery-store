@@ -66,6 +66,7 @@ import {
   CheckCircle as CheckCircleIcon,
   Schedule as ScheduleIcon,
   Error as ErrorIcon,
+  Delete as DeleteIcon,
 } from "@mui/icons-material";
 import { Link } from "react-router-dom";
 import { UseAdminAuth } from "../../../contexts/AdminAuthContext";
@@ -120,6 +121,9 @@ const AdminFinanceiro = () => {
   const [selectedBilling, setSelectedBilling] = useState(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [processWithdrawalOpen, setProcessWithdrawalOpen] = useState(false);
+  const [deleteBillingOpen, setDeleteBillingOpen] = useState(false);
+  const [deletingBilling, setDeletingBilling] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   // Estados de erro/sucesso
   const [alert, setAlert] = useState({
@@ -202,6 +206,35 @@ const AdminFinanceiro = () => {
       showAlert("Erro ao criar cobrança", "error");
     } finally {
       setCreatingBilling(false);
+    }
+  };
+
+  // Função para excluir cobrança
+  const handleDeleteBilling = async () => {
+    if (!selectedBilling) return;
+
+    // Verificar se digitou "EXCLUIR" corretamente
+    if (deleteConfirmText !== "EXCLUIR") {
+      showAlert("Digite EXCLUIR para confirmar a exclusão", "warning");
+      return;
+    }
+
+    setDeletingBilling(true);
+    try {
+      await api.delete(`/billing/${selectedBilling._id}`);
+      showAlert("Cobrança excluída com sucesso!", "success");
+      setDeleteBillingOpen(false);
+      setSelectedBilling(null);
+      setDeleteConfirmText("");
+      fetchFinancialData();
+    } catch (error) {
+      console.error("Erro ao excluir cobrança:", error);
+      showAlert(
+        error.response?.data?.message || "Erro ao excluir cobrança",
+        "error"
+      );
+    } finally {
+      setDeletingBilling(false);
     }
   };
 
@@ -1013,6 +1046,18 @@ const AdminFinanceiro = () => {
                                 <ViewIcon />
                               </IconButton>
                             </Tooltip>
+                            <Tooltip title="Excluir Cobrança">
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => {
+                                  setSelectedBilling(billing);
+                                  setDeleteBillingOpen(true);
+                                }}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Tooltip>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1247,6 +1292,103 @@ const AdminFinanceiro = () => {
             disabled={loading}
           >
             {loading ? "Processando..." : "Aprovar Saque"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal de Confirmação de Exclusão de Cobrança */}
+      <Dialog
+        open={deleteBillingOpen}
+        onClose={() => setDeleteBillingOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center">
+            <DeleteIcon color="error" sx={{ mr: 1 }} />
+            Excluir Cobrança
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {selectedBilling && (
+            <Box>
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                <strong>Atenção!</strong> Esta ação não pode ser desfeita. A
+                cobrança será permanentemente removida do sistema e cancelada no
+                Asaas (se aplicável).
+              </Alert>
+
+              <Typography variant="h6" gutterBottom>
+                Detalhes da Cobrança:
+              </Typography>
+
+              <Box sx={{ p: 2, bgcolor: "grey.50", borderRadius: 1, mb: 2 }}>
+                <Typography variant="body2" gutterBottom>
+                  <strong>Loja:</strong>{" "}
+                  {selectedBilling.storeName || "Desconhecida"}
+                </Typography>
+                <Typography variant="body2" gutterBottom>
+                  <strong>Valor:</strong>{" "}
+                  {formatCurrency(selectedBilling.amount)}
+                </Typography>
+                <Typography variant="body2" gutterBottom>
+                  <strong>Status:</strong> {selectedBilling.status}
+                </Typography>
+                <Typography variant="body2" gutterBottom>
+                  <strong>Vencimento:</strong>{" "}
+                  {formatDate(selectedBilling.dueDate)}
+                </Typography>
+                <Typography variant="body2" gutterBottom>
+                  <strong>Tipo:</strong>{" "}
+                  {selectedBilling.type === "SUBSCRIPTION"
+                    ? "Assinatura"
+                    : selectedBilling.type === "MOTOBOY_FEE"
+                    ? "Taxa Acionamento"
+                    : selectedBilling.type === "MOTOBOY_BILLING"
+                    ? "Cobrança Motoboy"
+                    : selectedBilling.type}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Método:</strong>{" "}
+                  {selectedBilling.paymentMethod || "PIX"}
+                </Typography>
+              </Box>
+
+              <Typography variant="body2" color="error">
+                Confirme digitando <strong>EXCLUIR</strong> abaixo para
+                prosseguir:
+              </Typography>
+
+              <TextField
+                fullWidth
+                variant="outlined"
+                size="small"
+                placeholder="Digite EXCLUIR para confirmar"
+                value={deleteConfirmText}
+                sx={{ mt: 1 }}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+              />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setDeleteBillingOpen(false);
+              setDeleteConfirmText("");
+            }}
+            variant="outlined"
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            startIcon={<DeleteIcon />}
+            onClick={handleDeleteBilling}
+            disabled={deletingBilling || deleteConfirmText !== "EXCLUIR"}
+          >
+            {deletingBilling ? "Excluindo..." : "Excluir Cobrança"}
           </Button>
         </DialogActions>
       </Dialog>
