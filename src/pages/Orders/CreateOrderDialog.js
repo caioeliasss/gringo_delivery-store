@@ -127,35 +127,35 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
   // Configurar listener de clique no mapa do cliente (sempre ativo quando o mapa existe)
   useEffect(() => {
     if (map && isLoaded) {
-      console.log("🎯 Configurando listener de clique no mapa do cliente");
+      // console.log("🎯 Configurando listener de clique no mapa do cliente");
 
       const clickListener = map.addListener("click", (event) => {
-        console.log("🖱️ Clique detectado no mapa do cliente");
+        // console.log("🖱️ Clique detectado no mapa do cliente");
         handleCustomerMapClick(event);
       });
 
       return () => {
         if (clickListener) {
-          console.log("🧹 Removendo listener de clique do mapa do cliente");
+          // console.log("🧹 Removendo listener de clique do mapa do cliente");
           clickListener.remove();
         }
       };
     }
-  }, [map, isLoaded, activeCustomerIndex, customers]);
+  }, [map, isLoaded]);
 
   // Configurar listener de clique no mapa da loja (sempre ativo quando o mapa existe)
   useEffect(() => {
     if (storeMap && isLoaded) {
-      console.log("🎯 Configurando listener de clique no mapa da loja");
+      // console.log("🎯 Configurando listener de clique no mapa da loja");
 
       const clickListener = storeMap.addListener("click", (event) => {
-        console.log("🖱️ Clique detectado no mapa da loja");
+        // console.log("🖱️ Clique detectado no mapa da loja");
         handleStoreMapClick(event);
       });
 
       return () => {
         if (clickListener) {
-          console.log("🧹 Removendo listener de clique do mapa da loja");
+          // console.log("🧹 Removendo listener de clique do mapa da loja");
           clickListener.remove();
         }
       };
@@ -329,10 +329,8 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
     setSelectedStore(store);
     if (store && store.address?.coordinates) {
       setMapCenter({
-        lat:
-          store.address.coordinates[1] || store.geolocation.coordinates[1] || 0,
-        lng:
-          store.address.coordinates[0] || store.geolocation.coordinates[0] || 0,
+        lat: store.geolocation.coordinates[1] || 0,
+        lng: store.geolocation.coordinates[0] || 0,
       });
     }
   };
@@ -427,6 +425,9 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
       activeCustomerIndex,
     });
 
+    // Atualizar o centro do mapa para não voltar à posição anterior
+    setMapCenter({ lat, lng });
+
     // Atualizar coordenadas do cliente ativo
     const newCustomers = [...customers];
     newCustomers[activeCustomerIndex].customerAddress.coordinates = [lng, lat];
@@ -452,16 +453,22 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
       selectedStore: selectedStore?.businessName || selectedStore?.name,
     });
 
+    // Atualizar o centro do mapa para não voltar à posição anterior
+    setMapCenter({ lat, lng });
+
     if (selectedStore) {
       // Atualizar coordenadas da loja selecionada
       const updatedStore = {
         ...selectedStore,
+        coordinates: [lng, lat],
         geolocation: {
           ...selectedStore.geolocation,
           coordinates: [lng, lat],
         },
       };
       setSelectedStore(updatedStore);
+
+      console.log("🏪 Loja selecionada:", updatedStore);
 
       // Geocodificação reversa para obter o endereço da loja
       reverseGeocodeStore(lat, lng);
@@ -526,6 +533,10 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
 
         const updatedStore = {
           ...selectedStore,
+          geolocation: {
+            ...selectedStore.geolocation,
+            coordinates: [lng, lat],
+          },
           address: {
             ...selectedStore.address,
             address: address.formatted_address,
@@ -605,10 +616,7 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
     }
 
     // Verificar se a loja tem coordenadas válidas
-    const storeCoords =
-      selectedStore.geolocation?.coordinates ||
-      selectedStore.address?.coordinates ||
-      selectedStore.coordinates;
+    const storeCoords = selectedStore.geolocation?.coordinates;
     if (
       !storeCoords ||
       !Array.isArray(storeCoords) ||
@@ -754,10 +762,7 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
         store: {
           name: selectedStore.businessName || selectedStore.name,
           cnpj: selectedStore.cnpj,
-          coordinates:
-            selectedStore.geolocation?.coordinates ||
-            selectedStore.address?.coordinates ||
-            selectedStore.coordinates,
+          coordinates: selectedStore.geolocation?.coordinates,
           address: selectedStore.address,
         },
         customer: customers,
@@ -957,10 +962,10 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                           startIcon={<LocationIcon />}
                           onClick={() => {
                             setIsSelectingStoreLocation(true);
-                            if (selectedStore.address?.coordinates) {
+                            if (selectedStore.geolocation?.coordinates) {
                               setMapCenter({
-                                lat: selectedStore.address.coordinates[1],
-                                lng: selectedStore.address.coordinates[0],
+                                lat: selectedStore.geolocation.coordinates[1],
+                                lng: selectedStore.geolocation.coordinates[0],
                               });
                             }
                           }}
@@ -970,7 +975,18 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                             ? "Carregando mapa..."
                             : "Selecionar Localização no Mapa"}
                         </Button>
-                        {selectedStore.address?.coordinates?.length === 2 && (
+                        <Button
+                          onClick={() => {
+                            console.log(
+                              "Selecionar Localização no Mapa:",
+                              selectedStore.geolocation?.coordinates
+                            );
+                          }}
+                        >
+                          tgeste
+                        </Button>
+                        {selectedStore.geolocation?.coordinates?.length ===
+                          2 && (
                           <Typography
                             variant="caption"
                             color="success.main"

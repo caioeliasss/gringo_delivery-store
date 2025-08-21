@@ -52,9 +52,9 @@ import {
 } from "@mui/icons-material";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import SideDrawer from "../../../components/SideDrawer";
+import SideDrawer from "../../../components/SideDrawer/SideDrawer";
 import { SUPPORT_MENU_ITEMS } from "../../../config/menuConfig";
-import { UseAdminAuth } from "../../../auth/AdminAuthContext";
+import { UseAdminAuth } from "../../../contexts/AdminAuthContext";
 import api from "../../../services/api";
 
 const AdminCorridas = () => {
