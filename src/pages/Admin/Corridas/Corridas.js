@@ -82,6 +82,20 @@ const AdminCorridas = () => {
     averagePrice: 0,
     totalDistance: 0,
     averageDistance: 0,
+    entregueTravels: 0,
+    emEntregaTravels: 0,
+    canceladoTravels: 0,
+    financePendingValue: 0,
+    financeReleasedValue: 0,
+    financePaidValue: 0,
+    financeCanceledValue: 0,
+    financeTotalValue: 0,
+    financePendingValue: 0,
+    financeReleasedValue: 0,
+    financePaidValue: 0,
+    financeCanceledValue: 0,
+    financeTotalValue: 0,
+    financeProcessingValue: 0,
   });
 
   // Estados de paginação
@@ -190,6 +204,23 @@ const AdminCorridas = () => {
           coordinatesFrom: [-23.5515, -46.6343],
           coordinatesTo: [-23.5535, -46.6365],
         },
+        {
+          _id: "3",
+          motoboyId: "moto3",
+          motoboyName: "Carlos Lima",
+          price: 18.9,
+          distance: 6.5,
+          status: "entregue",
+          createdAt: new Date().toISOString(),
+          order: {
+            _id: "order3",
+            store: { name: "Hamburgueria 123" },
+            customer: [{ customerName: "Cliente 3" }],
+          },
+          finance: { status: "processando", value: 18.9 },
+          coordinatesFrom: [-23.5525, -46.6353],
+          coordinatesTo: [-23.5545, -46.6375],
+        },
       ];
 
       setTravels(exampleTravels);
@@ -203,6 +234,15 @@ const AdminCorridas = () => {
         averagePrice: 18.75,
         totalDistance: 850.5,
         averageDistance: 6.2,
+        entregueTravels: 120,
+        emEntregaTravels: 10,
+        canceladoTravels: 20,
+        financePendingValue: 450.75,
+        financeReleasedValue: 1200.25,
+        financePaidValue: 1599.5,
+        financeCanceledValue: 0,
+        financeProcessingValue: 275.8,
+        financeTotalValue: 3250.5,
       });
     } finally {
       setLoading(false);
@@ -234,32 +274,32 @@ const AdminCorridas = () => {
     try {
       const parsedDate =
         typeof date === "string" ? parseISO(date) : new Date(date);
-      return format(parsedDate, "dd/MM/yyyy HH:mm", { locale: ptBR });
+      // Ajustar para UTC-3 se necessário
+      const utcMinus3 = new Date(parsedDate.getTime() - 3 * 60 * 60 * 1000);
+      return format(utcMinus3, "dd/MM/yyyy HH:mm", { locale: ptBR });
     } catch (error) {
       return "Data inválida";
     }
   };
-
   const formatDistance = (distance) => {
     return `${(distance || 0).toFixed(1)} km`;
   };
 
   const getStatusChip = (status) => {
     const statusConfig = {
-      completed: { label: "Concluída", color: "success" },
-      active: { label: "Ativa", color: "primary" },
-      canceled: { label: "Cancelada", color: "error" },
-      pending: { label: "Pendente", color: "warning" },
+      entregue: { label: "Concluída", color: "success" },
+      em_entrega: { label: "Ativa", color: "warning" },
+      cancelado: { label: "Cancelada", color: "error" },
     };
 
-    const config = statusConfig[status] || { label: status, color: "default" };
+    const config = statusConfig[status];
 
     return (
       <Chip
         label={config.label}
         color={config.color}
         size="small"
-        variant="outlined"
+        variant="filled"
       />
     );
   };
@@ -270,6 +310,7 @@ const AdminCorridas = () => {
       liberado: { label: "Liberado", color: "info" },
       pendente: { label: "Pendente", color: "warning" },
       cancelado: { label: "Cancelado", color: "error" },
+      processando: { label: "Processando", color: "secondary" },
     };
 
     const config = statusConfig[status] || { label: status, color: "default" };
@@ -387,16 +428,56 @@ const AdminCorridas = () => {
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <StatCard
-              title="Corridas Concluídas"
-              value={travelStats.completedTravels}
+              title="Corridas Canceladas"
+              value={travelStats.canceladoTravels}
               icon={<TimelineIcon />}
-              color="success"
+              color="error"
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <StatCard
-              title="Receita Total"
-              value={travelStats.totalRevenue}
+              title="Corridas em Entrega"
+              value={travelStats.emEntregaTravels}
+              icon={<TimelineIcon />}
+              color="warning"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <StatCard
+              title="Corridas Entregues"
+              value={travelStats.entregueTravels}
+              icon={<TimelineIcon />}
+              color="success"
+            />
+          </Grid>
+        </Grid>
+
+        <Divider sx={{ margin: 4 }} />
+
+        {/* Cards de Estatísticas Financeiras Adicionais */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <StatCard
+              title="Valor Pendente"
+              value={travelStats.financePendingValue}
+              icon={<AttachMoneyIcon />}
+              color="warning"
+              format="currency"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <StatCard
+              title="Valor em Processamento"
+              value={travelStats.financeProcessingValue}
+              icon={<AttachMoneyIcon />}
+              color="error"
+              format="currency"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <StatCard
+              title="Valor Liberado"
+              value={travelStats.financeReleasedValue}
               icon={<AttachMoneyIcon />}
               color="info"
               format="currency"
@@ -404,11 +485,33 @@ const AdminCorridas = () => {
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <StatCard
-              title="Distância Total"
-              value={travelStats.totalDistance}
-              icon={<TimelineIcon />}
-              color="warning"
-              format="distance"
+              title="Valor Pago"
+              value={travelStats.financePaidValue}
+              icon={<AttachMoneyIcon />}
+              color="success"
+              format="currency"
+            />
+          </Grid>
+        </Grid>
+        <Divider sx={{ margin: 4 }} />
+
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <StatCard
+              title="Valor Total de Acionamento"
+              value={travelStats.entregueTravels * 2}
+              icon={<AttachMoneyIcon />}
+              color="info"
+              format="currency"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <StatCard
+              title="Custo Total"
+              value={travelStats.totalRevenue}
+              icon={<AttachMoneyIcon />}
+              color="info"
+              format="currency"
             />
           </Grid>
         </Grid>
@@ -525,7 +628,7 @@ const AdminCorridas = () => {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {travel.order?.customer?.[0]?.customerName || "N/A"}
+                        {travel.order?.customer?.[0]?.name || "N/A"}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -660,8 +763,7 @@ const AdminCorridas = () => {
                       Cliente
                     </Typography>
                     <Typography variant="body1">
-                      {selectedTravel.order?.customer?.[0]?.customerName ||
-                        "N/A"}
+                      {selectedTravel.order?.customer?.[0]?.name || "N/A"}
                     </Typography>
                   </Box>
                   <Divider sx={{ my: 2 }} />
@@ -680,6 +782,12 @@ const AdminCorridas = () => {
                     </Typography>
                     <Typography variant="body1">
                       {formatCurrency(selectedTravel.finance?.value)}
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary">
+                      Data de Pagamento
+                    </Typography>
+                    <Typography variant="body1">
+                      {formatDate(selectedTravel.finance?.dueDate)}
                     </Typography>
                   </Box>
                 </Grid>

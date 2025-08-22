@@ -61,7 +61,7 @@ const updateTravel = async (req, res) => {
       order._id,
       {
         motoboy: {
-          ...motoboy,
+          ...order.motoboy,
           hasArrived: true,
         },
       },
@@ -344,14 +344,47 @@ const getAllTravelsForAdmin = async (req, res) => {
     // Calcular estatísticas gerais
     const allTravels = await Travel.find({}).lean();
 
+    // Calcular valores financeiros por status
+    const financeStats = {
+      totalPendente: 0,
+      totalLiberado: 0,
+      totalPago: 0,
+      totalCancelado: 0,
+      totalProcessando: 0,
+    };
+
+    allTravels.forEach((travel) => {
+      const value = travel.finance?.value || travel.price || 0;
+      const financeStatus = travel.finance?.status || "pendente";
+
+      switch (financeStatus) {
+        case "pendente":
+          financeStats.totalPendente += value;
+          break;
+        case "liberado":
+          financeStats.totalLiberado += value;
+          break;
+        case "pago":
+          financeStats.totalPago += value;
+          break;
+        case "cancelado":
+          financeStats.totalCancelado += value;
+          break;
+        case "processando":
+          financeStats.totalProcessando += value;
+          break;
+      }
+    });
+
     const stats = {
       totalTravels: allTravels.length,
-      completedTravels: allTravels.filter((t) => t.status === "completed")
+      entregueTravels: allTravels.filter((t) => t.status === "entregue").length,
+      canceladoTravels: allTravels.filter((t) => t.status === "cancelado")
         .length,
-      canceledTravels: allTravels.filter((t) => t.status === "canceled").length,
-      activeTravels: allTravels.filter((t) => t.status === "active").length,
+      emEntregaTravels: allTravels.filter((t) => t.status === "em_entrega")
+        .length,
       totalRevenue: allTravels
-        .filter((t) => t.status === "completed")
+        .filter((t) => t.status === "entregue")
         .reduce((sum, t) => sum + (t.price || 0), 0),
       averagePrice:
         allTravels.length > 0
@@ -364,6 +397,18 @@ const getAllTravelsForAdmin = async (req, res) => {
           ? allTravels.reduce((sum, t) => sum + (t.distance || 0), 0) /
             allTravels.length
           : 0,
+      // Estatísticas financeiras
+      financePendingValue: financeStats.totalPendente,
+      financeReleasedValue: financeStats.totalLiberado,
+      financePaidValue: financeStats.totalPago,
+      financeCanceledValue: financeStats.totalCancelado,
+      financeProcessingValue: financeStats.totalProcessando,
+      financeTotalValue:
+        financeStats.totalPendente +
+        financeStats.totalLiberado +
+        financeStats.totalPago +
+        financeStats.totalCancelado +
+        financeStats.totalProcessando,
     };
 
     res.status(200).json({
