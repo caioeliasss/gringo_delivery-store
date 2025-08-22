@@ -64,6 +64,11 @@ import api from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
 import eventService from "../../services/eventService";
 import { useNavigate, Link } from "react-router-dom";
+import {
+  SUPPORT_MENU_ITEMS,
+  createAdminFooterItems,
+} from "../../config/menuConfig";
+import SideDrawer from "../../components/SideDrawer/SideDrawer";
 
 export default function ChatStore() {
   const theme = useTheme();
@@ -89,6 +94,10 @@ export default function ChatStore() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const fileInputRef = useRef(null);
+  const menuItems = SUPPORT_MENU_ITEMS;
+
+  // Definir itens de rodapé para SideDrawer
+  const footerItems = createAdminFooterItems(handleLogout);
 
   // Estado para o preview da imagem em tela cheia
   const [previewImage, setPreviewImage] = useState(null);
@@ -517,97 +526,32 @@ export default function ChatStore() {
         />
       </Box>
       <Divider />
-      <List>
-        <ListItem
-          button
-          component={Link}
-          to="/dashboard"
-          sx={{
-            color: "text.primary",
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <DashboardIcon />
-          </ListItemIcon>
-          <ListItemText primary="Dashboard" />
-        </ListItem>
-        <ListItem
-          button
-          component={Link}
-          to="/produtos"
-          sx={{
-            color: "text.primary",
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <ProductsIcon />
-          </ListItemIcon>
-          <ListItemText primary="Produtos" />
-        </ListItem>
-        <ListItem
-          button
-          component={Link}
-          to="/pedidos"
-          sx={{
-            color: "text.primary",
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <OrdersIcon />
-          </ListItemIcon>
-          <ListItemText primary="Pedidos" />
-        </ListItem>
-        <ListItem
-          button
-          component={Link}
-          to="/ocorrencias"
-          sx={{
-            color: "text.primary",
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <OcorrenciasIcon />
-          </ListItemIcon>
-          <ListItemText primary="Ocorrências" />
-        </ListItem>
-        <ListItem
-          button
-          component={Link}
-          to="/chat"
-          selected={true}
-          sx={{
-            color: "text.primary",
-            "&.Mui-selected": {
-              bgcolor: "primary.main",
-              color: "white",
-              "&:hover": { bgcolor: "primary.dark" },
-            },
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <ChatIcon />
-          </ListItemIcon>
-          <ListItemText primary="Chat" />
-        </ListItem>
-      </List>
-      <Divider />
-      <List>
-        <ListItem
-          button
-          onClick={handleLogout}
-          sx={{ "&:hover": { bgcolor: "error.light", color: "white" } }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <LogoutIcon />
-          </ListItemIcon>
-          <ListItemText primary="Sair" />
-        </ListItem>
-      </List>
+      {isMobile ? (
+        <SideDrawer
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          variant="temporary"
+          title="Gringo Delivery"
+          logoUrl="https://i.imgur.com/8jOdfcO.png"
+          logoAlt="Gringo Delivery"
+          logoHeight={50}
+          menuItems={menuItems}
+          footerItems={footerItems}
+          subtitle="Painel Administrativo"
+        />
+      ) : (
+        <SideDrawer
+          open={true}
+          variant="permanent"
+          title="Gringo Delivery"
+          logoUrl="https://i.imgur.com/8jOdfcO.png"
+          logoAlt="Gringo Delivery"
+          logoHeight={50}
+          menuItems={menuItems}
+          footerItems={footerItems}
+          subtitle="Painel Administrativo"
+        />
+      )}
     </Box>
   );
 

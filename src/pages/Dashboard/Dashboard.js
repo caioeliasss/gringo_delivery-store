@@ -37,6 +37,11 @@ import {
   LocationOn as LocationIcon,
 } from "@mui/icons-material";
 import { buscarCnpj } from "../../services/cnpj";
+import {
+  SUPPORT_MENU_ITEMS,
+  createAdminFooterItems,
+} from "../../config/menuConfig";
+import SideDrawer from "../../components/SideDrawer/SideDrawer";
 
 const Dashboard = () => {
   const { currentUser, logout } = useAuth();
@@ -109,6 +114,11 @@ const Dashboard = () => {
     setDrawerOpen(open);
   };
 
+  const menuItems = SUPPORT_MENU_ITEMS;
+
+  // Definir itens de rodapé para SideDrawer
+  const footerItems = createAdminFooterItems(handleLogout);
+
   const drawerItems = (
     <Box sx={{ width: 250 }}>
       <Box sx={{ p: 2, textAlign: "center" }}>
@@ -119,115 +129,32 @@ const Dashboard = () => {
         />
       </Box>
       <Divider />
-      <List>
-        <ListItem
-          button
-          component={Link}
-          to="/dashboard"
-          selected={true}
-          sx={{
-            color: "text.primary",
-            "&.Mui-selected": {
-              bgcolor: "primary.main",
-              color: "white",
-              "&:hover": { bgcolor: "primary.dark" },
-            },
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <DashboardIcon />
-          </ListItemIcon>
-          <ListItemText primary="Dashboard" />
-        </ListItem>
-        <ListItem
-          button
-          component={Link}
-          to="/produtos"
-          sx={{
-            color: "text.primary",
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <ProductsIcon />
-          </ListItemIcon>
-          <ListItemText primary="Produtos" />
-        </ListItem>
-        <ListItem
-          button
-          component={Link}
-          to="/pedidos"
-          selected={true}
-          sx={{
-            color: "text.primary",
-            "&.Mui-selected": {
-              bgcolor: "primary.main",
-              color: "white",
-              "&:hover": { bgcolor: "primary.dark" },
-            },
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <OrdersIcon />
-          </ListItemIcon>
-          <ListItemText primary="Pedidos" />
-        </ListItem>
-        <ListItem
-          button
-          component={Link}
-          to="/ocorrencias"
-          selected={true}
-          sx={{
-            color: "text.primary",
-            "&.Mui-selected": {
-              bgcolor: "primary.main",
-              color: "white",
-              "&:hover": { bgcolor: "primary.dark" },
-            },
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <OcorrenciasIcon />
-          </ListItemIcon>
-          <ListItemText primary="Ocorrências" />
-        </ListItem>
-        <ListItem
-          button
-          component={Link}
-          to="/chat"
-          selected={true}
-          sx={{
-            color: "text.primary",
-            "&.Mui-selected": {
-              bgcolor: "primary.main",
-              color: "white",
-              "&:hover": { bgcolor: "primary.dark" },
-            },
-            "&:hover": { bgcolor: "primary.light", color: "white" },
-          }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <ChatIcon />
-          </ListItemIcon>
-          <ListItemText primary="Chat" />
-        </ListItem>
-      </List>
-      <Divider />
-      <List>
-        <ListItem
-          button
-          onClick={handleLogout}
-          sx={{ "&:hover": { bgcolor: "error.light", color: "white" } }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <LogoutIcon />
-          </ListItemIcon>
-          <ListItemText primary="Sair" />
-        </ListItem>
-      </List>
+      {isMobile ? (
+        <SideDrawer
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          variant="temporary"
+          title="Gringo Delivery"
+          logoUrl="https://i.imgur.com/8jOdfcO.png"
+          logoAlt="Gringo Delivery"
+          logoHeight={50}
+          menuItems={menuItems}
+          footerItems={footerItems}
+          subtitle="Painel Administrativo"
+        />
+      ) : (
+        <SideDrawer
+          open={true}
+          variant="permanent"
+          title="Gringo Delivery"
+          logoUrl="https://i.imgur.com/8jOdfcO.png"
+          logoAlt="Gringo Delivery"
+          logoHeight={50}
+          menuItems={menuItems}
+          footerItems={footerItems}
+          subtitle="Painel Administrativo"
+        />
+      )}
     </Box>
   );
 

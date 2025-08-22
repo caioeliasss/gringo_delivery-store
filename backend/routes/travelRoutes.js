@@ -425,6 +425,172 @@ const getAllTravelsForAdmin = async (req, res) => {
   }
 };
 
+// Função para estabelecimento buscar suas corridas
+const getAllTravelsForStore = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      dateFilter,
+      financeStatus,
+      storeId,
+    } = req.query;
+
+    // Converter para números
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Construir filtros
+    let filters = {
+      "order.store.uid": storeId, // Filtrar pelo UID do estabelecimento
+    };
+
+    if (status && status !== "all") {
+      filters.status = status;
+    }
+
+    if (dateFilter && dateFilter !== "all") {
+      const now = new Date();
+      let startDate;
+
+      switch (dateFilter) {
+        case "today":
+          startDate = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate()
+          );
+          break;
+        case "week":
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case "month":
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          break;
+      }
+
+      if (startDate) {
+        filters.createdAt = { $gte: startDate };
+      }
+    }
+
+    if (financeStatus && financeStatus !== "all") {
+      filters["finance.status"] = financeStatus;
+    }
+
+    // Buscar travels com paginação
+    const travels = await Travel.find(filters)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .lean();
+
+    // Buscar informações dos motoboys separadamente
+    const motoboyIds = [
+      ...new Set(travels.map((t) => t.motoboyId).filter(Boolean)),
+    ];
+    const motoboys = await Motoboy.find({ _id: { $in: motoboyIds } }).lean();
+    const motoboyMap = motoboys.reduce((map, motoboy) => {
+      map[motoboy._id.toString()] = motoboy;
+      return map;
+    }, {});
+
+    // Enriquecer dados com nome do motoboy
+    const enrichedTravels = travels.map((travel) => ({
+      ...travel,
+      motoboyName:
+        motoboyMap[travel.motoboyId?.toString()]?.name || "Aguardando",
+    }));
+
+    // Calcular total de registros
+    const total = await Travel.countDocuments(filters);
+
+    // Calcular estatísticas do estabelecimento
+    const allStoreTravels = await Travel.find({
+      "order.store.uid": storeId,
+    }).lean();
+
+    // Calcular valores financeiros por status
+    const financeStats = {
+      totalPendente: 0,
+      totalLiberado: 0,
+      totalPago: 0,
+      totalCancelado: 0,
+      totalProcessando: 0,
+    };
+
+    allStoreTravels.forEach((travel) => {
+      const value = travel.finance?.value || travel.price || 0;
+      const financeStatus = travel.finance?.status || "pendente";
+
+      switch (financeStatus) {
+        case "pendente":
+          financeStats.totalPendente += value;
+          break;
+        case "liberado":
+          financeStats.totalLiberado += value;
+          break;
+        case "pago":
+          financeStats.totalPago += value;
+          break;
+        case "cancelado":
+          financeStats.totalCancelado += value;
+          break;
+        case "processando":
+          financeStats.totalProcessando += value;
+          break;
+      }
+    });
+
+    const stats = {
+      totalTravels: allStoreTravels.length,
+      entregueTravels: allStoreTravels.filter((t) => t.status === "entregue")
+        .length,
+      canceladoTravels: allStoreTravels.filter((t) => t.status === "cancelado")
+        .length,
+      emEntregaTravels: allStoreTravels.filter((t) => t.status === "em_entrega")
+        .length,
+      totalRevenue: allStoreTravels
+        .filter((t) => t.status === "entregue")
+        .reduce((sum, t) => sum + (t.price || 0), 0),
+      averagePrice:
+        allStoreTravels.length > 0
+          ? allStoreTravels.reduce((sum, t) => sum + (t.price || 0), 0) /
+            allStoreTravels.length
+          : 0,
+      totalDistance: allStoreTravels.reduce(
+        (sum, t) => sum + (t.distance || 0),
+        0
+      ),
+      averageDistance:
+        allStoreTravels.length > 0
+          ? allStoreTravels.reduce((sum, t) => sum + (t.distance || 0), 0) /
+            allStoreTravels.length
+          : 0,
+      // Estatísticas financeiras
+      financePendingValue: financeStats.totalPendente,
+      financeReleasedValue: financeStats.totalLiberado,
+      financePaidValue: financeStats.totalPago,
+      financeCanceledValue: financeStats.totalCancelado,
+      financeProcessingValue: financeStats.totalProcessando,
+    };
+
+    res.status(200).json({
+      travels: enrichedTravels,
+      total: total,
+      page: pageNum,
+      limit: limitNum,
+      hasMore: total > skip + limitNum,
+      stats: stats,
+    });
+  } catch (error) {
+    console.error("Erro ao buscar travels para estabelecimento:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Função para buscar todos os motoboys para filtro
 const getAllMotoboys = async (req, res) => {
   try {
@@ -442,6 +608,7 @@ const getAllMotoboys = async (req, res) => {
 // Adicione a rota
 router.get("/admin", getAllTravelsForAdmin); // Nova rota para admin
 router.get("/admin/motoboys", getAllMotoboys); // Nova rota para buscar motoboys
+router.get("/store", getAllTravelsForStore); // Nova rota para estabelecimento
 router.get("/price/:id", getCurrentTravelPrice);
 router.get("/details/:id", getTravelById);
 router.get("/order/:id", getTravelByOrderId);

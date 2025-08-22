@@ -125,6 +125,44 @@ export const ADMIN_MENU_ITEMS = [
   },
 ];
 
+export const STORE_MENU_ITEMS = [
+  {
+    path: "/dashboard",
+    text: "Dashboard",
+    icon: <DashboardIcon />,
+  },
+  {
+    path: "/pedidos",
+    text: "Pedidos",
+    icon: <OrdersIcon />,
+  },
+  {
+    path: "/corridas",
+    text: "Corridas",
+    icon: <CorridasIcon />,
+  },
+  {
+    path: "/produtos",
+    text: "Produtos",
+    icon: <ProductsIcon />,
+  },
+  {
+    path: "/financeiro",
+    text: "Financeiro",
+    icon: <FinanceiroIcon />,
+  },
+  {
+    path: "/chat",
+    text: "Chat",
+    icon: <ChatIcon />,
+  },
+  {
+    path: "/settings",
+    text: "Configurações",
+    icon: <SettingsIcon />,
+  },
+];
+
 // Função para detectar o subdomínio e retornar o menu apropriado
 const getMenuItemsBySubdomain = () => {
   const hostname = window.location.hostname;
@@ -134,10 +172,12 @@ const getMenuItemsBySubdomain = () => {
     return ADMIN_MENU_ITEMS;
   } else if (subdomain === "suporte") {
     return ORIGINAL_SUPPORT_MENU_ITEMS;
+  } else {
+    return STORE_MENU_ITEMS;
   }
 
   // Fallback para desenvolvimento local ou outros casos
-  return ORIGINAL_SUPPORT_MENU_ITEMS;
+  return STORE_MENU_ITEMS;
 };
 
 // Export dinâmico baseado no subdomínio

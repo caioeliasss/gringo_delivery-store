@@ -25,6 +25,7 @@ import OcorrenciasPage from "./pages/Ocorrencias/ocorrencias";
 import ChatStore from "./pages/Chat/chat";
 import SupportMapPage from "./pages/Suporte/map";
 import { AdminAuthProvider } from "./contexts/AdminAuthContext";
+import { StoreAuthProvider } from "./contexts/StoreAuthContext";
 import { GlobalNotificationsProvider } from "./contexts/GlobalNotificationsContext";
 import AdminDashboard from "./pages/Admin/Dashboard/dashboard";
 import AdminFinanceiro from "./pages/Admin/Financeiro/financeiro";
@@ -39,6 +40,8 @@ import SupportPage from "./pages/Admin/SuportTeam/SupportPage";
 import SupportNotifications from "./pages/Suporte/SupportNotifications";
 import Termos from "./pages/Termos/Termos";
 import ViewCoordinates from "./components/ViewCoordinates/ViewCoordinates";
+import CorridasStore from "./pages/Store/Corridas/CorridasStore";
+import FinanceiroStore from "./pages/Store/Financeiro/financeiro";
 // Definir tema personalizado com a paleta de cores da Gringo Delivery
 const theme = createTheme({
   typography: {
@@ -264,6 +267,26 @@ function CustomerApp() {
               element={
                 <PrivateRoute>
                   <ChatStore />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/corridas"
+              element={
+                <PrivateRoute>
+                  <StoreAuthProvider>
+                    <CorridasStore />
+                  </StoreAuthProvider>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/financeiro"
+              element={
+                <PrivateRoute>
+                  <StoreAuthProvider>
+                    <FinanceiroStore />
+                  </StoreAuthProvider>
                 </PrivateRoute>
               }
             />

@@ -86,6 +86,10 @@ import BuscandoMotoboy from "../../components/BuscandoMotoboy/BuscandoMotoboy";
 import GoogleMapReact from "google-map-react";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import CreateOrderDialog from "../Orders/CreateOrderDialog";
+import {
+  SUPPORT_MENU_ITEMS,
+  createAdminFooterItems,
+} from "../../config/menuConfig";
 
 const SearchField = ({
   placeholder,
@@ -1245,6 +1249,10 @@ const Pedidos = () => {
       setLoadingPreview(false);
     }
   };
+  const menuItems = SUPPORT_MENU_ITEMS;
+
+  // Definir itens de rodapé para SideDrawer
+  const footerItems = createAdminFooterItems(handleLogout);
 
   // Criar novo pedido com suporte a múltiplos clientes
   const handleCreatePedido = async () => {
@@ -1990,26 +1998,9 @@ const Pedidos = () => {
           logoUrl="https://i.imgur.com/8jOdfcO.png"
           logoAlt="Gringo Delivery"
           logoHeight={50}
-          menuItems={[
-            { path: "/dashboard", text: "Dashboard", icon: <DashboardIcon /> },
-            { path: "/produtos", text: "Produtos", icon: <ProductsIcon /> },
-            { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
-            {
-              path: "/ocorrencias",
-              text: "Ocorrências",
-              icon: <OcorrenciasIcon />,
-            },
-            { path: "/chat", text: "Chat", icon: <ChatIcon /> },
-          ]}
-          // Passa diretamente a função de logout
-          footerItems={[
-            {
-              text: "Sair",
-              icon: <LogoutIcon />,
-              onClick: handleLogout,
-              color: "error",
-            },
-          ]}
+          menuItems={menuItems}
+          footerItems={footerItems}
+          subtitle="Painel Administrativo"
         />
       ) : (
         <SideDrawer
@@ -2019,25 +2010,9 @@ const Pedidos = () => {
           logoUrl="https://i.imgur.com/8jOdfcO.png"
           logoAlt="Gringo Delivery"
           logoHeight={50}
-          menuItems={[
-            { path: "/dashboard", text: "Dashboard", icon: <DashboardIcon /> },
-            { path: "/produtos", text: "Produtos", icon: <ProductsIcon /> },
-            { path: "/pedidos", text: "Pedidos", icon: <OrdersIcon /> },
-            {
-              path: "/ocorrencias",
-              text: "Ocorrências",
-              icon: <OcorrenciasIcon />,
-            },
-            { path: "/chat", text: "Chat", icon: <ChatIcon /> },
-          ]}
-          footerItems={[
-            {
-              text: "Sair",
-              icon: <LogoutIcon />,
-              onClick: handleLogout,
-              color: "error",
-            },
-          ]}
+          menuItems={menuItems}
+          footerItems={footerItems}
+          subtitle="Painel Administrativo"
         />
       )}
 
