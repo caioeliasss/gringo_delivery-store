@@ -133,7 +133,7 @@ class ApiCache {
 
     // Log em desenvolvimento
     if (process.env.NODE_ENV === "development") {
-      console.log(`🗄️ Cache SET: ${key} (TTL: ${ttl}ms)`);
+      // console.log(`🗄️ Cache SET: ${key} (TTL: ${ttl}ms)`);
     }
   }
 
@@ -170,7 +170,7 @@ class ApiCache {
     }
 
     if (process.env.NODE_ENV === "development" && cleanedCount > 0) {
-      console.log(`🧹 Cache cleanup: ${cleanedCount} expired entries removed`);
+      // console.log(`🧹 Cache cleanup: ${cleanedCount} expired entries removed`);
     }
 
     return cleanedCount;
@@ -182,7 +182,7 @@ class ApiCache {
     this.cache.clear();
 
     if (process.env.NODE_ENV === "development") {
-      console.log(`🗑️ Cache cleared: ${size} entries removed`);
+      // console.log(`🗑️ Cache cleared: ${size} entries removed`);
     }
 
     return size;
@@ -361,7 +361,7 @@ api.interceptors.request.use(
 
       if (cachedResponse) {
         if (process.env.NODE_ENV === "development") {
-          console.log(`🗄️ Cache HIT: ${config.url}`);
+          // console.log(`🗄️ Cache HIT: ${config.url}`);
         }
 
         // Para cache hit, precisamos cancelar a requisição e retornar o valor do cache
@@ -384,7 +384,7 @@ api.interceptors.request.use(
       try {
         const token = await user.getIdToken();
         if (process.env.NODE_ENV !== "production") {
-          console.log("Token de autenticação:", token);
+          // console.log("Token de autenticação:", token);
         }
         config.headers = config.headers || {};
         config.headers.Authorization = `Bearer ${token}`;
@@ -411,7 +411,7 @@ api.interceptors.response.use(
       );
 
       if (process.env.NODE_ENV === "development") {
-        console.log(`🗄️ Cache MISS -> SET: ${response.config.url}`);
+        // console.log(`🗄️ Cache MISS -> SET: ${response.config.url}`);
       }
     }
 
@@ -696,7 +696,7 @@ export const prefetchData = async (endpoints = []) => {
         ...endpoint.config,
         cacheTTL: endpoint.ttl || apiCache.defaultTTL,
       });
-      console.log(`✅ Prefetch success: ${endpoint.url}`);
+      // console.log(`✅ Prefetch success: ${endpoint.url}`);
     } catch (error) {
       console.warn(`⚠️ Prefetch failed: ${endpoint.url}`, error.message);
     }

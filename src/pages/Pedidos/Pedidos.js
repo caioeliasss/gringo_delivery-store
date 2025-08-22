@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import { useAuth } from "../../contexts/AuthContext";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import api from "../../services/api";
 import { findMotoboys, getStoreOrders } from "../../services/api";
 import SideDrawer from "../../components/SideDrawer/SideDrawer";
@@ -253,11 +253,59 @@ const Pedidos = () => {
   const [statusBuscandoMotoboy, setStatusBuscandoMotoboy] =
     useState("pendente");
   // Removido em favor de activeCustomerIndex
-
+  const location = useLocation();
   // Estados para preview de custo
   const [previewCost, setPreviewCost] = useState(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [driveBack, setDriveBack] = useState(false);
+
+  useEffect(() => {
+    // Verificar se há um orderId passado via state
+    if (location.state?.orderId) {
+      const orderId = location.state.orderId;
+      console.log("🔍 Procurando pedido com ID:", orderId);
+
+      if (pedidos.length > 0) {
+        const targetOrder = pedidos.find((order) => order._id === orderId);
+        if (targetOrder) {
+          console.log("✅ Pedido encontrado na lista local:", targetOrder);
+          handleViewPedido(targetOrder);
+          // Limpar o state para evitar abrir novamente
+          navigate(location.pathname, { replace: true });
+        } else {
+          console.log("⚠️ Pedido não encontrado na lista, buscando na API...");
+          fetchSpecificOrder(orderId);
+        }
+      } else if (!loading) {
+        // Se não há pedidos carregados e não está carregando, buscar na API
+        console.log("⚠️ Lista de pedidos vazia, buscando na API...");
+        fetchSpecificOrder(orderId);
+      }
+    }
+  }, [location.state?.orderId, pedidos.length, loading]);
+
+  const fetchSpecificOrder = async (orderId) => {
+    try {
+      console.log("🔍 Buscando pedido específico:", orderId);
+      const response = await api.get(`/orders/${orderId}`);
+      const order = response.data;
+      if (order) {
+        console.log("✅ Pedido encontrado:", order);
+        handleViewPedido(order);
+        // Limpar o state para evitar abrir novamente
+        navigate(location.pathname, { replace: true });
+      }
+    } catch (error) {
+      console.error("❌ Erro ao buscar pedido específico:", error);
+      setSnackbar({
+        open: true,
+        message: `Pedido ${orderId} não encontrado.`,
+        severity: "error",
+      });
+      // Limpar o state mesmo em caso de erro
+      navigate(location.pathname, { replace: true });
+    }
+  };
 
   useEffect(() => {
     // Só conectar o SSE se o usuário estiver autenticado
@@ -1249,10 +1297,6 @@ const Pedidos = () => {
       setLoadingPreview(false);
     }
   };
-  const menuItems = SUPPORT_MENU_ITEMS;
-
-  // Definir itens de rodapé para SideDrawer
-  const footerItems = createAdminFooterItems(handleLogout);
 
   // Criar novo pedido com suporte a múltiplos clientes
   const handleCreatePedido = async () => {
@@ -1434,6 +1478,10 @@ const Pedidos = () => {
       console.error("Erro ao fazer logout:", error);
     }
   };
+  const menuItems = SUPPORT_MENU_ITEMS;
+
+  // Definir itens de rodapé para SideDrawer
+  const footerItems = createAdminFooterItems(handleLogout);
 
   // Formatação de data e hora
   const formatDateTime = (dateString) => {

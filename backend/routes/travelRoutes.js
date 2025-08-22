@@ -341,10 +341,63 @@ const getAllTravelsForAdmin = async (req, res) => {
     // Calcular total de registros
     const total = await Travel.countDocuments(filters);
 
-    // Calcular estatísticas gerais
-    const allTravels = await Travel.find({}).lean();
+    // ✅ OTIMIZAÇÃO: Usar agregação para calcular estatísticas (muito mais eficiente)
+    const statsAggregation = await Travel.aggregate([
+      {
+        $facet: {
+          // Contar por status
+          statusStats: [
+            {
+              $group: {
+                _id: "$status",
+                count: { $sum: 1 },
+                totalValue: { $sum: { $ifNull: ["$price", 0] } },
+              },
+            },
+          ],
+          // Contar por status financeiro
+          financeStats: [
+            {
+              $group: {
+                _id: { $ifNull: ["$finance.status", "pendente"] },
+                totalValue: {
+                  $sum: { $ifNull: ["$finance.value", "$price", 0] },
+                },
+              },
+            },
+          ],
+          // Estatísticas gerais
+          generalStats: [
+            {
+              $group: {
+                _id: null,
+                totalTravels: { $sum: 1 },
+                totalRevenue: { $sum: { $ifNull: ["$price", 0] } },
+                totalDistance: { $sum: { $ifNull: ["$distance", 0] } },
+                avgPrice: { $avg: { $ifNull: ["$price", 0] } },
+                avgDistance: { $avg: { $ifNull: ["$distance", 0] } },
+              },
+            },
+          ],
+        },
+      },
+    ]);
 
-    // Calcular valores financeiros por status
+    // Processar resultados da agregação
+    const aggregationResult = statsAggregation[0] || {};
+
+    // Processar estatísticas de status
+    const statusCounts = {
+      entregue: 0,
+      cancelado: 0,
+      em_entrega: 0,
+    };
+
+    (aggregationResult.statusStats || []).forEach((stat) => {
+      statusCounts[stat._id] = stat.count;
+    });
+
+    // Processar estatísticas financeiras
     const financeStats = {
       totalPendente: 0,
       totalLiberado: 0,
@@ -353,50 +406,47 @@ const getAllTravelsForAdmin = async (req, res) => {
       totalProcessando: 0,
     };
 
-    allTravels.forEach((travel) => {
-      const value = travel.finance?.value || travel.price || 0;
-      const financeStatus = travel.finance?.status || "pendente";
+    (aggregationResult.financeStats || []).forEach((stat) => {
+      const status = stat._id;
+      const value = stat.totalValue;
 
-      switch (financeStatus) {
+      switch (status) {
         case "pendente":
-          financeStats.totalPendente += value;
+          financeStats.totalPendente = value;
           break;
         case "liberado":
-          financeStats.totalLiberado += value;
+          financeStats.totalLiberado = value;
           break;
         case "pago":
-          financeStats.totalPago += value;
+          financeStats.totalPago = value;
           break;
         case "cancelado":
-          financeStats.totalCancelado += value;
+          financeStats.totalCancelado = value;
           break;
         case "processando":
-          financeStats.totalProcessando += value;
+          financeStats.totalProcessando = value;
           break;
       }
     });
 
+    // Estatísticas gerais
+    const generalStats = aggregationResult.generalStats[0] || {
+      totalTravels: 0,
+      totalRevenue: 0,
+      totalDistance: 0,
+      avgPrice: 0,
+      avgDistance: 0,
+    };
+
     const stats = {
-      totalTravels: allTravels.length,
-      entregueTravels: allTravels.filter((t) => t.status === "entregue").length,
-      canceladoTravels: allTravels.filter((t) => t.status === "cancelado")
-        .length,
-      emEntregaTravels: allTravels.filter((t) => t.status === "em_entrega")
-        .length,
-      totalRevenue: allTravels
-        .filter((t) => t.status === "entregue")
-        .reduce((sum, t) => sum + (t.price || 0), 0),
-      averagePrice:
-        allTravels.length > 0
-          ? allTravels.reduce((sum, t) => sum + (t.price || 0), 0) /
-            allTravels.length
-          : 0,
-      totalDistance: allTravels.reduce((sum, t) => sum + (t.distance || 0), 0),
-      averageDistance:
-        allTravels.length > 0
-          ? allTravels.reduce((sum, t) => sum + (t.distance || 0), 0) /
-            allTravels.length
-          : 0,
+      totalTravels: generalStats.totalTravels,
+      entregueTravels: statusCounts.entregue,
+      canceladoTravels: statusCounts.cancelado,
+      emEntregaTravels: statusCounts.em_entrega,
+      totalRevenue: generalStats.totalRevenue,
+      averagePrice: generalStats.avgPrice || 0,
+      totalDistance: generalStats.totalDistance,
+      averageDistance: generalStats.avgDistance || 0,
       // Estatísticas financeiras
       financePendingValue: financeStats.totalPendente,
       financeReleasedValue: financeStats.totalLiberado,
@@ -425,6 +475,60 @@ const getAllTravelsForAdmin = async (req, res) => {
   }
 };
 
+// ✅ ROTA DE DEBUG: Para verificar a estrutura dos dados
+const debugTravelStructure = async (req, res) => {
+  try {
+    const { firebaseUid } = req.query;
+
+    console.log(
+      "🔍 DEBUG: Verificando estrutura para firebaseUid:",
+      firebaseUid
+    );
+
+    // Buscar alguns documentos Travel para verificar a estrutura
+    const sampleTravels = await Travel.find({}).limit(5).lean();
+
+    console.log("📄 Estrutura de exemplo dos travels:");
+    sampleTravels.forEach((travel, index) => {
+      console.log(`\n--- Travel ${index + 1} ---`);
+      console.log("ID:", travel._id);
+      console.log("Order Store:", JSON.stringify(travel.order?.store, null, 2));
+      console.log("Order ID:", travel.order?._id);
+    });
+
+    // Tentar diferentes combinações de filtros
+    const filterTests = [
+      { "order.store.uid": firebaseUid },
+      { "order.store.firebaseUid": firebaseUid },
+      { "order.firebaseUid": firebaseUid },
+      { firebaseUid: firebaseUid },
+    ];
+
+    const results = {};
+
+    for (let i = 0; i < filterTests.length; i++) {
+      const filter = filterTests[i];
+      const count = await Travel.countDocuments(filter);
+      const filterKey = Object.keys(filter)[0];
+      results[filterKey] = count;
+      console.log(`🔢 Filtro "${filterKey}": ${count} documentos encontrados`);
+    }
+
+    res.json({
+      firebaseUid,
+      sampleTravels: sampleTravels.map((t) => ({
+        _id: t._id,
+        orderStore: t.order?.store,
+        orderId: t.order?._id,
+      })),
+      filterResults: results,
+    });
+  } catch (error) {
+    console.error("❌ Erro no debug:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Função para estabelecimento buscar suas corridas
 const getAllTravelsForStore = async (req, res) => {
   try {
@@ -434,7 +538,8 @@ const getAllTravelsForStore = async (req, res) => {
       status,
       dateFilter,
       financeStatus,
-      storeId,
+      firebaseUid,
+      cnpj, // ✅ Adicionar CNPJ como alternativa
     } = req.query;
 
     // Converter para números
@@ -442,10 +547,29 @@ const getAllTravelsForStore = async (req, res) => {
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
-    // Construir filtros
-    let filters = {
-      "order.store.uid": storeId, // Filtrar pelo UID do estabelecimento
-    };
+    // ✅ CORREÇÃO: Construir filtros baseado no que existe no banco
+    let filters = {};
+
+    // Priorizar firebaseUid se existir, senão usar CNPJ
+    if (firebaseUid) {
+      // Tentar diferentes campos onde o firebaseUid pode estar
+      filters = {
+        $or: [
+          { "order.store.uid": firebaseUid },
+          { "order.store.firebaseUid": firebaseUid },
+          { "order.firebaseUid": firebaseUid },
+          { firebaseUid: firebaseUid },
+        ],
+      };
+    } else if (cnpj) {
+      filters["order.store.cnpj"] = cnpj;
+    } else {
+      return res.status(400).json({
+        message: "É necessário informar firebaseUid ou CNPJ do estabelecimento",
+      });
+    }
+
+    console.log("🔍 Filtros aplicados:", JSON.stringify(filters, null, 2));
 
     if (status && status !== "all") {
       filters.status = status;
@@ -507,12 +631,66 @@ const getAllTravelsForStore = async (req, res) => {
     // Calcular total de registros
     const total = await Travel.countDocuments(filters);
 
-    // Calcular estatísticas do estabelecimento
-    const allStoreTravels = await Travel.find({
-      "order.store.uid": storeId,
-    }).lean();
+    // ✅ OTIMIZAÇÃO: Usar agregação para calcular estatísticas (muito mais eficiente)
+    const statsAggregation = await Travel.aggregate([
+      {
+        $match: filters, // ✅ Usar os mesmos filtros da consulta principal
+      },
+      {
+        $facet: {
+          // Contar por status
+          statusStats: [
+            {
+              $group: {
+                _id: "$status",
+                count: { $sum: 1 },
+                totalValue: { $sum: { $ifNull: ["$price", 0] } },
+              },
+            },
+          ],
+          // Contar por status financeiro
+          financeStats: [
+            {
+              $group: {
+                _id: { $ifNull: ["$finance.status", "pendente"] },
+                totalValue: {
+                  $sum: { $ifNull: ["$finance.value", "$price", 0] },
+                },
+              },
+            },
+          ],
+          // Estatísticas gerais
+          generalStats: [
+            {
+              $group: {
+                _id: null,
+                totalTravels: { $sum: 1 },
+                totalRevenue: { $sum: { $ifNull: ["$price", 0] } },
+                totalDistance: { $sum: { $ifNull: ["$distance", 0] } },
+                avgPrice: { $avg: { $ifNull: ["$price", 0] } },
+                avgDistance: { $avg: { $ifNull: ["$distance", 0] } },
+              },
+            },
+          ],
+        },
+      },
+    ]);
 
-    // Calcular valores financeiros por status
+    // Processar resultados da agregação
+    const aggregationResult = statsAggregation[0] || {};
+
+    // Processar estatísticas de status
+    const statusCounts = {
+      entregue: 0,
+      cancelado: 0,
+      em_entrega: 0,
+    };
+
+    (aggregationResult.statusStats || []).forEach((stat) => {
+      statusCounts[stat._id] = stat.count;
+    });
+
+    // Processar estatísticas financeiras
     const financeStats = {
       totalPendente: 0,
       totalLiberado: 0,
@@ -521,54 +699,47 @@ const getAllTravelsForStore = async (req, res) => {
       totalProcessando: 0,
     };
 
-    allStoreTravels.forEach((travel) => {
-      const value = travel.finance?.value || travel.price || 0;
-      const financeStatus = travel.finance?.status || "pendente";
+    (aggregationResult.financeStats || []).forEach((stat) => {
+      const status = stat._id;
+      const value = stat.totalValue;
 
-      switch (financeStatus) {
+      switch (status) {
         case "pendente":
-          financeStats.totalPendente += value;
+          financeStats.totalPendente = value;
           break;
         case "liberado":
-          financeStats.totalLiberado += value;
+          financeStats.totalLiberado = value;
           break;
         case "pago":
-          financeStats.totalPago += value;
+          financeStats.totalPago = value;
           break;
         case "cancelado":
-          financeStats.totalCancelado += value;
+          financeStats.totalCancelado = value;
           break;
         case "processando":
-          financeStats.totalProcessando += value;
+          financeStats.totalProcessando = value;
           break;
       }
     });
 
+    // Estatísticas gerais
+    const generalStats = aggregationResult.generalStats[0] || {
+      totalTravels: 0,
+      totalRevenue: 0,
+      totalDistance: 0,
+      avgPrice: 0,
+      avgDistance: 0,
+    };
+
     const stats = {
-      totalTravels: allStoreTravels.length,
-      entregueTravels: allStoreTravels.filter((t) => t.status === "entregue")
-        .length,
-      canceladoTravels: allStoreTravels.filter((t) => t.status === "cancelado")
-        .length,
-      emEntregaTravels: allStoreTravels.filter((t) => t.status === "em_entrega")
-        .length,
-      totalRevenue: allStoreTravels
-        .filter((t) => t.status === "entregue")
-        .reduce((sum, t) => sum + (t.price || 0), 0),
-      averagePrice:
-        allStoreTravels.length > 0
-          ? allStoreTravels.reduce((sum, t) => sum + (t.price || 0), 0) /
-            allStoreTravels.length
-          : 0,
-      totalDistance: allStoreTravels.reduce(
-        (sum, t) => sum + (t.distance || 0),
-        0
-      ),
-      averageDistance:
-        allStoreTravels.length > 0
-          ? allStoreTravels.reduce((sum, t) => sum + (t.distance || 0), 0) /
-            allStoreTravels.length
-          : 0,
+      totalTravels: generalStats.totalTravels,
+      entregueTravels: statusCounts.entregue,
+      canceladoTravels: statusCounts.cancelado,
+      emEntregaTravels: statusCounts.em_entrega,
+      totalRevenue: generalStats.totalRevenue,
+      averagePrice: generalStats.avgPrice || 0,
+      totalDistance: generalStats.totalDistance,
+      averageDistance: generalStats.avgDistance || 0,
       // Estatísticas financeiras
       financePendingValue: financeStats.totalPendente,
       financeReleasedValue: financeStats.totalLiberado,
@@ -606,6 +777,7 @@ const getAllMotoboys = async (req, res) => {
 };
 
 // Adicione a rota
+router.get("/debug/structure", debugTravelStructure); // ✅ Rota de debug
 router.get("/admin", getAllTravelsForAdmin); // Nova rota para admin
 router.get("/admin/motoboys", getAllMotoboys); // Nova rota para buscar motoboys
 router.get("/store", getAllTravelsForStore); // Nova rota para estabelecimento

@@ -46,15 +46,23 @@ import {
 } from "@mui/icons-material";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useNavigate } from "react-router-dom";
 import SideDrawer from "../../../components/SideDrawer/SideDrawer";
 import { STORE_MENU_ITEMS } from "../../../config/menuConfig";
 import { UseStoreAuth } from "../../../contexts/StoreAuthContext";
 import api from "../../../services/api";
+import { Link as RouterLink } from "react-router-dom";
 
 const CorridasStore = () => {
-  const { StoreUser, logoutStore } = UseStoreAuth();
+  const {
+    StoreUser,
+    logoutStore,
+    loading: authLoading,
+    isStoreMember,
+  } = UseStoreAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const navigate = useNavigate();
 
   // Configuração do menu
   const menuItems = STORE_MENU_ITEMS;
@@ -112,17 +120,63 @@ const CorridasStore = () => {
 
   // Carregar dados iniciais
   useEffect(() => {
-    fetchTravelData();
-  }, [page, rowsPerPage, statusFilter, dateFilter, financeStatusFilter]);
+    // Só fazer a busca quando a autenticação estiver carregada e o usuário estiver autenticado
+    if (!authLoading && StoreUser) {
+      fetchTravelData();
+    }
+  }, [
+    page,
+    rowsPerPage,
+    statusFilter,
+    dateFilter,
+    financeStatusFilter,
+    authLoading,
+    StoreUser,
+  ]);
+
+  // Redirecionar para login se não for membro da loja após autenticação carregar
+  useEffect(() => {
+    if (!authLoading && !isStoreMember) {
+      console.log("Usuário não é membro da loja, redirecionando para login");
+      navigate("/login");
+    }
+  }, [authLoading, isStoreMember, navigate]);
 
   const fetchTravelData = async () => {
     try {
       setLoading(true);
 
+      // Verificar se ainda está carregando a autenticação
+      if (authLoading) {
+        console.log("Aguardando autenticação...");
+        return;
+      }
+
       // Buscar corridas do estabelecimento
+      if (!StoreUser) {
+        console.log("StoreUser não encontrado, não é possível buscar corridas");
+        showAlert(
+          "Acesso negado: apenas estabelecimentos podem visualizar esta página",
+          "error"
+        );
+        return;
+      }
+
+      if (!isStoreMember) {
+        console.log("Usuário não é membro de estabelecimento");
+        showAlert(
+          "Acesso negado: usuário não é um estabelecimento válido",
+          "error"
+        );
+        return;
+      }
+
+      console.log("Buscando corridas para o estabelecimento:", StoreUser);
+
       const response = await api.get("/travels/store", {
         params: {
-          storeId: StoreUser?.uid,
+          firebaseUid: StoreUser?.uid,
+          cnpj: StoreUser?.cnpj,
           page: page + 1,
           limit: rowsPerPage,
           status: statusFilter !== "all" ? statusFilter : undefined,
@@ -375,385 +429,450 @@ const CorridasStore = () => {
       />
 
       <Container maxWidth="xl" sx={{ mt: 4, mb: 4, flexGrow: 1 }}>
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Minhas Corridas
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Visualize todas as corridas relacionadas ao seu estabelecimento
-          </Typography>
-        </Box>
-
-        {/* Cards de Estatísticas Principais */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Total de Corridas"
-              value={travelStats.totalTravels}
-              icon={<DirectionsCarIcon />}
-              color="primary"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Corridas Entregues"
-              value={travelStats.entregueTravels}
-              icon={<TimelineIcon />}
-              color="success"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Em Entrega"
-              value={travelStats.emEntregaTravels}
-              icon={<TimelineIcon />}
-              color="warning"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Receita Total"
-              value={travelStats.totalRevenue}
-              icon={<AttachMoneyIcon />}
-              color="info"
-              format="currency"
-            />
-          </Grid>
-        </Grid>
-
-        <Divider sx={{ margin: 4 }} />
-
-        {/* Cards de Estatísticas Financeiras */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Pendente"
-              value={travelStats.financePendingValue}
-              icon={<AttachMoneyIcon />}
-              color="warning"
-              format="currency"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Processando"
-              value={travelStats.financeProcessingValue}
-              icon={<AttachMoneyIcon />}
-              color="secondary"
-              format="currency"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Liberado"
-              value={travelStats.financeReleasedValue}
-              icon={<AttachMoneyIcon />}
-              color="info"
-              format="currency"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Pago"
-              value={travelStats.financePaidValue}
-              icon={<AttachMoneyIcon />}
-              color="success"
-              format="currency"
-            />
-          </Grid>
-        </Grid>
-
-        {/* Filtros */}
-        <Paper sx={{ p: 3, mb: 3 }}>
-          <Box display="flex" alignItems="center" mb={2}>
-            <FilterListIcon sx={{ mr: 1 }} />
-            <Typography variant="h6">Filtros</Typography>
+        {/* Mostrar loading enquanto a autenticação está sendo carregada */}
+        {authLoading ? (
+          <Box
+            display="flex"
+            flexDirection="column"
+            justifyContent="center"
+            alignItems="center"
+            minHeight="50vh"
+          >
+            <Typography variant="h6" gutterBottom>
+              Verificando autenticação...
+            </Typography>
+            <Typography variant="body2" color="textSecondary">
+              Aguarde enquanto verificamos suas credenciais
+            </Typography>
           </Box>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Status da Corrida</InputLabel>
-                <Select
-                  value={statusFilter}
-                  label="Status da Corrida"
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <MenuItem value="all">Todos</MenuItem>
-                  <MenuItem value="entregue">Entregue</MenuItem>
-                  <MenuItem value="em_entrega">Em Entrega</MenuItem>
-                  <MenuItem value="cancelado">Cancelado</MenuItem>
-                  <MenuItem value="aceito">Aceito</MenuItem>
-                  <MenuItem value="pendente">Pendente</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Status Financeiro</InputLabel>
-                <Select
-                  value={financeStatusFilter}
-                  label="Status Financeiro"
-                  onChange={(e) => setFinanceStatusFilter(e.target.value)}
-                >
-                  <MenuItem value="all">Todos</MenuItem>
-                  <MenuItem value="pago">Pago</MenuItem>
-                  <MenuItem value="liberado">Liberado</MenuItem>
-                  <MenuItem value="processando">Processando</MenuItem>
-                  <MenuItem value="pendente">Pendente</MenuItem>
-                  <MenuItem value="cancelado">Cancelado</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Período</InputLabel>
-                <Select
-                  value={dateFilter}
-                  label="Período"
-                  onChange={(e) => setDateFilter(e.target.value)}
-                >
-                  <MenuItem value="all">Todos</MenuItem>
-                  <MenuItem value="today">Hoje</MenuItem>
-                  <MenuItem value="week">Esta semana</MenuItem>
-                  <MenuItem value="month">Este mês</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Button
-                variant="outlined"
-                startIcon={<RefreshIcon />}
-                onClick={fetchTravelData}
-                fullWidth
-                size="small"
-              >
-                Atualizar
-              </Button>
-            </Grid>
-          </Grid>
-        </Paper>
-
-        {/* Tabela de Corridas */}
-        <Paper sx={{ width: "100%", overflow: "hidden" }}>
-          <TableContainer>
-            <Table stickyHeader>
-              <TableHead>
-                <TableRow>
-                  <TableCell>ID</TableCell>
-                  <TableCell>Motoboy</TableCell>
-                  <TableCell>Cliente</TableCell>
-                  <TableCell>Valor</TableCell>
-                  <TableCell>Distância</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Pagamento</TableCell>
-                  <TableCell>Data</TableCell>
-                  <TableCell>Ações</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {travels.map((travel) => (
-                  <TableRow key={travel._id} hover>
-                    <TableCell>
-                      <Typography variant="body2" fontFamily="monospace">
-                        {travel._id?.substring(0, 8)}...
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Box display="flex" alignItems="center">
-                        <Avatar sx={{ mr: 1, width: 32, height: 32 }}>
-                          <PersonIcon fontSize="small" />
-                        </Avatar>
-                        <Typography variant="body2">
-                          {travel.motoboyName || "Aguardando"}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {travel.order?.customer?.[0]?.name ||
-                          travel.order?.customer?.[0]?.customerName ||
-                          "N/A"}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight="bold">
-                        {formatCurrency(travel.price)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {formatDistance(travel.distance)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>{getStatusChip(travel.status)}</TableCell>
-                    <TableCell>
-                      {getFinanceStatusChip(travel.finance?.status)}
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {formatDate(travel.createdAt)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Tooltip title="Ver detalhes">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleViewDetails(travel)}
-                        >
-                          <VisibilityIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          <TablePagination
-            component="div"
-            count={totalCount}
-            page={page}
-            onPageChange={handleChangePage}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            labelRowsPerPage="Linhas por página:"
-            labelDisplayedRows={({ from, to, count }) =>
-              `${from}-${to} de ${count !== -1 ? count : `mais de ${to}`}`
-            }
-          />
-        </Paper>
-
-        {/* Modal de Detalhes da Corrida */}
-        <Dialog
-          open={detailsOpen}
-          onClose={() => setDetailsOpen(false)}
-          maxWidth="md"
-          fullWidth
-        >
-          <DialogTitle>
-            <Box display="flex" alignItems="center">
-              <DirectionsCarIcon sx={{ mr: 1 }} />
-              Detalhes da Corrida
+        ) : !StoreUser ? (
+          <Box
+            display="flex"
+            flexDirection="column"
+            justifyContent="center"
+            alignItems="center"
+            minHeight="50vh"
+          >
+            <Typography variant="h6" color="error" gutterBottom>
+              Acesso restrito a estabelecimentos
+            </Typography>
+            <Typography
+              variant="body1"
+              color="textSecondary"
+              align="center"
+              sx={{ mb: 2 }}
+            >
+              Esta página é exclusiva para estabelecimentos cadastrados.
+              <br />
+              Faça login com uma conta de estabelecimento válida.
+            </Typography>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => navigate("/login")}
+            >
+              Fazer Login
+            </Button>
+          </Box>
+        ) : (
+          <>
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="h4" component="h1" gutterBottom>
+                Minhas Corridas
+              </Typography>
+              <Typography variant="body1" color="text.secondary">
+                Visualize todas as corridas relacionadas ao seu estabelecimento
+              </Typography>
             </Box>
-          </DialogTitle>
-          <DialogContent>
-            {selectedTravel && (
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                  <Typography variant="h6" gutterBottom>
-                    Informações da Corrida
-                  </Typography>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="textSecondary">
-                      ID da Corrida
-                    </Typography>
-                    <Typography variant="body1" fontFamily="monospace">
-                      {selectedTravel._id}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="textSecondary">
-                      Status
-                    </Typography>
-                    {getStatusChip(selectedTravel.status)}
-                  </Box>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="textSecondary">
-                      Valor da Entrega
-                    </Typography>
-                    <Typography variant="h6" color="primary">
-                      {formatCurrency(selectedTravel.price)}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="textSecondary">
-                      Distância
-                    </Typography>
-                    <Typography variant="body1">
-                      {formatDistance(selectedTravel.distance)}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="textSecondary">
-                      Data da Corrida
-                    </Typography>
-                    <Typography variant="body1">
-                      {formatDate(selectedTravel.createdAt)}
-                    </Typography>
-                  </Box>
+
+            {/* Cards de Estatísticas Principais */}
+            <Grid container spacing={3} sx={{ mb: 4 }}>
+              <Grid item xs={12} sm={6} md={3}>
+                <StatCard
+                  title="Total de Corridas"
+                  value={travelStats.totalTravels}
+                  icon={<DirectionsCarIcon />}
+                  color="primary"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <StatCard
+                  title="Corridas Entregues"
+                  value={travelStats.entregueTravels}
+                  icon={<TimelineIcon />}
+                  color="success"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <StatCard
+                  title="Em Entrega"
+                  value={travelStats.emEntregaTravels}
+                  icon={<TimelineIcon />}
+                  color="warning"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <StatCard
+                  title="Receita Total"
+                  value={travelStats.totalRevenue}
+                  icon={<AttachMoneyIcon />}
+                  color="info"
+                  format="currency"
+                />
+              </Grid>
+            </Grid>
+
+            <Divider sx={{ margin: 4 }} />
+
+            {/* Cards de Estatísticas Financeiras */}
+            <Grid container spacing={3} sx={{ mb: 4 }}>
+              <Grid item xs={12} sm={6} md={3}>
+                <StatCard
+                  title="Pendente"
+                  value={travelStats.financePendingValue}
+                  icon={<AttachMoneyIcon />}
+                  color="warning"
+                  format="currency"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <StatCard
+                  title="Processando"
+                  value={travelStats.financeProcessingValue}
+                  icon={<AttachMoneyIcon />}
+                  color="secondary"
+                  format="currency"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <StatCard
+                  title="Liberado"
+                  value={travelStats.financeReleasedValue}
+                  icon={<AttachMoneyIcon />}
+                  color="info"
+                  format="currency"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <StatCard
+                  title="Pago"
+                  value={travelStats.financePaidValue}
+                  icon={<AttachMoneyIcon />}
+                  color="success"
+                  format="currency"
+                />
+              </Grid>
+            </Grid>
+
+            {/* Filtros */}
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Box display="flex" alignItems="center" mb={2}>
+                <FilterListIcon sx={{ mr: 1 }} />
+                <Typography variant="h6">Filtros</Typography>
+              </Box>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Status da Corrida</InputLabel>
+                    <Select
+                      value={statusFilter}
+                      label="Status da Corrida"
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                    >
+                      <MenuItem value="all">Todos</MenuItem>
+                      <MenuItem value="entregue">Entregue</MenuItem>
+                      <MenuItem value="em_entrega">Em Entrega</MenuItem>
+                      <MenuItem value="cancelado">Cancelado</MenuItem>
+                      <MenuItem value="aceito">Aceito</MenuItem>
+                      <MenuItem value="pendente">Pendente</MenuItem>
+                    </Select>
+                  </FormControl>
                 </Grid>
-                <Grid item xs={12} md={6}>
-                  <Typography variant="h6" gutterBottom>
-                    Informações do Pedido
-                  </Typography>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="textSecondary">
-                      Motoboy Responsável
-                    </Typography>
-                    <Typography variant="body1">
-                      {selectedTravel.motoboyName || "Aguardando aceite"}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="textSecondary">
-                      Cliente
-                    </Typography>
-                    <Typography variant="body1">
-                      {selectedTravel.order?.customer?.[0]?.name ||
-                        selectedTravel.order?.customer?.[0]?.customerName ||
-                        "N/A"}
-                    </Typography>
-                  </Box>
-                  <Divider sx={{ my: 2 }} />
-                  <Typography variant="h6" gutterBottom>
-                    Status Financeiro
-                  </Typography>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="textSecondary">
-                      Status do Pagamento
-                    </Typography>
-                    {getFinanceStatusChip(selectedTravel.finance?.status)}
-                  </Box>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="textSecondary">
-                      Valor do Pagamento
-                    </Typography>
-                    <Typography variant="body1">
-                      {formatCurrency(selectedTravel.finance?.value)}
-                    </Typography>
-                  </Box>
+                <Grid item xs={12} sm={6} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Status Financeiro</InputLabel>
+                    <Select
+                      value={financeStatusFilter}
+                      label="Status Financeiro"
+                      onChange={(e) => setFinanceStatusFilter(e.target.value)}
+                    >
+                      <MenuItem value="all">Todos</MenuItem>
+                      <MenuItem value="pago">Pago</MenuItem>
+                      <MenuItem value="liberado">Liberado</MenuItem>
+                      <MenuItem value="processando">Processando</MenuItem>
+                      <MenuItem value="pendente">Pendente</MenuItem>
+                      <MenuItem value="cancelado">Cancelado</MenuItem>
+                    </Select>
+                  </FormControl>
                 </Grid>
-                {selectedTravel.coordinatesFrom &&
-                  selectedTravel.coordinatesTo && (
-                    <Grid item xs={12}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Período</InputLabel>
+                    <Select
+                      value={dateFilter}
+                      label="Período"
+                      onChange={(e) => setDateFilter(e.target.value)}
+                    >
+                      <MenuItem value="all">Todos</MenuItem>
+                      <MenuItem value="today">Hoje</MenuItem>
+                      <MenuItem value="week">Esta semana</MenuItem>
+                      <MenuItem value="month">Este mês</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<RefreshIcon />}
+                    onClick={fetchTravelData}
+                    fullWidth
+                    size="small"
+                  >
+                    Atualizar
+                  </Button>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Tabela de Corridas */}
+            <Paper sx={{ width: "100%", overflow: "hidden" }}>
+              <TableContainer>
+                <Table stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>ID</TableCell>
+                      <TableCell>Motoboy</TableCell>
+                      <TableCell>Cliente</TableCell>
+                      <TableCell>Valor</TableCell>
+                      <TableCell>Distância</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Data</TableCell>
+                      <TableCell>Ações</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {travels.map((travel) => (
+                      <TableRow key={travel._id} hover>
+                        <TableCell>
+                          <Typography variant="body2" fontFamily="monospace">
+                            {travel._id?.substring(0, 8)}...
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Box display="flex" alignItems="center">
+                            <Avatar sx={{ mr: 1, width: 32, height: 32 }}>
+                              <PersonIcon fontSize="small" />
+                            </Avatar>
+                            <Typography variant="body2">
+                              {travel.motoboyName || "Aguardando"}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {travel.order?.customer?.[0]?.name ||
+                              travel.order?.customer?.[0]?.customerName ||
+                              "N/A"}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight="bold">
+                            {formatCurrency(travel.price)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {formatDistance(travel.distance)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>{getStatusChip(travel.status)}</TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {formatDate(travel.createdAt)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Tooltip title="Ver detalhes">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleViewDetails(travel)}
+                            >
+                              <VisibilityIcon />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              <TablePagination
+                component="div"
+                count={totalCount}
+                page={page}
+                onPageChange={handleChangePage}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                labelRowsPerPage="Linhas por página:"
+                labelDisplayedRows={({ from, to, count }) =>
+                  `${from}-${to} de ${count !== -1 ? count : `mais de ${to}`}`
+                }
+              />
+            </Paper>
+
+            {/* Modal de Detalhes da Corrida */}
+            <Dialog
+              open={detailsOpen}
+              onClose={() => setDetailsOpen(false)}
+              maxWidth="md"
+              fullWidth
+            >
+              <DialogTitle>
+                <Box display="flex" alignItems="center">
+                  <DirectionsCarIcon sx={{ mr: 1 }} />
+                  Detalhes da Corrida
+                </Box>
+              </DialogTitle>
+              <DialogContent>
+                {selectedTravel && (
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={6}>
                       <Typography variant="h6" gutterBottom>
-                        Informações de Localização
+                        Informações da Corrida
                       </Typography>
                       <Box sx={{ mb: 2 }}>
                         <Typography variant="body2" color="textSecondary">
-                          Origem (Estabelecimento)
+                          ID da Corrida
                         </Typography>
                         <Typography variant="body1" fontFamily="monospace">
-                          {selectedTravel.coordinatesFrom.join(", ")}
+                          {selectedTravel._id}
+                        </Typography>
+                        <RouterLink
+                          to={`/pedidos`}
+                          state={{
+                            orderId: selectedTravel.order._id,
+                          }}
+                          style={{
+                            textDecoration: "none",
+                            color: "white",
+                            backgroundColor: "#1976d2",
+                            padding: "6px 12px",
+                            borderRadius: "4px",
+                            display: "inline-block",
+                            fontSize: "0.875rem",
+                            fontWeight: "500",
+                            transition: "background-color 0.2s",
+                            marginTop: "8px",
+                          }}
+                        >
+                          Ver pedido
+                        </RouterLink>
+                      </Box>
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" color="textSecondary">
+                          Status
+                        </Typography>
+                        {getStatusChip(selectedTravel.status)}
+                      </Box>
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" color="textSecondary">
+                          Valor da Entrega
+                        </Typography>
+                        <Typography variant="h6" color="primary">
+                          {formatCurrency(selectedTravel.price)}
                         </Typography>
                       </Box>
                       <Box sx={{ mb: 2 }}>
                         <Typography variant="body2" color="textSecondary">
-                          Destino (Cliente)
+                          Distância
                         </Typography>
-                        <Typography variant="body1" fontFamily="monospace">
-                          {selectedTravel.coordinatesTo.join(", ")}
+                        <Typography variant="body1">
+                          {formatDistance(selectedTravel.distance)}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" color="textSecondary">
+                          Data da Corrida
+                        </Typography>
+                        <Typography variant="body1">
+                          {formatDate(selectedTravel.createdAt)}
                         </Typography>
                       </Box>
                     </Grid>
-                  )}
-              </Grid>
-            )}
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setDetailsOpen(false)}>Fechar</Button>
-          </DialogActions>
-        </Dialog>
+                    <Grid item xs={12} md={6}>
+                      <Typography variant="h6" gutterBottom>
+                        Informações do Pedido
+                      </Typography>
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" color="textSecondary">
+                          Motoboy Responsável
+                        </Typography>
+                        <Typography variant="body1">
+                          {selectedTravel.motoboyName || "Aguardando aceite"}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" color="textSecondary">
+                          Cliente
+                        </Typography>
+                        <Typography variant="body1">
+                          {selectedTravel.order?.customer?.[0]?.name ||
+                            selectedTravel.order?.customer?.[0]?.customerName ||
+                            "N/A"}
+                        </Typography>
+                      </Box>
+                      <Divider sx={{ my: 2 }} />
+                      <Typography variant="h6" gutterBottom>
+                        Status Financeiro
+                      </Typography>
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" color="textSecondary">
+                          Status do Pagamento
+                        </Typography>
+                        {getFinanceStatusChip(selectedTravel.finance?.status)}
+                      </Box>
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" color="textSecondary">
+                          Valor do Pagamento
+                        </Typography>
+                        <Typography variant="body1">
+                          {formatCurrency(selectedTravel.finance?.value)}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    {selectedTravel.coordinatesFrom &&
+                      selectedTravel.coordinatesTo && (
+                        <Grid item xs={12}>
+                          <Typography variant="h6" gutterBottom>
+                            Informações de Localização
+                          </Typography>
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="body2" color="textSecondary">
+                              Origem (Estabelecimento)
+                            </Typography>
+                            <Typography variant="body1" fontFamily="monospace">
+                              {selectedTravel.coordinatesFrom.join(", ")}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="body2" color="textSecondary">
+                              Destino (Cliente)
+                            </Typography>
+                            <Typography variant="body1" fontFamily="monospace">
+                              {selectedTravel.coordinatesTo.join(", ")}
+                            </Typography>
+                          </Box>
+                        </Grid>
+                      )}
+                  </Grid>
+                )}
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setDetailsOpen(false)}>Fechar</Button>
+              </DialogActions>
+            </Dialog>
+          </>
+        )}
 
         {/* Snackbar para alertas */}
         <Snackbar
