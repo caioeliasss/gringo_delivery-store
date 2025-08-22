@@ -975,16 +975,6 @@ const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
                             ? "Carregando mapa..."
                             : "Selecionar Localização no Mapa"}
                         </Button>
-                        <Button
-                          onClick={() => {
-                            console.log(
-                              "Selecionar Localização no Mapa:",
-                              selectedStore.geolocation?.coordinates
-                            );
-                          }}
-                        >
-                          tgeste
-                        </Button>
                         {selectedStore.geolocation?.coordinates?.length ===
                           2 && (
                           <Typography
