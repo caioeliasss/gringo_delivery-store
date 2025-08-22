@@ -455,13 +455,31 @@ router.post("/preview-cost", async (req, res) => {
       let cost;
       let valorFixo;
 
-      // Verificar clima (chuva)
+      // Verificar clima (chuva) - Versão melhorada
       try {
-        const getWeather = require("../services/weatherService").getWeather;
-        const weatherResponse = getWeather(coordTo.latitude, coordTo.longitude);
-        const weatherData = await weatherResponse;
-        if (weatherData.current.weather_code > 60) {
+        const { getWeather } = require("../services/weatherService");
+        console.log(
+          `🌤️ Verificando clima para coordenadas: ${coordTo[1]}, ${coordTo[0]}`
+        );
+
+        const weatherData = await getWeather(coordTo[1], coordTo[0]); // lat, lon
+
+        console.log(`🌦️ Dados do clima obtidos:`, {
+          isRaining: weatherData.current.is_raining,
+          weatherCode: weatherData.current.weather_code,
+          condition: weatherData.current.condition,
+          temperature: weatherData.current.temperature,
+          provider: weatherData.current.provider,
+        });
+
+        if (
+          weatherData.current.weather_code > 60 ||
+          weatherData.current.is_raining
+        ) {
           priceList.isRain = true;
+          console.log(`🌧️ Clima chuvoso detectado - aplicando preço de chuva`);
+        } else {
+          console.log(`☀️ Tempo bom - preço normal`);
         }
       } catch (error) {
         console.error("Erro ao obter dados do clima:", error.message);
@@ -556,20 +574,45 @@ router.post("/preview-cost", async (req, res) => {
 
       let cost;
       let valorFixo;
+      let weatherCondition = "Não verificado";
+      let weatherProvider = "N/A";
 
       // Verificar clima novamente para o cálculo final
       try {
-        const getWeather = require("../services/weatherService").getWeather;
-        const weatherResponse = getWeather(
+        const { getWeather } = require("../services/weatherService");
+        console.log(
+          `🌤️ Verificação final do clima para coordenadas: ${customers[0].customerAddress.coordinates[1]}, ${customers[0].customerAddress.coordinates[0]}`
+        );
+
+        const weatherData = await getWeather(
           customers[0].customerAddress.coordinates[1],
           customers[0].customerAddress.coordinates[0]
         );
-        const weatherData = await weatherResponse;
-        if (weatherData.current.weather_code > 60) {
+
+        console.log(`🌦️ Clima final obtido:`, {
+          isRaining: weatherData.current.is_raining,
+          weatherCode: weatherData.current.weather_code,
+          condition: weatherData.current.condition,
+          provider: weatherData.current.provider,
+        });
+
+        weatherCondition = weatherData.current.condition;
+        weatherProvider = weatherData.current.provider;
+
+        if (
+          weatherData.current.weather_code > 60 ||
+          weatherData.current.is_raining
+        ) {
           priceList.isRain = true;
+          console.log(
+            `🌧️ Confirmado: aplicando preço de chuva no cálculo final`
+          );
         }
       } catch (error) {
-        console.error("Erro ao obter dados do clima:", error.message);
+        console.error(
+          "Erro ao obter dados do clima no cálculo final:",
+          error.message
+        );
         priceList.isRain = false;
       }
 
@@ -616,6 +659,8 @@ router.post("/preview-cost", async (req, res) => {
           isRain: priceList.isRain,
           isHighDemand: priceList.isHighDemand,
         },
+        weatherCondition: weatherCondition,
+        weatherProvider: weatherProvider,
       };
     };
 
@@ -637,6 +682,11 @@ router.post("/preview-cost", async (req, res) => {
         driveBack: driveBack,
         numberOfCustomers: customer.length,
         priceList: result.priceList,
+        weather: {
+          isRaining: result.priceList.isRain,
+          condition: result.weatherCondition || "Não verificado",
+          provider: result.weatherProvider || "N/A",
+        },
         breakdown: {
           baseCost: result.priceList.isRain
             ? result.priceList.priceRain
