@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import {
@@ -23,8 +23,24 @@ const Login = () => {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [isIPhone, setIsIPhone] = useState(false);
   const { login, loginWithGoogle, resetPassword } = useAuth();
   const navigate = useNavigate();
+
+  // Detectar iPhone
+  useEffect(() => {
+    const iPhoneDetected = /iPhone|iPod/.test(navigator.userAgent);
+    setIsIPhone(iPhoneDetected);
+
+    if (iPhoneDetected) {
+      console.log("📱 iPhone detectado no Login component");
+
+      // Debug específico para iPhone
+      if (window.showDebug) {
+        window.showDebug("Login component carregado no iPhone");
+      }
+    }
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -38,10 +54,35 @@ const Login = () => {
       setError("");
       setMessage("");
       setLoading(true);
+
+      // Log específico para iPhone
+      if (isIPhone) {
+        console.log("📱 iPhone: Iniciando login...");
+        if (window.showDebug) {
+          window.showDebug("Tentando fazer login...");
+        }
+      }
+
       await login(email, password);
+
+      if (isIPhone) {
+        console.log("📱 iPhone: Login bem-sucedido");
+        if (window.showDebug) {
+          window.showDebug("Login realizado com sucesso!");
+        }
+      }
+
       navigate("/dashboard");
     } catch (error) {
-      // Tratamento de erro melhorado para Safari
+      // Log específico para iPhone
+      if (isIPhone) {
+        console.error("📱 iPhone Login Error:", error);
+        if (window.showDebug) {
+          window.showDebug(`Erro no login: ${error.code || error.message}`);
+        }
+      }
+
+      // Tratamento de erro melhorado para Safari/iPhone
       let errorMessage = "Falha ao fazer login. Tente novamente.";
 
       if (error.code === "auth/invalid-credential") {
@@ -60,8 +101,13 @@ const Login = () => {
         error.name === "TypeError" &&
         error.message.includes("Failed to fetch")
       ) {
-        errorMessage =
-          "Erro de conexão. Verifique sua internet e tente novamente.";
+        errorMessage = isIPhone
+          ? "Erro de conexão no iPhone. Verifique se está conectado à internet e tente novamente."
+          : "Erro de conexão. Verifique sua internet e tente novamente.";
+      } else if (error.message && error.message.includes("CORS")) {
+        errorMessage = isIPhone
+          ? "Erro de segurança no iPhone. Tente usar HTTPS ou outro navegador."
+          : "Erro de segurança. Tente recarregar a página.";
       }
 
       setError(errorMessage);
@@ -153,6 +199,11 @@ const Login = () => {
           flexDirection: "column",
           alignItems: "center",
           minHeight: "100vh",
+          // CSS específico para iPhone
+          ...(isIPhone && {
+            minHeight: "calc(var(--vh, 1vh) * 100)",
+            marginTop: 4,
+          }),
         }}
       >
         {/* Logo */}
@@ -160,7 +211,18 @@ const Login = () => {
           <img
             src="https://i.imgur.com/8jOdfcO.png"
             alt="Gringo Delivery"
-            style={{ height: 80 }}
+            style={{
+              height: 80,
+              display: "block",
+              margin: "0 auto",
+            }}
+            onError={(e) => {
+              e.target.style.display = "none";
+              console.log("Erro ao carregar logo");
+              if (isIPhone && window.showDebug) {
+                window.showDebug("Erro ao carregar logo do servidor");
+              }
+            }}
           />
         </Box>
 

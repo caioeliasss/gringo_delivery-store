@@ -1,0 +1,172 @@
+/* CSS específico para iPhone - Gringo Delivery */
+
+/* Detectar iPhone */
+@supports (-webkit-touch-callout: none) {
+  /* Estilos específicos para iPhone */
+
+  html {
+    height: 100%;
+    height: -webkit-fill-available;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: none;
+    position: relative;
+  }
+
+  #root {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    min-height: calc(var(--vh, 1vh) * 100);
+  }
+
+  /* Fix para inputs no iPhone */
+  input,
+  textarea,
+  select {
+    -webkit-appearance: none;
+    appearance: none;
+    border-radius: 0;
+    font-size: 16px !important; /* Previne zoom */
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  /* Fix para botões no iPhone */
+  button {
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Material-UI específico para iPhone */
+  .MuiContainer-root {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    min-height: calc(var(--vh, 1vh) * 100);
+  }
+
+  .MuiTextField-root input {
+    font-size: 16px !important;
+    -webkit-text-fill-color: initial;
+    -webkit-opacity: 1;
+    opacity: 1;
+  }
+
+  .MuiOutlinedInput-root {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .MuiButton-root {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+
+  /* Fix para Modal/Dialog no iPhone */
+  .MuiModal-root {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .MuiDialog-paper {
+    margin: 16px;
+    max-height: calc(100vh - 32px);
+    max-height: calc(var(--vh, 1vh) * 100 - 32px);
+  }
+
+  /* Fix para AppBar no iPhone com notch */
+  .MuiAppBar-root {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Fix para bottom navigation no iPhone */
+  .MuiBottomNavigation-root {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Prevenir zoom em foco de input */
+  @media screen and (max-width: 767px) {
+    input[type="email"],
+    input[type="password"],
+    input[type="text"],
+    input[type="tel"],
+    input[type="url"],
+    input[type="search"],
+    textarea,
+    select {
+      font-size: 16px !important;
+      transform: translateZ(0);
+      -webkit-transform: translateZ(0);
+    }
+  }
+
+  /* Loading states específicos para iPhone */
+  .MuiCircularProgress-root {
+    -webkit-animation: rotation 1.4s linear infinite;
+    animation: rotation 1.4s linear infinite;
+  }
+
+  @keyframes rotation {
+    0% {
+      -webkit-transform: rotate(0deg);
+      transform: rotate(0deg);
+    }
+    100% {
+      -webkit-transform: rotate(360deg);
+      transform: rotate(360deg);
+    }
+  }
+
+  @-webkit-keyframes rotation {
+    0% {
+      -webkit-transform: rotate(0deg);
+      transform: rotate(0deg);
+    }
+    100% {
+      -webkit-transform: rotate(360deg);
+      transform: rotate(360deg);
+    }
+  }
+
+  /* Fix para Paper elevation no iPhone */
+  .MuiPaper-root {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+
+  /* Fix para scroll containers */
+  .MuiList-root,
+  .MuiMenu-list {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* Debug específico para iPhone */
+  #iphone-debug {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      sans-serif;
+    line-height: 1.2;
+  }
+}
+
+/* Estilos para landscape no iPhone */
+@media screen and (orientation: landscape) and (max-height: 500px) {
+  .MuiContainer-root {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+
+  .MuiPaper-root {
+    margin-top: 8px !important;
+    margin-bottom: 8px !important;
+  }
+}

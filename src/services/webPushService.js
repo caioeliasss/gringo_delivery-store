@@ -1,14 +1,43 @@
 // src/services/webPushService.js
 class WebPushService {
   constructor() {
-    this.permission = Notification.permission;
+    // Não executar código que depende de APIs do browser no constructor
+    this.permission = "default";
     this.serviceWorkerRegistration = null;
     this.subscriptions = new Set(); // Para gerenciar múltiplas inscrições
+    this.isNotificationSupported = false;
+    this.initialized = false;
+  }
+
+  // Inicialização lazy - só executa quando realmente for usar
+  init() {
+    if (this.initialized) return;
+
+    try {
+      // Verificar se estamos no browser e se Notification API está disponível
+      if (
+        typeof window !== "undefined" &&
+        typeof Notification !== "undefined"
+      ) {
+        this.permission = Notification.permission;
+        this.isNotificationSupported = true;
+      } else {
+        console.warn("Notification API não está disponível");
+        this.isNotificationSupported = false;
+      }
+    } catch (error) {
+      console.warn("Erro ao inicializar Notification API:", error);
+      this.isNotificationSupported = false;
+    }
+
+    this.initialized = true;
   }
 
   // Solicitar permissão para notificações
   async requestPermission() {
-    if (!("Notification" in window)) {
+    this.init(); // Garantir que está inicializado
+
+    if (!this.isNotificationSupported || !("Notification" in window)) {
       console.warn("Este navegador não suporta notificações");
       return false;
     }
@@ -17,15 +46,20 @@ class WebPushService {
       return true;
     }
 
-    const permission = await Notification.requestPermission();
-    this.permission = permission;
+    try {
+      const permission = await Notification.requestPermission();
+      this.permission = permission;
 
-    // Se permissão foi concedida, registrar service worker
-    if (permission === "granted") {
-      await this.registerServiceWorker();
+      // Se permissão foi concedida, registrar service worker
+      if (permission === "granted") {
+        await this.registerServiceWorker();
+      }
+
+      return permission === "granted";
+    } catch (error) {
+      console.error("Erro ao solicitar permissão de notificação:", error);
+      return false;
     }
-
-    return permission === "granted";
   }
 
   // Registrar Service Worker para notificações em background
@@ -84,6 +118,13 @@ class WebPushService {
 
   // Mostrar notificação (melhorada)
   showNotification(title, options = {}) {
+    this.init(); // Garantir que está inicializado
+
+    if (!this.isNotificationSupported) {
+      console.warn("Notificações não suportadas neste dispositivo");
+      return null;
+    }
+
     if (this.permission !== "granted") {
       console.warn("Permissão para notificações não concedida");
       return null;
@@ -131,21 +172,29 @@ class WebPushService {
 
         return true;
       } else {
-        // Fallback para notificação normal (SEM actions)
-        notification = new Notification(title, {
-          ...defaultOptions,
-          ...options,
-          // Remover propriedades não suportadas no fallback
-          actions: undefined,
-          badge: undefined,
-          data: undefined,
-          timestamp: undefined,
-          renotify: undefined,
-        });
+        // Fallback para notificação normal (SEM actions) - apenas se Notification estiver disponível
+        if (
+          this.isNotificationSupported &&
+          typeof Notification !== "undefined"
+        ) {
+          notification = new Notification(title, {
+            ...defaultOptions,
+            ...options,
+            // Remover propriedades não suportadas no fallback
+            actions: undefined,
+            badge: undefined,
+            data: undefined,
+            timestamp: undefined,
+            renotify: undefined,
+          });
 
-        // Reproduzir som se solicitado e não está silencioso
-        if (defaultOptions.data.playSound && !options.silent) {
-          this.playNotificationSound(defaultOptions.data.soundFile);
+          // Reproduzir som se solicitado e não está silencioso
+          if (defaultOptions.data.playSound && !options.silent) {
+            this.playNotificationSound(defaultOptions.data.soundFile);
+          }
+        } else {
+          console.warn("Notificações não suportadas neste dispositivo");
+          return false;
         }
       }
 
@@ -355,6 +404,7 @@ class WebPushService {
 
   // Verificar se tem permissão
   hasPermission() {
+    this.init(); // Garantir que está inicializado
     return this.permission === "granted";
   }
 
@@ -437,60 +487,68 @@ class WebPushService {
 
   // Inicializar o serviço
   async initialize() {
-    console.log("🔔 Inicializando WebPushService...");
-
-    // Verificar suporte
-    if (!this.isSupported()) {
-      console.warn("❌ Notificações não são suportadas neste navegador");
-      return false;
-    }
-
-    // Verificar se existe uma registration existente primeiro
     try {
-      const existingRegistration =
-        await navigator.serviceWorker.getRegistration("/");
-      if (existingRegistration) {
-        console.log(
-          "🔍 Service Worker existente encontrado:",
-          existingRegistration
-        );
-        this.serviceWorkerRegistration = existingRegistration;
-        this.setupServiceWorkerListeners();
+      this.init(); // Garantir que está inicializado
+      console.log("🔔 Inicializando WebPushService...");
 
-        // Atualizar permissão atual
-        this.permission = Notification.permission;
+      // Verificar suporte
+      if (!this.isSupported()) {
+        console.warn("❌ Notificações não são suportadas neste navegador");
+        return false;
+      }
 
-        if (this.permission === "granted") {
+      // Verificar se existe uma registration existente primeiro
+      try {
+        const existingRegistration =
+          await navigator.serviceWorker.getRegistration("/");
+        if (existingRegistration) {
           console.log(
-            "✅ Reconectado ao Service Worker existente com permissão"
+            "🔍 Service Worker existente encontrado:",
+            existingRegistration
           );
-          return true;
-        } else {
-          console.log(
-            "⚠️ Service Worker reconectado, mas sem permissão de notificação"
-          );
+          this.serviceWorkerRegistration = existingRegistration;
+          this.setupServiceWorkerListeners();
+
+          // Atualizar permissão atual
+          if (typeof Notification !== "undefined") {
+            this.permission = Notification.permission;
+          }
+
+          if (this.permission === "granted") {
+            console.log(
+              "✅ Reconectado ao Service Worker existente com permissão"
+            );
+            return true;
+          } else {
+            console.log(
+              "⚠️ Service Worker reconectado, mas sem permissão de notificação"
+            );
+            return true;
+          }
+        }
+      } catch (error) {
+        console.warn("Erro ao verificar Service Worker existente:", error);
+      }
+
+      // Se já tem permissão, registrar service worker
+      if (this.permission === "granted") {
+        console.log("✅ Permissão já concedida, registrando Service Worker...");
+        const swRegistered = await this.registerServiceWorker();
+        if (swRegistered) {
+          this.setupServiceWorkerListeners();
+          console.log("🎉 WebPushService inicializado com sucesso!");
           return true;
         }
       }
+
+      console.log(
+        "⏳ WebPushService inicializado (aguardando permissão do usuário)"
+      );
+      return true; // Retorna true mesmo sem permissão para permitir solicitação posterior
     } catch (error) {
-      console.warn("Erro ao verificar Service Worker existente:", error);
+      console.error("❌ Erro durante inicialização do WebPushService:", error);
+      return false;
     }
-
-    // Se já tem permissão, registrar service worker
-    if (this.permission === "granted") {
-      console.log("✅ Permissão já concedida, registrando Service Worker...");
-      const swRegistered = await this.registerServiceWorker();
-      if (swRegistered) {
-        this.setupServiceWorkerListeners();
-        console.log("🎉 WebPushService inicializado com sucesso!");
-        return true;
-      }
-    }
-
-    console.log(
-      "⏳ WebPushService inicializado (aguardando permissão do usuário)"
-    );
-    return true; // Retorna true mesmo sem permissão para permitir solicitação posterior
   }
 
   // Método conveniente para inicializar com solicitação de permissão
