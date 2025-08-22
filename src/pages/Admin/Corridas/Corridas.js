@@ -108,6 +108,7 @@ const AdminCorridas = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
   const [motoboyFilter, setMotoboyFilter] = useState("all");
+  const [financeStatusFilter, setFinanceStatusFilter] = useState("all"); // Novo filtro para status financeiro
 
   // Estados de modais
   const [selectedTravel, setSelectedTravel] = useState(null);
@@ -131,7 +132,7 @@ const AdminCorridas = () => {
   // Carregar dados iniciais
   useEffect(() => {
     fetchTravelData();
-  }, [page, rowsPerPage, statusFilter, dateFilter, motoboyFilter]);
+  }, [page, rowsPerPage, statusFilter, dateFilter, motoboyFilter, financeStatusFilter]); // Adicionado financeStatusFilter
 
   // Carregar motoboys uma vez
   useEffect(() => {
@@ -159,6 +160,7 @@ const AdminCorridas = () => {
           status: statusFilter !== "all" ? statusFilter : undefined,
           dateFilter: dateFilter !== "all" ? dateFilter : undefined,
           motoboyId: motoboyFilter !== "all" ? motoboyFilter : undefined,
+          financeStatus: financeStatusFilter !== "all" ? financeStatusFilter : undefined, // Adicionando o novo filtro na requisição
         },
       });
 
@@ -393,6 +395,24 @@ const AdminCorridas = () => {
     </Card>
   );
 
+  // Adicionar componente para selecionar o filtro de status financeiro
+  const FinanceStatusFilter = () => (
+    <FormControl fullWidth>
+      <InputLabel id="finance-status-filter-label">Status Financeiro</InputLabel>
+      <Select
+        labelId="finance-status-filter-label"
+        value={financeStatusFilter}
+        onChange={(e) => setFinanceStatusFilter(e.target.value)}
+      >
+        <MenuItem value="all">Todos</MenuItem>
+        <MenuItem value="pending">Pendente</MenuItem>
+        <MenuItem value="released">Liberado</MenuItem>
+        <MenuItem value="paid">Pago</MenuItem>
+        <MenuItem value="canceled">Cancelado</MenuItem>
+      </Select>
+    </FormControl>
+  );
+
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
       <SideDrawer
@@ -512,6 +532,15 @@ const AdminCorridas = () => {
               value={travelStats.totalRevenue}
               icon={<AttachMoneyIcon />}
               color="info"
+              format="currency"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <StatCard
+              title="Média de Custo por Entrega"
+              value={travelStats.totalRevenue / travelStats.totalTravels}
+              icon={<AttachMoneyIcon />}
+              color="primary"
               format="currency"
             />
           </Grid>
