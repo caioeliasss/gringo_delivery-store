@@ -957,4 +957,133 @@ router.post("/setup-search-indexes", async (req, res) => {
   }
 });
 
+// Nova rota consolidada para dashboard do motoboy
+const getMotoboyDashboard = async (req, res) => {
+  try {
+    const user = await Motoboy.findOne({ firebaseUid: req.user.uid });
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    // Preparar objeto de resposta base
+    const dashboardData = {
+      motoboy: user,
+      hasActiveRace: user.race?.active || false,
+      unreadNotifications: {
+        hasUnread: false,
+        count: 0,
+      },
+      notifications: [],
+      activeOrder: null,
+      activeTravel: null,
+      destinations: [],
+    };
+
+    // 1. Verificar notificações não lidas de forma eficiente
+    try {
+      let unreadCount = await Notification.countDocuments({
+        motoboyId: user._id,
+      });
+
+      unreadCount = unreadCount.filter(
+        (notification) => notification.status !== "READ"
+      );
+
+      dashboardData.unreadNotifications = {
+        hasUnread: unreadCount > 0,
+        count: unreadCount,
+      };
+    } catch (error) {
+      console.error("Erro ao verificar notificações não lidas:", error);
+    }
+
+    // 2. Se não há entrega ativa, buscar notificações pendentes
+    if (!user.race || user.race.active === false) {
+      try {
+        const notifications = await Notification.find({
+          motoboyId: user._id,
+          type: { $in: ["NEW_ORDER", "ORDER_OFFER", "DELIVERY_REQUEST"] },
+        })
+          .sort({ createdAt: -1 })
+          .limit(1)
+          .populate("data.order"); // Se você usar referências
+
+        if (notifications.length > 0) {
+          dashboardData.notifications = notifications;
+        }
+      } catch (error) {
+        console.error("Erro ao buscar notificações:", error);
+      }
+    } else {
+      // 3. Se há entrega ativa, buscar detalhes do pedido e travel
+      try {
+        // Buscar pedido ativo
+        const activeOrder = await Order.findById(user.race.orderId);
+        if (activeOrder) {
+          dashboardData.activeOrder = activeOrder;
+
+          // Configurar destinos automaticamente
+          const destinations = [
+            {
+              id: 1,
+              title: activeOrder.store.name,
+              description: "Estabelecimento de retirada",
+              coordinate: {
+                latitude: activeOrder.store.coordinates[1],
+                longitude: activeOrder.store.coordinates[0],
+              },
+            },
+          ];
+
+          if (
+            Array.isArray(activeOrder.customer) &&
+            activeOrder.customer.length > 0
+          ) {
+            activeOrder.customer.forEach((customer, index) => {
+              if (
+                customer.customerAddress &&
+                customer.customerAddress.coordinates
+              ) {
+                destinations.push({
+                  id: index + 2,
+                  title: customer.name || `Cliente ${index + 1}`,
+                  description: `Cliente ${index + 1}`,
+                  customerIndex: index,
+                  coordinate: {
+                    latitude: customer.customerAddress.coordinates[1],
+                    longitude: customer.customerAddress.coordinates[0],
+                  },
+                });
+              }
+            });
+          }
+
+          dashboardData.destinations = destinations;
+        }
+
+        // Buscar travel ativo se existir
+        if (user.race.travelId) {
+          const activeTravel = await Travel.findById(user.race.travelId);
+          if (activeTravel) {
+            dashboardData.activeTravel = activeTravel;
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao buscar dados da entrega ativa:", error);
+      }
+    }
+
+    res.status(200).json(dashboardData);
+  } catch (error) {
+    console.error("Erro ao buscar dados do dashboard:", error);
+    res.status(500).json({
+      message: "Erro ao buscar dados do dashboard",
+      error: error.message,
+    });
+  }
+};
+
+// Adicionar a rota
+router.get("/dashboard", authenticateToken, getMotoboyDashboard);
+
 module.exports = router;
