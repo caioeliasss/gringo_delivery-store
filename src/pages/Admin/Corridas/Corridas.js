@@ -56,6 +56,7 @@ import SideDrawer from "../../../components/SideDrawer/SideDrawer";
 import { SUPPORT_MENU_ITEMS } from "../../../config/menuConfig";
 import { UseAdminAuth } from "../../../contexts/AdminAuthContext";
 import api from "../../../services/api";
+import { Link as RouterLink } from "react-router-dom";
 
 const AdminCorridas = () => {
   const { AdminUser, logoutAdmin } = UseAdminAuth();
@@ -706,6 +707,26 @@ const AdminCorridas = () => {
                     <Typography variant="body1" fontFamily="monospace">
                       {selectedTravel._id}
                     </Typography>
+                    <RouterLink
+                      to={`/pedidos`}
+                      state={{
+                        orderId: selectedTravel.order._id,
+                      }}
+                      style={{
+                        textDecoration: "none",
+                        color: "white",
+                        backgroundColor: "#1976d2",
+                        padding: "6px 12px",
+                        borderRadius: "4px",
+                        display: "inline-block",
+                        fontSize: "0.875rem",
+                        fontWeight: "500",
+                        transition: "background-color 0.2s",
+                        marginTop: "8px",
+                      }}
+                    >
+                      Ver pedido
+                    </RouterLink>
                   </Box>
                   <Box sx={{ mb: 2 }}>
                     <Typography variant="body2" color="textSecondary">
