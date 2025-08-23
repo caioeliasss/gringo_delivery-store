@@ -132,7 +132,14 @@ const AdminCorridas = () => {
   // Carregar dados iniciais
   useEffect(() => {
     fetchTravelData();
-  }, [page, rowsPerPage, statusFilter, dateFilter, motoboyFilter, financeStatusFilter]); // Adicionado financeStatusFilter
+  }, [
+    page,
+    rowsPerPage,
+    statusFilter,
+    dateFilter,
+    motoboyFilter,
+    financeStatusFilter,
+  ]); // Adicionado financeStatusFilter
 
   // Carregar motoboys uma vez
   useEffect(() => {
@@ -152,24 +159,57 @@ const AdminCorridas = () => {
     try {
       setLoading(true);
 
-      // Simular chamada para API de travels - você precisará implementar no backend
-      const response = await api.get("/travels/admin", {
-        params: {
-          page: page + 1,
-          limit: rowsPerPage,
-          status: statusFilter !== "all" ? statusFilter : undefined,
-          dateFilter: dateFilter !== "all" ? dateFilter : undefined,
-          motoboyId: motoboyFilter !== "all" ? motoboyFilter : undefined,
-          financeStatus: financeStatusFilter !== "all" ? financeStatusFilter : undefined, // Adicionando o novo filtro na requisição
-        },
+      // Debug dos filtros
+      console.log("🔍 Buscando dados com filtros:", {
+        page: page + 1,
+        limit: rowsPerPage,
+        status: statusFilter !== "all" ? statusFilter : undefined,
+        dateFilter: dateFilter !== "all" ? dateFilter : undefined,
+        motoboyId: motoboyFilter !== "all" ? motoboyFilter : undefined,
+        financeStatus:
+          financeStatusFilter !== "all" ? financeStatusFilter : undefined,
+      });
+
+      const params = {
+        page: page + 1,
+        limit: rowsPerPage,
+      };
+
+      // Adicionar filtros apenas se não forem "all"
+      if (statusFilter !== "all") params.status = statusFilter;
+      if (dateFilter !== "all") params.dateFilter = dateFilter;
+      if (motoboyFilter !== "all") params.motoboyId = motoboyFilter;
+      if (financeStatusFilter !== "all")
+        params.financeStatus = financeStatusFilter;
+
+      console.log("📡 Parâmetros enviados para API:", params);
+
+      // Chamar API de travels
+      const response = await api.get("/travels/admin", { params });
+
+      console.log("✅ Resposta da API:", {
+        travels: response.data.travels?.length || 0,
+        total: response.data.total,
+        stats: response.data.stats,
       });
 
       setTravels(response.data.travels || []);
       setTotalCount(response.data.total || 0);
       setTravelStats(response.data.stats || {});
     } catch (error) {
-      console.error("Erro ao carregar dados de corridas:", error);
-      showAlert("Erro ao carregar dados de corridas", "error");
+      console.error("❌ Erro ao carregar dados de corridas:", error);
+      console.error("📋 Detalhes do erro:", {
+        status: error.response?.status,
+        message: error.response?.data?.message || error.message,
+        url: error.config?.url,
+      });
+
+      showAlert(
+        `Erro ao carregar dados: ${
+          error.response?.data?.message || error.message
+        }`,
+        "error"
+      );
 
       // Dados de exemplo para desenvolvimento
       const exampleTravels = [
@@ -395,24 +435,6 @@ const AdminCorridas = () => {
     </Card>
   );
 
-  // Adicionar componente para selecionar o filtro de status financeiro
-  const FinanceStatusFilter = () => (
-    <FormControl fullWidth>
-      <InputLabel id="finance-status-filter-label">Status Financeiro</InputLabel>
-      <Select
-        labelId="finance-status-filter-label"
-        value={financeStatusFilter}
-        onChange={(e) => setFinanceStatusFilter(e.target.value)}
-      >
-        <MenuItem value="all">Todos</MenuItem>
-        <MenuItem value="pending">Pendente</MenuItem>
-        <MenuItem value="released">Liberado</MenuItem>
-        <MenuItem value="paid">Pago</MenuItem>
-        <MenuItem value="canceled">Cancelado</MenuItem>
-      </Select>
-    </FormControl>
-  );
-
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
       <SideDrawer
@@ -566,6 +588,23 @@ const AdminCorridas = () => {
                   <MenuItem value="active">Ativa</MenuItem>
                   <MenuItem value="canceled">Cancelada</MenuItem>
                   <MenuItem value="pending">Pendente</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Status Financeiro</InputLabel>
+                <Select
+                  value={financeStatusFilter}
+                  label="Status Financeiro"
+                  onChange={(e) => setFinanceStatusFilter(e.target.value)}
+                >
+                  <MenuItem value="all">Todos</MenuItem>
+                  <MenuItem value="pendente">Pendente</MenuItem>
+                  <MenuItem value="processando">Processando</MenuItem>
+                  <MenuItem value="liberado">Liberado</MenuItem>
+                  <MenuItem value="pago">Pago</MenuItem>
+                  <MenuItem value="cancelado">Cancelado</MenuItem>
                 </Select>
               </FormControl>
             </Grid>

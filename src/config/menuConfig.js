@@ -152,6 +152,11 @@ export const STORE_MENU_ITEMS = [
     icon: <FinanceiroIcon />,
   },
   {
+    path: "/ocorrencias",
+    text: "Ocorrências",
+    icon: <ReportProblemIcon />,
+  },
+  {
     path: "/chat",
     text: "Chat",
     icon: <ChatIcon />,

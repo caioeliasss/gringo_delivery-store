@@ -105,7 +105,6 @@ export default function OcorrenciasPage() {
   const menuItems = SUPPORT_MENU_ITEMS;
 
   // Definir itens de rodapé para SideDrawer
-  const footerItems = createAdminFooterItems(handleLogout);
 
   // Função para toggle do drawer
   const toggleDrawer = (open) => (event) => {
@@ -211,6 +210,8 @@ export default function OcorrenciasPage() {
       console.error("Erro ao fazer logout:", error);
     }
   };
+
+  const footerItems = createAdminFooterItems(handleLogout);
 
   const getStatusChip = (status) => {
     const statusConfig = {

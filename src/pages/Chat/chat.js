@@ -97,7 +97,6 @@ export default function ChatStore() {
   const menuItems = SUPPORT_MENU_ITEMS;
 
   // Definir itens de rodapé para SideDrawer
-  const footerItems = createAdminFooterItems(handleLogout);
 
   // Estado para o preview da imagem em tela cheia
   const [previewImage, setPreviewImage] = useState(null);
@@ -507,7 +506,7 @@ export default function ChatStore() {
       console.error("Erro ao fazer logout:", error);
     }
   };
-
+  const footerItems = createAdminFooterItems(handleLogout);
   // Componente do drawer de navegação
   const drawerItems = (
     <Box sx={{ width: 250 }} role="presentation">

@@ -272,7 +272,23 @@ const updateTravelByOrder = async (req, res) => {
 // Função para admin buscar todas as corridas
 const getAllTravelsForAdmin = async (req, res) => {
   try {
-    const { page = 1, limit = 10, status, dateFilter, motoboyId } = req.query;
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      dateFilter,
+      motoboyId,
+      financeStatus,
+    } = req.query;
+
+    console.log("🔍 Filtros recebidos no backend:", {
+      page,
+      limit,
+      status,
+      dateFilter,
+      motoboyId,
+      financeStatus,
+    });
 
     // Converter para números
     const pageNum = parseInt(page);
@@ -288,6 +304,11 @@ const getAllTravelsForAdmin = async (req, res) => {
 
     if (motoboyId && motoboyId !== "all") {
       filters.motoboyId = motoboyId;
+    }
+
+    // Adicionar filtro de status financeiro
+    if (financeStatus && financeStatus !== "all") {
+      filters["finance.status"] = financeStatus;
     }
 
     if (dateFilter && dateFilter !== "all") {
@@ -315,12 +336,21 @@ const getAllTravelsForAdmin = async (req, res) => {
       }
     }
 
+    console.log(
+      "📋 Filtros finais aplicados:",
+      JSON.stringify(filters, null, 2)
+    );
+
     // Buscar travels com paginação
     const travels = await Travel.find(filters)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limitNum)
       .lean();
+
+    console.log(
+      `🔍 Encontrados ${travels.length} travels com os filtros aplicados`
+    );
 
     // Buscar informações dos motoboys separadamente
     const motoboyIds = [
