@@ -1342,7 +1342,7 @@ export default function EstabelecimentosPage() {
                   <TableHead>
                     <TableRow>
                       <TableCell>Estabelecimento</TableCell>
-                      <TableCell>Status</TableCell>
+                      <TableCell>Contrato</TableCell>
                       <TableCell>CNPJ</TableCell>
                       <TableCell>Telefone</TableCell>
                       <TableCell>Avaliação</TableCell>
@@ -1394,7 +1394,7 @@ export default function EstabelecimentosPage() {
                           </Box>
                         </TableCell>
                         <TableCell>
-                          {getStatusChip(store.status || "closed")}
+                          {store.termsAccepted ? "Assinado" : "Pendente"}
                         </TableCell>
                         <TableCell>
                           <Chip
