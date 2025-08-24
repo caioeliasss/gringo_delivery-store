@@ -73,6 +73,7 @@ class ApiCache {
       // Chat endpoints - Cache agressivo para prevenir 429
       "/chat/message/has-unread": 45 * 1000, // 45 segundos (maior que intervalo de 30s)
       "/chat/message/unread": 30 * 1000, // 30 segundos
+      "/chat/message/unread-info": 30 * 1000, // 30 segundos (endpoint otimizado)
       "/chat/user": 60 * 1000, // 1 minuto para lista de chats
 
       // Dados em tempo real - TTL muito curto
@@ -776,6 +777,18 @@ export const getUserChats = async (userId) => {
   return api.get(`/chat/user/${userId}`);
 };
 
+// Obter informações de mensagens não lidas (endpoint otimizado)
+export const getUnreadChatInfo = async (userId) => {
+  if (!userId || userId.trim() === "") {
+    throw new Error(
+      "userId é obrigatório para obter informações de mensagens não lidas"
+    );
+  }
+
+  // O cache será aplicado automaticamente pelo interceptor (30 segundos)
+  return api.get(`/chat/message/unread-info/${userId}`);
+};
+
 // Função otimizada para verificar mensagens não lidas com logs de cache
 export const checkUnreadChatMessagesOptimized = async (userId) => {
   if (!userId || userId.trim() === "") {
@@ -809,6 +822,9 @@ export const invalidateChatCache = (userId) => {
       `/chat/message/has-unread/${userId}`
     );
     invalidatedCount += apiCache.invalidate(`/chat/message/unread/${userId}`);
+    invalidatedCount += apiCache.invalidate(
+      `/chat/message/unread-info/${userId}`
+    );
     invalidatedCount += apiCache.invalidate(`/chat/user/${userId}`);
 
     if (process.env.NODE_ENV === "development") {
@@ -833,6 +849,7 @@ export const getChatCacheStats = () => {
     chatSpecific: {
       hasUnread: "Cache aplicado automaticamente (45s)",
       unreadCount: "Cache aplicado automaticamente (30s)",
+      unreadInfo: "Cache aplicado automaticamente (30s)",
       userChats: "Cache aplicado automaticamente (60s)",
     },
   };

@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { useAuth } from "./AuthContext";
 import { useSocketNotifications } from "../hooks/useSocketNotifications";
 import webPushService from "../services/webPushService";
-import api from "../services/api";
+import { getUnreadChatInfo } from "../services/api";
 import { Snackbar, Alert } from "@mui/material";
 
 const GlobalNotificationsContext = createContext();
@@ -56,8 +56,8 @@ export const GlobalNotificationsProvider = ({
     if (!user?.uid) return;
 
     try {
-      // Fazer uma única requisição para obter todas as informações necessárias
-      const response = await api.get(`/chat/message/unread-info/${user.uid}`);
+      // Usar a função otimizada com cache automático
+      const response = await getUnreadChatInfo(user.uid);
 
       // Atualizar estados com os dados retornados
       setHasUnreadChatMessages(response.data.hasUnreadMessages);
