@@ -193,21 +193,6 @@ class CronService {
     }
   }
 
-  // ADICIONAR: Agendar cobrança de taxa de motoboy (todo dia 1 às 11:00)
-  scheduleMotoboyFeeBilling() {
-    const job = new cron.CronJob(
-      "0 11 1 * *", // Todo dia 1 às 11:00
-      this.createMotoboyFeeBillings.bind(this),
-      null,
-      true,
-      "America/Sao_Paulo"
-    );
-
-    this.jobs.push(job);
-    console.log("✅ Agendamento de taxa de motoboy ativado");
-    return job;
-  }
-
   // ADICIONAR: Criar cobrança de taxa de motoboy
   async createMotoboyFeeBillings() {
     try {
@@ -534,7 +519,7 @@ class CronService {
       // Calcular valor total
 
       const totalAmount = deliveredOrders.reduce((sum, order) => {
-        const amount = order.price || 0; // Supondo que cada entrega tem um preço
+        const amount = order.motoboy.price || 0; // Supondo que cada entrega tem um preço
         return sum + amount;
       }, 0);
 
@@ -662,18 +647,21 @@ Total: R$ ${feePerDelivery.toFixed(2)}`;
 
   // OPCIONAL: Atualizar agendamento para executar semanalmente
   scheduleMotoboyFeeBilling() {
-    const job = new cron.CronJob(
-      "0 8 * * 1", // ALTERADO: Toda segunda-feira às 8:00 (processa semana anterior)
-      this.createMotoboyFeeBillings.bind(this),
-      null,
-      true,
-      "America/Sao_Paulo"
-    );
+  const job = new cron.CronJob(
+    "0 8 * * 1", // Every Monday at 8:00 AM
+    async () => {
+      await this.createMotoboyFeeBillings();
+      await this.createTravelsBilling();
+    },
+    null,
+    true,
+    "America/Sao_Paulo"
+  );
 
-    this.jobs.push(job);
-    console.log("✅ Agendamento SEMANAL de taxa de motoboy ativado");
-    return job;
-  }
+  this.jobs.push(job);
+  console.log("✅ Weekly scheduling for motoboy fees and travels billing activated");
+  return job;
+}
 
   // ATUALIZAR: Método startAll para incluir taxa de motoboy
   startAll() {
