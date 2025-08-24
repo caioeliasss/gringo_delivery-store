@@ -56,22 +56,12 @@ export const GlobalNotificationsProvider = ({
     if (!user?.uid) return;
 
     try {
-      // Usar função otimizada com cache automático de 45 segundos
-      const response = (await api.checkUnreadChatMessagesOptimized)
-        ? await api.checkUnreadChatMessagesOptimized(user.uid)
-        : await api.get(`/chat/message/has-unread/${user.uid}`);
+      // Fazer uma única requisição para obter todas as informações necessárias
+      const response = await api.get(`/chat/message/unread-info/${user.uid}`);
 
+      // Atualizar estados com os dados retornados
       setHasUnreadChatMessages(response.data.hasUnreadMessages);
-
-      // Também buscar a contagem detalhada se necessário
-      if (response.data.hasUnreadMessages) {
-        const countResponse = await (api.getUnreadChatCount
-          ? api.getUnreadChatCount(user.uid)
-          : api.get(`/chat/message/unread/${user.uid}`));
-        setChatUnreadCount(countResponse.data.totalUnreadCount || 0);
-      } else {
-        setChatUnreadCount(0);
-      }
+      setChatUnreadCount(response.data.totalUnreadCount || 0);
     } catch (error) {
       console.error("Erro ao verificar mensagens de chat não lidas:", error);
     }
