@@ -1635,15 +1635,15 @@ const Pedidos = () => {
       } else {
         setSnackbar({
           open: true,
-          message: `Erro ao chamar entregador. Telefone do entregador: ${phoneNumber}`,
+          message: `Erro ao Pedido Pronto. Telefone do entregador: ${phoneNumber}`,
           severity: "error",
         });
       }
     } catch (error) {
-      console.error("Erro ao chamar entregador:", error);
+      console.error("Erro ao Pedido Pronto:", error);
       setSnackbar({
         open: true,
-        message: `Erro ao chamar entregador. Telefone do entregador: ${pedido.motoboy.phone}`,
+        message: `Erro ao Pedido Pronto. Telefone do entregador: ${pedido.motoboy.phone}`,
         severity: "error",
       });
     }
@@ -2825,7 +2825,7 @@ const Pedidos = () => {
                                     flexWrap: "wrap",
                                   }}
                                 >
-                                  {/* Primeiro: Botão para chamar entregador */}
+                                  {/* Primeiro: Botão para Pedido Pronto */}
                                   {!currentPedido.hasArrived && (
                                     <Button
                                       variant="contained"
@@ -2840,11 +2840,11 @@ const Pedidos = () => {
                                         height: "40px",
                                       }}
                                     >
-                                      Chamar Entregador
+                                      Pedido Pronto
                                     </Button>
                                   )}
 
-                                  {/* Segundo: Campo de código e botão para enviar (só aparece após chamar entregador) */}
+                                  {/* Segundo: Campo de código e botão para enviar (só aparece após Pedido Pronto) */}
                                   {currentPedido.hasArrived && (
                                     <>
                                       <TextField

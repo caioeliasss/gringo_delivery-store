@@ -129,6 +129,11 @@ const storeSchema = new mongoose.Schema({
       default: 2,
     },
   },
+  orderType: {
+    type: String,
+    enum: ["DELIVERY", "PICKUP"],
+    default: "DELIVERY",
+  },
   createdAt: {
     type: Date,
     default: Date.now,

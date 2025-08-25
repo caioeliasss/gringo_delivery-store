@@ -42,6 +42,8 @@ class OrderImportService {
       // ID do iFood para controle
       ifoodId: ifoodOrder.id,
 
+      orderType: "DELIVERY",
+
       // Informações da loja (você pode definir valores padrão ou buscar do banco)
       store: {
         name: ifoodOrder.merchant?.name || "Loja Principal",

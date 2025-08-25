@@ -387,13 +387,14 @@ app.post("/api/socket/test-notification", authenticateToken, (req, res) => {
       : "Usuário não está conectado ou erro ao enviar",
   });
 });
-// app.use("/api/webhook/ifood", (req, res) => {
-//   const WebhookController = require("./controllers/webhookController");
-//   const OrderService = require("./services/orderService");
-//   const orderService = new OrderService();
-//   const webhookController = new WebhookController(orderService);
-//   webhookController.handleIfoodWebhook(req, res);
-// });
+app.use("/api/webhook/ifood", (req, res) => {
+  console.log("api/ifood: ", req.body);
+  const WebhookController = require("./controllers/webhookController");
+  const OrderService = require("./services/orderService");
+  const orderService = new OrderService();
+  const webhookController = new WebhookController(orderService);
+  webhookController.handleIfoodWebhook(req, res);
+});
 
 // Middleware de logging
 app.use((req, res, next) => {

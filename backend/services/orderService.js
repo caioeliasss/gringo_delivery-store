@@ -241,18 +241,20 @@ class OrderService {
       const savedOrder = await order.save();
 
       // Buscar motoboys próximos e processar fila
-      try {
-        const motoboys = await motoboyServices.findBestMotoboys(
-          order.store.coordinates
-        );
+      if (orderData.orderType === "DELIVERY") {
+        try {
+          const motoboys = await motoboyServices.findBestMotoboys(
+            order.store.coordinates
+          );
 
-        const motoboyRequest = await motoboyServices.processMotoboyQueue(
-          motoboys,
-          order
-        );
-      } catch (motoboyError) {
-        console.error("Erro ao processar motoboys:", motoboyError);
-        // Não interromper o processo se houver erro com motoboys
+          const motoboyRequest = await motoboyServices.processMotoboyQueue(
+            motoboys,
+            order
+          );
+        } catch (motoboyError) {
+          console.error("Erro ao processar motoboys:", motoboyError);
+          // Não interromper o processo se houver erro com motoboys
+        }
       }
 
       return savedOrder;
