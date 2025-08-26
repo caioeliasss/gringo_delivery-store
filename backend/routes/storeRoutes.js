@@ -680,6 +680,36 @@ const changeCoordinates = async (req, res) => {
   }
 };
 
+const removeStore = async (req, res) => {
+  const { storeId } = req.body;
+
+  if (!storeId) {
+    return res.status(400).json({
+      message: "storeId é obrigatório",
+    });
+  }
+
+  try {
+    const store = await Store.findById(storeId);
+    if (!store) {
+      return res.status(404).json({ message: "Loja não encontrada" });
+    }
+
+    await store.remove();
+
+    res.status(200).json({
+      message: "Loja removida com sucesso",
+    });
+  } catch (error) {
+    console.error("Erro ao remover loja:", error);
+    res.status(500).json({
+      message: "Erro ao remover loja",
+      error: error.message,
+    });
+  }
+};
+
 router.post("/coordinates", changeCoordinates);
+router.delete("/remove-store", removeStore);
 
 module.exports = router;

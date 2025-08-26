@@ -102,8 +102,8 @@ const customerSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  cliente_cod: {
-    type: Number,
+  pickupCode: {
+    type: String,
     required: false,
   },
   customerAddress: customerAddress,

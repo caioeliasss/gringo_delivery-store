@@ -1,4 +1,5 @@
 const axios = require("axios");
+const OrderService = require("./orderService");
 
 class IfoodService {
   constructor() {
@@ -6,6 +7,32 @@ class IfoodService {
     this.clientId = process.env.IFOOD_CLIENT_ID;
     this.clientSecret = process.env.IFOOD_CLIENT_SECRET;
     this.accessToken = null;
+  }
+
+  async pollingIfood() {
+    await this.ensureAuthenticated();
+
+    if (!this.accessToken) {
+      throw new Error("Access token não disponível. Autentique-se primeiro.");
+    }
+    try {
+      const response = await axios.get(
+        `${this.baseURL}/order/v1.0/events:polling`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar pedidos:", error.message);
+      throw error;
+    } finally {
+      setTimeout(() => this.pollingIfood(), 29000);
+    }
   }
 
   async authenticate() {
@@ -69,7 +96,6 @@ class IfoodService {
 
   async getOrders() {
     await this.ensureAuthenticated();
-
     if (!this.accessToken) {
       throw new Error("Access token não disponível. Autentique-se primeiro.");
     }
@@ -113,9 +139,14 @@ class IfoodService {
   }
 
   async confirmOrder(orderId) {
+    await this.ensureAuthenticated();
+
+    if (!this.accessToken) {
+      throw new Error("Access token não disponível. Autentique-se primeiro.");
+    }
     try {
       const response = await axios.post(
-        `${this.baseURL}/order/v1.0/orders/${orderId}:confirm`,
+        `${this.baseURL}/order/v1.0/orders/${orderId}/confirm`,
         {},
         {
           headers: {
@@ -126,7 +157,8 @@ class IfoodService {
       );
 
       // Atualizar status local
-      await this.updateStatus(orderId, "em_preparo");
+      const Order = require("../models/Order");
+      await Order.updateOne({ ifoodId: orderId }, { status: "em_preparo" });
       return response.data;
     } catch (error) {
       console.error("Erro ao confirmar pedido:", error);

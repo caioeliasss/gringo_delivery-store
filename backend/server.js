@@ -287,6 +287,7 @@ const travelRoutes = require("./routes/travelRoutes");
 const occurrenceRoutes = require("./routes/occurrenceRoutes");
 const deliveryPricesRoutes = require("./routes/deliveryPricesRoutes");
 const cronService = require("./services/cronService");
+const IfoodService = require("./services/ifoodService");
 cronService.startAll(); // Iniciar serviço de cron
 
 app.use("/api/webhooks", express.raw({ type: "application/json" }));
@@ -388,13 +389,20 @@ app.post("/api/socket/test-notification", authenticateToken, (req, res) => {
   });
 });
 app.use("/api/webhook/ifood", (req, res) => {
-  console.log("api/ifood: ", req.body);
+  if (req.body.code === "KEEPALIVE") {
+    console.log("KEEPALIVE");
+    return res.sendStatus(200); // responde e sai
+  }
+  console.log("Webhook recebido Ifood:", req.body.fullCode);
   const WebhookController = require("./controllers/webhookController");
   const OrderService = require("./services/orderService");
   const orderService = new OrderService();
   const webhookController = new WebhookController(orderService);
   webhookController.handleIfoodWebhook(req, res);
 });
+
+const ifoodService = new IfoodService();
+ifoodService.pollingIfood();
 
 // Middleware de logging
 app.use((req, res, next) => {

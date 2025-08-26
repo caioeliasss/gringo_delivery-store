@@ -1,3 +1,4 @@
+const Store = require("../models/Store");
 const IfoodService = require("./ifoodService");
 
 class OrderImportService {
@@ -22,7 +23,7 @@ class OrderImportService {
             ifoodOrder.id
           );
           const localOrder = await this.convertIfoodOrderToLocal(orderDetails);
-          const createdOrder = await this.orderService.create(localOrder);
+          const createdOrder = await this.orderService.createOrder(localOrder);
           importedOrders.push(createdOrder);
         }
       }
@@ -34,7 +35,17 @@ class OrderImportService {
     }
   }
 
-  convertIfoodOrderToLocal(ifoodOrder) {
+  async convertIfoodOrderToLocal(ifoodOrder) {
+    const { latitude, longitude } =
+      ifoodOrder.delivery?.deliveryAddress?.coordinates || {};
+
+    const store = await Store.findOne({ merchantId: ifoodOrder.merchant?.id });
+    if (!store) {
+      throw new Error(
+        `Loja não encontrada para o ID do iFood: ${ifoodOrder.merchant?.id}`
+      );
+    }
+
     return {
       // Número do pedido (pode ser gerado automaticamente ou usar o ID do iFood)
       orderNumber: `IFOOD-${ifoodOrder.id}`,
@@ -48,32 +59,44 @@ class OrderImportService {
       store: {
         name: ifoodOrder.merchant?.name || "Loja Principal",
         ifoodId: ifoodOrder.merchant?.id || "00000000000000",
-        cnpj: ifoodOrder.merchant?.cnpj || "00000000000191",
+        cnpj: store?.cnpj || "00000000000191",
+        coordinates: [
+          store.geolocation.coordinates[0],
+          store.geolocation.coordinates[1],
+        ],
+        address: {
+          address: store?.address?.address || "",
+          addressNumber: store?.address?.addressNumber || "",
+          bairro: store?.address?.bairro || "",
+          cidade: store?.address?.cidade || "",
+          cep: store?.address?.cep || "",
+        },
         // Você pode adicionar outras informações da loja se necessário
       },
 
       // Informações do cliente
-      customer: {
-        name: ifoodOrder.customer.name,
-        phone: ifoodOrder.customer.phone.number || "",
-        customerAddress: {
-          cep: this.extractCepFromAddress(
-            ifoodOrder.delivery?.deliveryAddress?.postalCode
-          ),
-          address: ifoodOrder.delivery?.deliveryAddress?.streetName || "",
-          addressNumber:
-            ifoodOrder.delivery?.deliveryAddress?.streetNumber || "",
-          bairro:
-            ifoodOrder.delivery?.deliveryAddress?.district || "Sem Bairro",
-          cidade: ifoodOrder.delivery?.deliveryAddress?.city || "",
-          coordinates: this.extractCoordinates(
+      customer: [
+        {
+          name: ifoodOrder.customer.name,
+          phone: ifoodOrder.customer.phone.number || "",
+          customerAddress: {
+            cep: this.extractCepFromAddress(
+              ifoodOrder.delivery?.deliveryAddress?.postalCode
+            ),
+            address: ifoodOrder.delivery?.deliveryAddress?.streetName || "",
+            addressNumber:
+              ifoodOrder.delivery?.deliveryAddress?.streetNumber || "",
+            bairro:
+              ifoodOrder.delivery?.deliveryAddress?.district || "Sem Bairro",
+            cidade: ifoodOrder.delivery?.deliveryAddress?.city || "",
+            coordinates: [longitude, latitude],
+          },
+          pickupCode: ifoodOrder.delivery?.pickupCode || "",
+          geolocation: this.createGeoLocation(
             ifoodOrder.delivery?.deliveryAddress
           ),
         },
-        geolocation: this.createGeoLocation(
-          ifoodOrder.delivery?.deliveryAddress
-        ),
-      },
+      ],
 
       // Items do pedido
       items:
@@ -109,7 +132,8 @@ class OrderImportService {
 
       // Observações
       notes: ifoodOrder.orderNotes || ifoodOrder.observations || "",
-
+      findDriverAuto: ifoodOrder.orderType === "DELIVERY",
+      ifoodId: ifoodOrder.id,
       // Timestamps
       createdAt: new Date(ifoodOrder.createdAt),
       updatedAt: new Date(),

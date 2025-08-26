@@ -104,6 +104,11 @@ export const ADMIN_MENU_ITEMS = [
     icon: <ChatIcon />,
   },
   {
+    path: "/notifications",
+    text: "Notificações",
+    icon: <NotificationsIcon />,
+  },
+  {
     path: "/financeiro",
     text: "Financeiro",
     icon: <FinanceiroIcon />,

@@ -67,6 +67,7 @@ import {
   Schedule as ScheduleIcon,
   Category as CategoryIcon,
   Badge as BadgeIcon,
+  Delete as DeleteIcon,
 } from "@mui/icons-material";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -904,6 +905,28 @@ export default function EstabelecimentosPage() {
     setEditingCnpj(false);
   };
 
+  const handleRemoveStore = async (storeId) => {
+    if (!storeId) return;
+
+    const confirm = window.confirm("Tem certeza que deseja remover esta loja?");
+    if (!confirm) return;
+
+    try {
+      await api.delete("/stores/remove-store", {
+        data: { storeId },
+      });
+
+      // Atualizar a lista de lojas após remoção
+      const updatedStores = stores.filter((store) => store._id !== storeId);
+      setStores(updatedStores);
+      setSelectedStore(null);
+      setDetailsModal(false);
+    } catch (error) {
+      console.error("Erro ao remover loja:", error);
+      alert("Erro ao remover loja");
+    }
+  };
+
   return (
     <>
       {/* Tela de carregamento da API do Google Maps */}
@@ -1440,6 +1463,11 @@ export default function EstabelecimentosPage() {
                         </TableCell>
                         <TableCell>
                           <Box sx={{ display: "flex", gap: 1 }}>
+                            <IconButton
+                              onClick={() => handleRemoveStore(store._id)}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
                             <Button
                               size="small"
                               variant="outlined"

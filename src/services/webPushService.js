@@ -94,10 +94,24 @@ class WebPushService {
 
       // Aguardar o service worker estar ativo
       if (registration.installing) {
-        await new Promise((resolve) => {
-          registration.installing.addEventListener("statechange", () => {
-            if (registration.installing.state === "activated") {
-              resolve();
+        await new Promise((resolve, reject) => {
+          const installingWorker = registration.installing;
+          const timeout = setTimeout(() => {
+            reject(new Error("Timeout aguardando ativação do Service Worker"));
+          }, 10000); // 10 segundos timeout
+
+          installingWorker.addEventListener("statechange", () => {
+            try {
+              if (installingWorker.state === "activated") {
+                clearTimeout(timeout);
+                resolve();
+              } else if (installingWorker.state === "redundant") {
+                clearTimeout(timeout);
+                reject(new Error("Service Worker se tornou redundante"));
+              }
+            } catch (error) {
+              clearTimeout(timeout);
+              reject(error);
             }
           });
         });
@@ -465,24 +479,42 @@ class WebPushService {
 
   // Configurar listeners para eventos do service worker
   setupServiceWorkerListeners() {
-    if (!navigator.serviceWorker) return;
+    if (!navigator.serviceWorker) {
+      console.warn("Service Worker não disponível para configurar listeners");
+      return;
+    }
 
-    navigator.serviceWorker.addEventListener("message", (event) => {
-      if (event.data && event.data.type === "NOTIFICATION_CLICK") {
-        this.handleNotificationClick(event, event.data.options || {});
-      }
+    try {
+      navigator.serviceWorker.addEventListener("message", (event) => {
+        try {
+          if (event.data && event.data.type === "NOTIFICATION_CLICK") {
+            this.handleNotificationClick(event, event.data.options || {});
+          }
 
-      // Novo: Reproduzir som quando solicitado pelo Service Worker
-      if (event.data && event.data.type === "PLAY_NOTIFICATION_SOUND") {
-        const soundFile =
-          event.data.soundFile || "/sounds/gringo-notification.wav";
-        console.log(
-          "🔊 Service Worker solicitou reprodução de som:",
-          soundFile
-        );
-        this.playNotificationSound(soundFile);
-      }
-    });
+          // Novo: Reproduzir som quando solicitado pelo Service Worker
+          if (event.data && event.data.type === "PLAY_NOTIFICATION_SOUND") {
+            const soundFile =
+              event.data.soundFile || "/sounds/gringo-notification.wav";
+            console.log(
+              "🔊 Service Worker solicitou reprodução de som:",
+              soundFile
+            );
+            this.playNotificationSound(soundFile);
+          }
+        } catch (error) {
+          console.error("Erro ao processar mensagem do Service Worker:", error);
+        }
+      });
+
+      // Adicionar listener para erros do Service Worker
+      navigator.serviceWorker.addEventListener("error", (error) => {
+        console.error("Erro no Service Worker:", error);
+      });
+
+      console.log("✅ Listeners do Service Worker configurados");
+    } catch (error) {
+      console.error("Erro ao configurar listeners do Service Worker:", error);
+    }
   }
 
   // Inicializar o serviço

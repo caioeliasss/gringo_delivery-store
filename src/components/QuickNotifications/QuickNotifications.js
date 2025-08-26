@@ -167,5 +167,4 @@ const QuickNotifications = () => {
     </Accordion>
   );
 };
-
 export default QuickNotifications;

@@ -751,7 +751,100 @@ const getFirebaseNotifications = async (req, res) => {
   }
 };
 
+const getAdminNotifications = async (req, res) => {
+  try {
+    const { firebaseUid } = req.query;
+
+    if (!firebaseUid) {
+      return res.status(400).json({
+        message: "firebaseUid é obrigatório",
+      });
+    }
+
+    const notifications = await Notification.find({
+      firebaseUid: firebaseUid,
+      $or: [
+        { type: "ADMIN_ALERT" },
+        { type: "SYSTEM" },
+        { type: "SECURITY" },
+        { type: "REPORT" },
+        { type: "STORE_ALERT" },
+        { type: "MOTOBOY_ALERT" },
+        { type: "CHAT_MESSAGE" },
+        { type: "ERROR" },
+      ],
+    }).sort({ createdAt: -1 });
+
+    res.json(notifications);
+  } catch (error) {
+    console.error("Erro ao buscar notificações de admin:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const updateAdminNotification = async (req, res) => {
+  try {
+    const { id, status } = req.body;
+
+    if (!id || !status) {
+      return res.status(400).json({
+        message: "Dados incompletos. id e status são obrigatórios",
+      });
+    }
+
+    const notification = await Notification.findById(id);
+    if (!notification) {
+      return res.status(404).json({ message: "Notificação não encontrada" });
+    }
+
+    notification.status = status;
+    await notification.save();
+
+    res.json({
+      message: "Notificação atualizada com sucesso",
+      notification,
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar notificação de admin:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const notifyAdmin = async (req, res) => {
+  try {
+    const { title, message, type, data } = req.body;
+
+    if (!title || !message) {
+      return res.status(400).json({
+        message: "Dados incompletos. title e message são obrigatórios",
+      });
+    }
+
+    const notifications = await notificationService.notifyAdmin(
+      {
+        title,
+        message,
+        type: type || "ADMIN_ALERT",
+        data: data || {},
+      },
+      req.app
+    );
+
+    res.status(201).json({
+      message: "Notificações enviadas com sucesso",
+      notifications,
+      count: notifications.length,
+    });
+  } catch (error) {
+    console.error("Erro ao enviar notificações para admin:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 router.get("/firebase", getFirebaseNotifications);
+router.get("/admin", getAdminNotifications);
+router.put("/admin", updateAdminNotification);
+router.post("/notifyAdmin", notifyAdmin);
 router.put("/mark-as-all-read", markAllAsRead);
 router.delete("/:id", deleteNotification);
 router.delete("/delivery-request", deleteDeliveryRequestNotifications);

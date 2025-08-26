@@ -148,16 +148,19 @@ export const GlobalNotificationsProvider = ({
 
           return true;
         } else {
-          showFeedback("Erro ao inicializar notificações", "error");
-          return false;
+          throw new Error("Falha ao inicializar Service Worker");
         }
       } else {
         showFeedback("Permissão para notificações foi negada", "warning");
+        setPushPermission("denied");
         return false;
       }
     } catch (error) {
       console.error("❌ Erro ao habilitar notificações:", error);
-      showFeedback("Erro ao habilitar notificações", "error");
+      showFeedback(
+        `Erro ao habilitar notificações: ${error.message || "Tente novamente"}`,
+        "error"
+      );
       return false;
     }
   };

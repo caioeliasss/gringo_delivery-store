@@ -51,6 +51,10 @@ const storeSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  merchantId: {
+    type: String,
+    required: false,
+  },
   asaasCustomerId: {
     type: String,
     required: false,

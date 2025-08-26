@@ -38,6 +38,7 @@ import EstabelecimentosPage from "./pages/Estabelecimentos";
 import PrecificacaoPage from "./pages/Precificacao/Precificacao";
 import SupportPage from "./pages/Admin/SuportTeam/SupportPage";
 import SupportNotifications from "./pages/Suporte/SupportNotifications";
+import AdminNotifications from "./pages/Admin/Notifications/AdminNotifications";
 import Termos from "./pages/Termos/Termos";
 import ViewCoordinates from "./components/ViewCoordinates/ViewCoordinates";
 import CorridasStore from "./pages/Store/Corridas/CorridasStore";
@@ -441,6 +442,10 @@ function AdminApp() {
                     <Route path="/settings" element={<PrecificacaoPage />} />
                     <Route path="/mapa" element={<SupportMapPage />} />
                     <Route path="/chat" element={<ChatPage />} />
+                    <Route
+                      path="/notifications"
+                      element={<AdminNotifications />}
+                    />
                     <Route path="*" element={<Navigate to="/dashboard" />} />
                     <Route path="/suporte" element={<SupportPage />} />
                   </Routes>

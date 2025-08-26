@@ -715,6 +715,142 @@ class NotificationService {
 
     return notification;
   }
+
+  /**
+   * Envia notificação para membros da equipe de administração
+   * @param {Object} data - Dados da notificação
+   * @param {string} data.title - Título da notificação
+   * @param {string} data.message - Mensagem da notificação
+   * @param {string} data.type - Tipo da notificação (ADMIN_ALERT, SECURITY, etc.)
+   * @param {Object} data.data - Dados adicionais da notificação
+   * @param {Object} app - Objeto da aplicação para SSE
+   * @returns {Promise<Array>} - Lista de notificações criadas
+   */
+  async notifyAdmin(data, app) {
+    const { title, message, type = "ADMIN_ALERT", data: additionalData } = data;
+
+    if (!title || !message) {
+      throw new Error("Dados incompletos. title e message são obrigatórios");
+    }
+
+    // Buscar todos os membros ativos da equipe de administração
+    const Admin = require("../models/Admin");
+    const adminMembers = await Admin.find({ active: true });
+
+    if (adminMembers.length === 0) {
+      throw new Error("Nenhum membro de administração ativo encontrado");
+    }
+
+    const notifications = [];
+    const notificationPromises = [];
+
+    // Criar uma notificação para cada membro do admin
+    for (const adminMember of adminMembers) {
+      const notification = new Notification({
+        firebaseUid: adminMember.firebaseUid,
+        type,
+        title,
+        message,
+        data: additionalData || {},
+        status: "PENDING",
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 dias
+      });
+
+      notifications.push(notification);
+      notificationPromises.push(notification.save());
+
+      // Enviar notificação push para web
+      if (global.webPushService) {
+        try {
+          const pushData = {
+            title,
+            body: message,
+            icon: "/logo192.png",
+            badge: "/favicon_trim.png",
+            tag: `admin-${type.toLowerCase()}`,
+            data: {
+              type,
+              notificationId: notification._id,
+              url: "/notifications",
+              ...additionalData,
+            },
+            requireInteraction: true,
+            vibrate: [200, 100, 200],
+          };
+
+          await global.webPushService.sendNotificationToUser(
+            adminMember.firebaseUid,
+            pushData
+          );
+
+          console.log(
+            `🔔 Notificação push enviada para admin ${adminMember.name}: ${title}`
+          );
+        } catch (pushError) {
+          console.error(
+            `Erro ao enviar notificação push para admin ${adminMember.name}:`,
+            pushError
+          );
+        }
+      }
+
+      // Enviar notificação via Socket para admin
+      const notificationSent = global.sendSocketNotification(
+        adminMember.firebaseUid,
+        "adminNotification",
+        {
+          notificationId: notification._id,
+          type,
+          title,
+          message,
+          data: additionalData || {},
+        }
+      );
+
+      console.log(
+        `📡 Notificação Socket para admin ${adminMember.name}: ${
+          notificationSent ? "✅" : "❌"
+        }`
+      );
+
+      // Enviar evento SSE se disponível
+      if (app?.locals?.sendEventToStore) {
+        try {
+          const notifyData = {
+            notificationId: notification._id,
+            type,
+            title,
+            message,
+            data: additionalData || {},
+          };
+
+          app.locals.sendEventToStore(
+            adminMember.firebaseUid,
+            "adminNotification",
+            notifyData
+          );
+
+          console.log(
+            `📡 Notificação SSE enviada para admin ${adminMember.name}: ${title}`
+          );
+        } catch (notifyError) {
+          console.error(
+            `Erro ao enviar notificação SSE para admin ${adminMember.name}:`,
+            notifyError
+          );
+        }
+      }
+    }
+
+    // Aguardar todas as notificações serem salvas
+    await Promise.all(notificationPromises);
+
+    console.log(
+      `✅ ${notifications.length} notificações administrativas criadas: ${title}`
+    );
+
+    return notifications;
+  }
 }
 
 module.exports = new NotificationService();

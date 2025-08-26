@@ -929,6 +929,7 @@ router.get("/message/:chatId", getChatMessagesByChatId);
 router.put("/message/:chatId/read/:firebaseUid", markMessagesAsRead);
 router.get("/message/unread/:userId", getUnreadMessageCountOptimized); // Usando versão otimizada
 router.get("/message/has-unread/:userId", hasUnreadChatMessagesOptimized); // Usando versão otimizada
+router.get("/message/unread-info/:userId", hasUnreadChatMessagesOptimized); // Usando versão otimizada
 
 // Rota de debug para verificar arquivos
 router.get("/debug/files", debugFiles);
