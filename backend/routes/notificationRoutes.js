@@ -70,6 +70,72 @@ const hasUnreadNotifications = async (req, res) => {
   }
 };
 
+const getStoreNotifications = async (req, res) => {
+  try {
+    const { firebaseUid } = req.query;
+
+    if (!firebaseUid) {
+      return res.status(400).json({
+        message: "firebaseUid é obrigatório",
+      });
+    }
+
+    const notifications = await Notification.find({
+      firebaseUid: firebaseUid,
+      $or: [
+        { type: "STORE_ALERT" },
+        { type: "SYSTEM" },
+        { type: "CHAT_MESSAGE" },
+        { type: "ORDER_STATUS_UPDATE" },
+        { type: "BILLING" },
+        { type: "OCCURRENCE_CHANGE" },
+      ],
+    }).sort({ createdAt: -1 });
+
+    res.json(notifications);
+  } catch (error) {
+    console.error("Erro ao buscar notificações do estabelecimento:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const updateStoreNotification = async (req, res) => {
+  try {
+    const { id, status } = req.body;
+
+    if (!id || !status) {
+      return res.status(400).json({
+        message: "Dados incompletos. id e status são obrigatórios",
+      });
+    }
+
+    const notification = await Notification.findById(id);
+    if (!notification) {
+      return res.status(404).json({ message: "Notificação não encontrada" });
+    }
+
+    notification.status = status;
+    await notification.save();
+
+    // Enviar atualização via Socket se disponível
+    if (global.sendSocketNotification && notification.firebaseUid) {
+      global.sendSocketNotification(
+        notification.firebaseUid,
+        "notificationUpdateBell",
+        notification.status !== "READ"
+      );
+    }
+
+    res.status(200).json({
+      message: "Notificação atualizada com sucesso",
+      notification,
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar notificação do estabelecimento:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 const getSupportNotifications = async (req, res) => {
   try {
     const { firebaseUid } = req.query;
@@ -340,6 +406,124 @@ const createNotificationGeneric = async (req, res) => {
     res.status(201).json(notification);
   } catch (error) {
     console.error("Erro ao criar notificação:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const notifyStore = async (req, res) => {
+  try {
+    const { title, message, storeFirebaseUid, type, data } = req.body;
+
+    if (!title || !message || !storeFirebaseUid) {
+      return res.status(400).json({
+        message:
+          "Dados incompletos. title, message e storeFirebaseUid são obrigatórios",
+      });
+    }
+
+    // Verificar se a loja existe
+    const store = await Store.findOne({ firebaseUid: storeFirebaseUid });
+    if (!store) {
+      return res.status(404).json({ message: "Loja não encontrada" });
+    }
+
+    // Criar a notificação
+    const notification = new Notification({
+      firebaseUid: storeFirebaseUid,
+      type: type || "STORE_ALERT",
+      title: title,
+      message: message,
+      data: data || {},
+      status: "PENDING",
+      expiresAt: new Date(Date.now() + 60000 * 60 * 24 * 7), // 7 dias para expirar
+    });
+
+    await notification.save();
+
+    // Enviar evento Socket para a loja
+    if (global.sendSocketNotification) {
+      try {
+        const notifyData = {
+          notificationId: notification._id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          data: notification.data,
+        };
+
+        // Enviar notificação para o UID do Firebase da loja
+        global.sendSocketNotification(
+          storeFirebaseUid,
+          "storeNotification",
+          notifyData
+        );
+
+        console.log(
+          `Notificação enviada para a loja: ${
+            store.businessName || store.displayName
+          } (${storeFirebaseUid})`
+        );
+      } catch (notifyError) {
+        console.error(
+          `Erro ao enviar notificação Socket para loja ${store.businessName}:`,
+          notifyError
+        );
+      }
+    }
+
+    // Enviar evento SSE se disponível
+    if (req.app?.locals?.sendEventToStore) {
+      try {
+        const notifyData = {
+          notificationId: notification._id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          data: notification.data,
+        };
+
+        req.app.locals.sendEventToStore(
+          storeFirebaseUid,
+          "storeNotification",
+          notifyData
+        );
+
+        console.log(
+          `Notificação SSE enviada para a loja: ${
+            store.businessName || store.displayName
+          }`
+        );
+      } catch (notifyError) {
+        console.error("Erro ao enviar notificação SSE:", notifyError);
+      }
+    }
+
+    // Enviar notificação push se a loja tiver token FCM
+    if (store.fcmToken) {
+      try {
+        const fcmNotification =
+          await pushNotificationService.sendCallStyleNotificationFCM(
+            store.fcmToken,
+            notification.title,
+            notification.message,
+            {
+              notificationId: notification._id,
+              type: notification.type,
+              screen: "/notifications",
+            }
+          );
+      } catch (pushError) {
+        console.error("Erro ao enviar notificação push para loja:", pushError);
+        // Não falhar o request se a notificação push falhar
+      }
+    }
+
+    res.status(201).json({
+      message: "Notificação enviada para a loja com sucesso",
+      notification: notification,
+    });
+  } catch (error) {
+    console.error("Erro ao criar notificação para loja:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -845,6 +1029,9 @@ router.get("/firebase", getFirebaseNotifications);
 router.get("/admin", getAdminNotifications);
 router.put("/admin", updateAdminNotification);
 router.post("/notifyAdmin", notifyAdmin);
+router.get("/store", getStoreNotifications);
+router.put("/store", updateStoreNotification);
+router.post("/notifyStore", notifyStore);
 router.put("/mark-as-all-read", markAllAsRead);
 router.delete("/:id", deleteNotification);
 router.delete("/delivery-request", deleteDeliveryRequestNotifications);

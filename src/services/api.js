@@ -674,8 +674,28 @@ export const noCacheRequest = (config) => {
 };
 
 export const getStoreNotifications = async (firebaseUid) => {
-  return api.get(`/notifications/firebase`, {
+  return api.get(`/notifications/store`, {
     params: { firebaseUid },
+  });
+};
+
+export const updateStoreNotification = async (id, status) => {
+  return api.put("/notifications/store", { id, status });
+};
+
+export const notifyStore = async (
+  title,
+  message,
+  storeFirebaseUid,
+  type = "STORE_ALERT",
+  data = {}
+) => {
+  return api.post("/notifications/notifyStore", {
+    title,
+    message,
+    storeFirebaseUid,
+    type,
+    data,
   });
 };
 

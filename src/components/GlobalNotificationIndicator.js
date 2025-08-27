@@ -17,7 +17,7 @@ import {
   Notifications as NotificationsIcon,
   NotificationsActive as NotificationsActiveIcon,
   Settings as SettingsIcon,
-  TestTube as TestIcon,
+  Refresh as TestIcon,
   VolumeUp as VolumeIcon,
 } from "@mui/icons-material";
 import { useGlobalNotifications } from "../contexts/GlobalNotificationsContext";

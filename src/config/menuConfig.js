@@ -157,6 +157,11 @@ export const STORE_MENU_ITEMS = [
     icon: <FinanceiroIcon />,
   },
   {
+    path: "/notifications",
+    text: "Notificações",
+    icon: <NotificationsIcon />,
+  },
+  {
     path: "/ocorrencias",
     text: "Ocorrências",
     icon: <ReportProblemIcon />,

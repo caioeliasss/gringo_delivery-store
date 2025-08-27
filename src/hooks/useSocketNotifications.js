@@ -148,6 +148,38 @@ export const useSocketNotifications = (firebaseUid, userType = "support") => {
           });
         });
 
+        // Eventos de notificação específicos para estabelecimentos
+        socketInstance.on("storeNotification", (data) => {
+          console.log("🏪 Nova notificação do estabelecimento:", data);
+
+          setNotifications((prev) => {
+            const exists = prev.some(
+              (n) => n.notificationId === data.notificationId
+            );
+            if (!exists) {
+              setUnreadCount((count) => count + 1);
+
+              // Mostrar notificação push se habilitada
+              if (webPushService.hasPermission()) {
+                webPushService.showNotification(
+                  data.title || "Nova Notificação da Loja",
+                  {
+                    body: data.message || data.body,
+                    type: "store",
+                    data: data,
+                    tag: `store-${data.notificationId}`,
+                    icon: "/logo192.png",
+                    requireInteraction: true,
+                  }
+                );
+              }
+
+              return [data, ...prev].slice(0, 100); // Manter últimas 100
+            }
+            return prev;
+          });
+        });
+
         socketInstance.on("notificationUpdateBell", (hasUnread) => {
           console.log("🔔 Atualização de sino de notificação:", hasUnread);
           setUnreadCount(hasUnread ? 1 : 0);
@@ -207,6 +239,132 @@ export const useSocketNotifications = (firebaseUid, userType = "support") => {
                     tag: `system-${data.notificationId}`,
                     icon: "/logo192.png",
                     requireInteraction: false,
+                  }
+                );
+              }
+
+              return [data, ...prev].slice(0, 100);
+            }
+            return prev;
+          });
+        });
+
+        // Eventos específicos para estabelecimentos
+        socketInstance.on("STORE_ALERT", (data) => {
+          console.log("🚨 Alerta para estabelecimento:", data);
+
+          setNotifications((prev) => {
+            const exists = prev.some(
+              (n) => n.notificationId === data.notificationId
+            );
+            if (!exists) {
+              setUnreadCount((count) => count + 1);
+
+              // Mostrar notificação push se habilitada
+              if (webPushService.hasPermission()) {
+                webPushService.showNotification(
+                  data.title || "Alerta da Loja",
+                  {
+                    body: data.message || data.body,
+                    type: "store_alert",
+                    data: data,
+                    tag: `store-alert-${data.notificationId}`,
+                    icon: "/logo192.png",
+                    requireInteraction: true,
+                    urgency: "high",
+                  }
+                );
+              }
+
+              return [data, ...prev].slice(0, 100);
+            }
+            return prev;
+          });
+        });
+
+        // Evento para atualizações de pedidos para estabelecimentos
+        socketInstance.on("ORDER_STATUS_UPDATE", (data) => {
+          console.log("📦 Atualização de pedido para estabelecimento:", data);
+
+          setNotifications((prev) => {
+            const exists = prev.some(
+              (n) => n.notificationId === data.notificationId
+            );
+            if (!exists) {
+              setUnreadCount((count) => count + 1);
+
+              // Mostrar notificação push se habilitada
+              if (webPushService.hasPermission()) {
+                webPushService.showNotification(
+                  data.title || "Atualização de Pedido",
+                  {
+                    body: data.message || data.body,
+                    type: "order_update",
+                    data: data,
+                    tag: `order-${data.notificationId}`,
+                    icon: "/logo192.png",
+                    requireInteraction: false,
+                  }
+                );
+              }
+
+              return [data, ...prev].slice(0, 100);
+            }
+            return prev;
+          });
+        });
+
+        // Evento para chat de estabelecimentos
+        socketInstance.on("CHAT_MESSAGE", (data) => {
+          console.log("💬 Nova mensagem de chat para estabelecimento:", data);
+
+          setNotifications((prev) => {
+            const exists = prev.some(
+              (n) => n.notificationId === data.notificationId
+            );
+            if (!exists) {
+              setUnreadCount((count) => count + 1);
+
+              // Mostrar notificação push se habilitada
+              if (webPushService.hasPermission()) {
+                webPushService.showNotification(data.title || "Nova Mensagem", {
+                  body: data.message || data.body,
+                  type: "chat",
+                  data: data,
+                  tag: `chat-${data.notificationId}`,
+                  icon: "/logo192.png",
+                  requireInteraction: true,
+                });
+              }
+
+              return [data, ...prev].slice(0, 100);
+            }
+            return prev;
+          });
+        });
+
+        // Evento para billing/financeiro de estabelecimentos
+        socketInstance.on("BILLING", (data) => {
+          console.log("💰 Notificação financeira para estabelecimento:", data);
+
+          setNotifications((prev) => {
+            const exists = prev.some(
+              (n) => n.notificationId === data.notificationId
+            );
+            if (!exists) {
+              setUnreadCount((count) => count + 1);
+
+              // Mostrar notificação push se habilitada
+              if (webPushService.hasPermission()) {
+                webPushService.showNotification(
+                  data.title || "Notificação Financeira",
+                  {
+                    body: data.message || data.body,
+                    type: "billing",
+                    data: data,
+                    tag: `billing-${data.notificationId}`,
+                    icon: "/logo192.png",
+                    requireInteraction: true,
                   }
                 );
               }

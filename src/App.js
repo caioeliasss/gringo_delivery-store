@@ -43,6 +43,7 @@ import Termos from "./pages/Termos/Termos";
 import ViewCoordinates from "./components/ViewCoordinates/ViewCoordinates";
 import CorridasStore from "./pages/Store/Corridas/CorridasStore";
 import FinanceiroStore from "./pages/Store/Financeiro/financeiro";
+import StoreNotificationsPage from "./pages/Store/Notifications/StoreNotifications";
 // Definir tema personalizado com a paleta de cores da Gringo Delivery
 const theme = createTheme({
   typography: {
@@ -239,6 +240,7 @@ function CustomerApp() {
                 </PrivateRoute>
               }
             />
+            <Route path="/notifications" element={<StoreNotificationsPage />} />
             <Route
               path="/produtos"
               element={
