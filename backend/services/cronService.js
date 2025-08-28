@@ -7,10 +7,26 @@ const { response } = require("express");
 class CronService {
   constructor() {
     this.jobs = [];
+    this.isDevelopment = process.env.NODE_ENV === "development";
+  }
+
+  // Verificar se deve executar em ambiente de desenvolvimento
+  shouldSkipInDevelopment(functionName = "função") {
+    if (this.isDevelopment) {
+      console.log(
+        `⏭️ [DEV MODE] Pulando execução de ${functionName} em ambiente de desenvolvimento`
+      );
+      return true;
+    }
+    return false;
   }
 
   // Agendar criação automática de faturas no dia 01 de cada mês
   scheduleMonthlyBilling() {
+    if (this.shouldSkipInDevelopment("agendamento de faturas mensais")) {
+      return null;
+    }
+
     const job = new cron.CronJob(
       "0 9 10 * *", // Executa todo dia 10 às 09:00
       this.createMonthlyBillings.bind(this),
@@ -26,6 +42,10 @@ class CronService {
 
   // Função para criar faturas mensais
   async createMonthlyBillings() {
+    if (this.shouldSkipInDevelopment("criação de faturas mensais")) {
+      return;
+    }
+
     try {
       console.log("🔄 Iniciando criação de faturas mensais...");
 
@@ -153,6 +173,14 @@ class CronService {
 
   // Verificar faturas vencidas (executar diariamente)
   scheduleOverdueCheck() {
+    if (
+      this.shouldSkipInDevelopment(
+        "agendamento de verificação de faturas vencidas"
+      )
+    ) {
+      return null;
+    }
+
     // Executa todos os dias às 10:00
     const job = new cron.CronJob(
       "0 10 * * *",
@@ -169,6 +197,10 @@ class CronService {
 
   // Verificar e atualizar faturas vencidas
   async checkOverdueBillings() {
+    if (this.shouldSkipInDevelopment("verificação de faturas vencidas")) {
+      return;
+    }
+
     try {
       console.log("🔍 Verificando faturas vencidas...");
 
@@ -195,6 +227,12 @@ class CronService {
 
   // ADICIONAR: Criar cobrança de taxa de motoboy
   async createMotoboyFeeBillings() {
+    if (
+      this.shouldSkipInDevelopment("criação de cobrança de taxa de motoboy")
+    ) {
+      return;
+    }
+
     try {
       console.log("🏍️ Iniciando cobrança de taxa de motoboy...");
 
@@ -402,6 +440,10 @@ class CronService {
   }
 
   async createTravelsBilling() {
+    if (this.shouldSkipInDevelopment("criação de cobrança de travels")) {
+      return;
+    }
+
     try {
       console.log("🏍️ Iniciando cobrança de taxa de motoboy...");
 
@@ -647,6 +689,10 @@ Total: R$ ${feePerDelivery.toFixed(2)}`;
 
   // OPCIONAL: Atualizar agendamento para executar semanalmente
   scheduleMotoboyFeeBilling() {
+    if (this.shouldSkipInDevelopment("agendamento de taxa de motoboy")) {
+      return null;
+    }
+
     const job = new cron.CronJob(
       "0 8 * * 1", // Every Monday at 8:00 AM
       async () => {
@@ -667,6 +713,14 @@ Total: R$ ${feePerDelivery.toFixed(2)}`;
 
   // ATUALIZAR: Método startAll para incluir taxa de motoboy
   startAll() {
+    if (this.isDevelopment) {
+      console.log(
+        "🚫 [DEV MODE] Cron jobs desabilitados em ambiente de desenvolvimento"
+      );
+      console.log("💡 Para habilitar, altere NODE_ENV para 'production'");
+      return;
+    }
+
     this.scheduleMonthlyBilling();
     this.scheduleMotoboyFeeBilling(); // ADICIONAR esta linha
     this.scheduleOverdueCheck();

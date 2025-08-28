@@ -41,6 +41,25 @@ const storeAddress = new mongoose.Schema({
   },
 });
 
+const ifoodConfigSchema = new mongoose.Schema({
+  clientId: {
+    type: String,
+    required: false,
+  },
+  clientSecret: {
+    type: String,
+    required: false,
+  },
+  merchantId: {
+    type: String,
+    required: false,
+  },
+  access_token: {
+    type: String,
+    required: false,
+  },
+});
+
 const storeSchema = new mongoose.Schema({
   firebaseUid: {
     type: String,
@@ -51,6 +70,7 @@ const storeSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  ifoodConfig: ifoodConfigSchema,
   merchantId: {
     type: String,
     required: false,

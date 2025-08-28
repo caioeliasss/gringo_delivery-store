@@ -389,6 +389,7 @@ api.interceptors.request.use(
         }
         config.headers = config.headers || {};
         config.headers.Authorization = `Bearer ${token}`;
+        console.log(token);
       } catch (tokenError) {
         console.error("Erro ao obter token:", tokenError);
       }

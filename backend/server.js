@@ -10,6 +10,7 @@ const admin = require("./config/firebase-admin"); // Usar configuração central
 const http = require("http");
 const socketIO = require("socket.io");
 const path = require("path");
+const EnvironmentUtils = require("./utils/environmentUtils");
 
 // Configuração das variáveis de ambiente baseada no NODE_ENV com fallback inteligente
 const fs = require("fs");
@@ -287,7 +288,6 @@ const travelRoutes = require("./routes/travelRoutes");
 const occurrenceRoutes = require("./routes/occurrenceRoutes");
 const deliveryPricesRoutes = require("./routes/deliveryPricesRoutes");
 const cronService = require("./services/cronService");
-const IfoodService = require("./services/ifoodService");
 cronService.startAll(); // Iniciar serviço de cron
 
 app.use("/api/webhooks", express.raw({ type: "application/json" }));
@@ -401,8 +401,88 @@ app.use("/api/webhook/ifood", (req, res) => {
   webhookController.handleIfoodWebhook(req, res);
 });
 
-const ifoodService = new IfoodService();
-ifoodService.pollingIfood();
+// Inicializar polling do iFood para todos os stores
+// const IfoodPollingService = require("./services/ifoodPollingService");
+// const ifoodPollingService = new IfoodPollingService();
+
+// // Iniciar polling após um delay para garantir que o servidor esteja pronto
+// setTimeout(async () => {
+//   try {
+//     await ifoodPollingService.startPollingForAllStores();
+//     console.log("[SERVER] iFood polling iniciado para todos os stores");
+//   } catch (error) {
+//     console.error("[SERVER] Erro ao iniciar iFood polling:", error);
+//   }
+// }, 29000); // 29 segundos de delay
+
+// // Endpoint para verificar status do polling
+// app.get("/api/ifood/polling-status", (req, res) => {
+//   const status = ifoodPollingService.getPollingStatus();
+//   res.json(status);
+// });
+
+// // Endpoint para adicionar store ao polling
+// app.post("/api/ifood/add-store-polling/:storeFirebaseUid", async (req, res) => {
+//   try {
+//     const { storeFirebaseUid } = req.params;
+//     await ifoodPollingService.addStore(storeFirebaseUid);
+//     res.json({ message: `Polling iniciado para store: ${storeFirebaseUid}` });
+//   } catch (error) {
+//     console.error("Erro ao adicionar store ao polling:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// });
+
+// Endpoint para verificar configuração do ambiente
+app.get("/api/environment/status", (req, res) => {
+  const config = EnvironmentUtils.getEnvironmentConfig();
+  res.json({
+    ...config,
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
+
+// Endpoint para verificar se serviços estão ativos (apenas em dev)
+app.get("/api/development/services", (req, res) => {
+  if (!EnvironmentUtils.isDevelopment()) {
+    return res.status(403).json({
+      error: "Este endpoint só está disponível em desenvolvimento",
+    });
+  }
+
+  res.json({
+    environment: "development",
+    services: {
+      cronJobs: {
+        enabled: false,
+        reason: "Desabilitado em desenvolvimento",
+      },
+      ifoodPolling: {
+        enabled: false,
+        reason: "Desabilitado em desenvolvimento",
+      },
+      asaasIntegration: {
+        enabled: false,
+        reason: "Desabilitado em desenvolvimento",
+      },
+    },
+    message:
+      "Para habilitar todos os serviços, altere NODE_ENV para 'production'",
+  });
+});
+
+// // Endpoint para remover store do polling
+// app.delete("/api/ifood/remove-store-polling/:storeFirebaseUid", (req, res) => {
+//   try {
+//     const { storeFirebaseUid } = req.params;
+//     ifoodPollingService.removeStore(storeFirebaseUid);
+//     res.json({ message: `Polling parado para store: ${storeFirebaseUid}` });
+//   } catch (error) {
+//     console.error("Erro ao remover store do polling:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// });
 
 // Middleware de logging
 app.use((req, res, next) => {
@@ -415,11 +495,27 @@ setInterval(() => {
   socketManager.cleanupInactiveConnections(30); // Remove conexões inativas há mais de 30 segundos
 }, 15 * 60 * 1000);
 
+// Graceful shutdown
+// process.on("SIGTERM", () => {
+//   console.log("[SERVER] Recebido SIGTERM, parando polling...");
+//   ifoodPollingService.stopAllPolling();
+//   process.exit(0);
+// });
+
+// process.on("SIGINT", () => {
+//   console.log("[SERVER] Recebido SIGINT, parando polling...");
+//   ifoodPollingService.stopAllPolling();
+//   process.exit(0);
+// });
+
 // IMPORTANTE: Usar server.listen em vez de app.listen para Socket.io funcionar
 server.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT} com Socket.io`);
   console.log("✅ WebSocket configurado e funcionando");
   console.log("✅ SocketManager inicializado");
+
+  // Mostrar informações do ambiente
+  EnvironmentUtils.logEnvironmentInfo();
 });
 
 process.on("unhandledRejection", (err) => {

@@ -695,7 +695,7 @@ const removeStore = async (req, res) => {
       return res.status(404).json({ message: "Loja não encontrada" });
     }
 
-    await store.remove();
+    await Store.deleteOne({ _id: storeId });
 
     res.status(200).json({
       message: "Loja removida com sucesso",

@@ -179,12 +179,17 @@ class OrderService {
   }
 
   // Adicionar método getMerchantDetails
-  async getMerchantDetails(merchantId) {
+  async getMerchantDetails(merchantId, storeFirebaseUid = null) {
     const IfoodService = require("./ifoodService");
-    const ifoodService = new IfoodService();
+    const ifoodService = storeFirebaseUid
+      ? await IfoodService.createForStore(storeFirebaseUid)
+      : new IfoodService();
 
     try {
-      const merchantDetails = await ifoodService.getMerchantDetails(merchantId);
+      const merchantDetails = await ifoodService.getMerchantDetails(
+        merchantId,
+        storeFirebaseUid
+      );
       return merchantDetails;
     } catch (error) {
       console.error("Erro ao buscar detalhes do merchant:", error);
@@ -493,6 +498,7 @@ class OrderService {
         "em_preparo",
         "em_entrega",
         "pronto",
+        "ready_takeout",
         "entregue",
         "cancelado",
       ];
@@ -553,14 +559,68 @@ class OrderService {
       // Notificar motoboy sobre mudança de status (se houver motoboy atribuído)
       if (previousStatus !== status && order.motoboy?.motoboyId) {
         try {
-          const notificationService = new NotificationService();
-          await notificationService.sendOrderStatusUpdate(
-            order.motoboy.motoboyId,
-            order._id,
-            status
-          );
+          await NotificationService.updateNotificationStatus({
+            orderId: order._id,
+            newStatus: status,
+            previousStatus: previousStatus,
+            motoboyId: order.motoboy.motoboyId,
+            storeName: order.store.name,
+          });
         } catch (notifyError) {
           console.error("Erro ao notificar motoboy:", notifyError);
+        }
+      }
+
+      if (order.ifoodId) {
+        const IfoodService = require("./ifoodService");
+        const ifoodService = firebaseUid
+          ? await IfoodService.createForStore(firebaseUid)
+          : new IfoodService();
+
+        if (previousStatus === "pendente" && status === "em_preparo") {
+          try {
+            await ifoodService.confirmOrder(order.ifoodId, firebaseUid);
+          } catch (ifoodError) {
+            console.error(
+              "Erro ao atualizar status no iFood (confirmOrder):",
+              ifoodError
+            );
+          }
+        }
+        if (previousStatus === "pronto" && status === "em_entrega") {
+          try {
+            await ifoodService.dispatchOrder(order.ifoodId, firebaseUid);
+          } catch (ifoodError) {
+            console.error(
+              "Erro ao atualizar status no iFood (dispatchOrder):",
+              ifoodError
+            );
+          }
+        }
+
+        if (previousStatus === "em_entrega" && status === "entregue") {
+          try {
+            const deliveryCode = order.customer[0]?.phone?.slice(-4);
+            await ifoodService.verifyOrderDeliveryCode(
+              order.ifoodId,
+              deliveryCode
+            );
+          } catch (ifoodError) {
+            console.error(
+              "Erro ao atualizar status no iFood (verifyOrderDeliveryCode):",
+              ifoodError
+            );
+          }
+        }
+        if (status === "ready_takeout") {
+          try {
+            await ifoodService.readyToPickup(order.ifoodId, firebaseUid);
+          } catch (ifoodError) {
+            console.error(
+              "Erro ao atualizar status no iFood (dispatchOrder):",
+              ifoodError
+            );
+          }
         }
       }
 
@@ -1184,8 +1244,6 @@ class OrderService {
       // Iniciar busca por motoboys de forma assíncrona
       setImmediate(async () => {
         try {
-          console.log(`🔍 Iniciando busca por motoboys para pedido ${orderId}`);
-
           const motoboys = await motoboyServices.findBestMotoboys(
             order.store.coordinates
           );

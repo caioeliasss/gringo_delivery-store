@@ -2,14 +2,31 @@ const Store = require("../models/Store");
 const IfoodService = require("./ifoodService");
 
 class OrderImportService {
-  constructor(orderService) {
-    this.ifoodService = new IfoodService();
+  constructor(orderService, storeFirebaseUid = null) {
+    this.storeFirebaseUid = storeFirebaseUid;
+    this.ifoodService = storeFirebaseUid
+      ? null // Será criado quando necessário
+      : new IfoodService();
     this.orderService = orderService;
   }
 
-  async importIfoodOrders() {
+  async getIfoodService() {
+    if (this.storeFirebaseUid && !this.ifoodService) {
+      this.ifoodService = await IfoodService.createForStore(
+        this.storeFirebaseUid
+      );
+    } else if (!this.ifoodService) {
+      this.ifoodService = new IfoodService();
+    }
+    return this.ifoodService;
+  }
+
+  async importIfoodOrders(storeFirebaseUid = null) {
     try {
-      const ifoodOrders = await this.ifoodService.getOrders();
+      const targetStoreUid = storeFirebaseUid || this.storeFirebaseUid;
+      const ifoodService = await this.getIfoodService();
+
+      const ifoodOrders = await ifoodService.getOrders(targetStoreUid);
       const importedOrders = [];
 
       for (const ifoodOrder of ifoodOrders) {
@@ -19,8 +36,9 @@ class OrderImportService {
         );
 
         if (!existingOrder) {
-          const orderDetails = await this.ifoodService.getOrderDetails(
-            ifoodOrder.id
+          const orderDetails = await ifoodService.getOrderDetails(
+            ifoodOrder.id,
+            targetStoreUid
           );
           const localOrder = await this.convertIfoodOrderToLocal(orderDetails);
           const createdOrder = await this.orderService.createOrder(localOrder);
@@ -53,11 +71,12 @@ class OrderImportService {
       // ID do iFood para controle
       ifoodId: ifoodOrder.id,
 
-      orderType: "DELIVERY",
+      deliveryMode:
+        ifoodOrder.orderType === "DELIVERY" ? "delivery" : "retirada",
 
       // Informações da loja (você pode definir valores padrão ou buscar do banco)
       store: {
-        name: ifoodOrder.merchant?.name || "Loja Principal",
+        name: store.businessName,
         ifoodId: ifoodOrder.merchant?.id || "00000000000000",
         cnpj: store?.cnpj || "00000000000191",
         coordinates: [
@@ -91,7 +110,6 @@ class OrderImportService {
             cidade: ifoodOrder.delivery?.deliveryAddress?.city || "",
             coordinates: [longitude, latitude],
           },
-          pickupCode: ifoodOrder.delivery?.pickupCode || "",
           geolocation: this.createGeoLocation(
             ifoodOrder.delivery?.deliveryAddress
           ),
@@ -130,9 +148,10 @@ class OrderImportService {
         endTime: null,
       },
 
+      phoneLocalizer: ifoodOrder.phone?.localizer,
       // Observações
       notes: ifoodOrder.orderNotes || ifoodOrder.observations || "",
-      findDriverAuto: ifoodOrder.orderType === "DELIVERY",
+      findDriverAuto: false,
       ifoodId: ifoodOrder.id,
       // Timestamps
       createdAt: new Date(ifoodOrder.createdAt),
@@ -143,7 +162,7 @@ class OrderImportService {
   mapIfoodStatus(ifoodStatus) {
     const statusMap = {
       PLACED: "pendente",
-      CONFIRMED: "pendente",
+      CONFIRMED: "em_preparo",
       PREPARATION: "em_preparo",
       READY_FOR_PICKUP: "em_preparo",
       DISPATCHED: "em_entrega",
@@ -242,8 +261,10 @@ class OrderImportService {
       for (const order of pendingOrders.orders) {
         if (order.ifoodId) {
           try {
-            const ifoodOrderDetails = await this.ifoodService.getOrderDetails(
-              order.ifoodId
+            const ifoodService = await this.getIfoodService();
+            const ifoodOrderDetails = await ifoodService.getOrderDetails(
+              order.ifoodId,
+              this.storeFirebaseUid
             );
             const updatedOrder = await this.updateIfoodOrder(
               order,

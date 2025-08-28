@@ -86,6 +86,25 @@ router.get("/:id", authenticateToken, async (req, res) => {
   }
 });
 
+router.post("/verifyIfoodDeliveryCode", authenticateToken, async (req, res) => {
+  try {
+    const { orderId, deliveryCode } = req.body;
+    const IfoodService = require("../services/ifoodService");
+    const ifoodService = new IfoodService();
+    const result = await ifoodService.verifyOrderDeliveryCode(
+      orderId,
+      deliveryCode
+    );
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Erro ao verificar código de entrega no iFood:", error);
+    res.status(500).json({
+      message: "Erro ao verificar código de entrega no iFood",
+      error: error.message,
+    });
+  }
+});
+
 // Atualizar status do pedido
 router.put("/status", authenticateToken, async (req, res) => {
   try {

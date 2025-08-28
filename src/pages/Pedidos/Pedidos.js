@@ -232,6 +232,7 @@ const Pedidos = () => {
     quantity: 1,
     price: 0,
   });
+  const [deliveryCode, setDeliveryCode] = useState("");
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -1519,12 +1520,22 @@ const Pedidos = () => {
       pendente: {
         color: "warning",
         icon: <ScheduleIcon fontSize="small" />,
-        label: "Buscando motorista",
+        label: "Pendente de Aceitação",
       },
       em_preparo: {
         color: "primary",
         icon: <CheckIcon fontSize="small" />,
         label: "Em Preparo",
+      },
+      pronto: {
+        color: "success",
+        icon: <DoneAllIcon fontSize="small" />,
+        label: "Pronto para retirada",
+      },
+      ready_takeout: {
+        color: "success",
+        icon: <DoneAllIcon fontSize="small" />,
+        label: "Pronto para Retirada",
       },
       em_entrega: {
         color: "info",
@@ -1593,6 +1604,38 @@ const Pedidos = () => {
   );
 
   const handleCallDeliveryPerson = async (pedido) => {
+    const orderReady = require("../../services/api").updateOrderStatus;
+
+    const newStatus =
+      pedido.deliveryMode === "retirada" ? "ready_takeout" : "pronto";
+
+    if (newStatus === "ready_takeout") {
+      try {
+        await orderReady(pedido._id, newStatus);
+      } catch (error) {
+        console.error("Erro ao atualizar status do pedido:", error);
+        setSnackbar({
+          open: true,
+          message: `Erro ao verificar código de entrega no iFood: ${error.message}`,
+          severity: "error",
+        });
+        return;
+      }
+      setPedidos((prevPedidos) =>
+        prevPedidos.map((p) =>
+          p._id === pedido._id ? { ...p, status: newStatus } : p
+        )
+      );
+      setCurrentPedido((prev) => ({ ...prev, status: newStatus }));
+      setSnackbar({
+        open: true,
+        message:
+          "Entregador chamado com sucesso! Agora você pode enviar para entrega.",
+        severity: "success",
+      });
+      return;
+    }
+
     if (!pedido.motoboy || !pedido.motoboy.phone || !pedido.motoboy.motoboyId) {
       setSnackbar({
         open: true,
@@ -1602,12 +1645,9 @@ const Pedidos = () => {
       return;
     }
     try {
+      const response = await orderReady(pedido._id, newStatus);
       const phoneNumber = pedido.motoboy.phone;
       const motoboyId = pedido.motoboy.motoboyId;
-
-      // Usar API REST
-      const orderReady = require("../../services/api").updateOrderStatus;
-      const response = await orderReady(pedido._id, "pronto");
 
       if (response.status > 199 && response.status < 300) {
         // Também notificar via socket
@@ -1622,7 +1662,9 @@ const Pedidos = () => {
         // Atualizar também na lista de pedidos
         setPedidos((prevPedidos) =>
           prevPedidos.map((p) =>
-            p._id === pedido._id ? { ...p, hasArrived: true } : p
+            p._id === pedido._id
+              ? { ...p, hasArrived: true, status: newStatus }
+              : p
           )
         );
 
@@ -2004,6 +2046,35 @@ const Pedidos = () => {
       };
     }
   }, [useMap, locationTab]);
+
+  const handleTakeoutCode = async (pedido) => {
+    if (!deliveryCode.trim()) {
+      setSnackbar({
+        open: true,
+        message: "Digite um código de retirada",
+        severity: "warning",
+      });
+      return;
+    }
+    try {
+      const response = await api.post("/verifyIfoodDeliveryCode", {
+        orderId: pedido.ifoodId,
+        deliveryCode: deliveryCode,
+      });
+      setSnackbar({
+        open: true,
+        message: response.data.message,
+        severity: response.data.success ? "success" : "error",
+      });
+    } catch (error) {
+      console.error("Erro ao verificar código de retirada:", error);
+      setSnackbar({
+        open: true,
+        message: "Erro ao verificar código de retirada",
+        severity: "error",
+      });
+    }
+  };
 
   return (
     <Box
@@ -2726,7 +2797,8 @@ const Pedidos = () => {
                         >
                           Atualizar Status do Pedido
                         </Typography>
-                        {currentPedido.motoboy?.name !== null ? (
+                        {currentPedido.motoboy?.name !== null &&
+                        currentPedido.deliveryMode !== "retirada" ? (
                           <Box display="flex">
                             <Typography
                               fontSize={"12px"}
@@ -2813,7 +2885,7 @@ const Pedidos = () => {
                                     )
                                   }
                                 >
-                                  Iniciar Preparo
+                                  Confirmar Preparação
                                 </Button>
                               )}
 
@@ -2880,6 +2952,45 @@ const Pedidos = () => {
                                       </Button>
                                     </>
                                   )}
+                                </Box>
+                              )}
+                              {currentPedido.status === "ready_takeout" && (
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
+                                    mt: 1,
+                                  }}
+                                >
+                                  <TextField
+                                    fullWidth
+                                    variant="outlined"
+                                    size="small"
+                                    label="Código de retirada"
+                                    onChange={(e) => {
+                                      setDeliveryCode(e.target.value);
+                                    }}
+                                    sx={{
+                                      maxWidth: { sm: "220px" },
+                                    }}
+                                  />
+                                  <Button
+                                    variant="contained"
+                                    color="info"
+                                    startIcon={<DeliveryIcon />}
+                                    onClick={() =>
+                                      handleTakeoutCode(currentPedido)
+                                    }
+                                    sx={{
+                                      py: 1,
+                                      px: 2,
+                                      height: "40px",
+                                      mt: 1,
+                                    }}
+                                  >
+                                    Concluir
+                                  </Button>
                                 </Box>
                               )}
 

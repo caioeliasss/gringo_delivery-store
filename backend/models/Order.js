@@ -102,10 +102,6 @@ const customerSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  pickupCode: {
-    type: String,
-    required: false,
-  },
   customerAddress: customerAddress,
 });
 
@@ -138,6 +134,10 @@ const orderSchema = new mongoose.Schema({
     required: true,
   },
   ifoodId: {
+    type: String,
+    required: false,
+  },
+  phoneLocalizer: {
     type: String,
     required: false,
   },
@@ -221,6 +221,7 @@ const orderSchema = new mongoose.Schema({
       "pendente",
       "em_preparo",
       "pronto",
+      "ready_takeout",
       "em_entrega",
       "entregue",
       "cancelado",
