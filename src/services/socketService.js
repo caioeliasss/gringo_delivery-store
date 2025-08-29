@@ -178,6 +178,16 @@ class SocketService {
 
     // === EVENTOS ESPECÍFICOS DA LOJA ===
 
+    this.socket.on("newOrder", (data) => {
+      console.log("Neworder on the way");
+      this.emit("newOrder", data);
+    });
+
+    this.socket.on("orderUpdate", (data) => {
+      console.log("🔄 Pedido atualizado:", data);
+      this.emit("orderUpdate", data);
+    });
+
     // Pedido aceito pelo motoboy
     this.socket.on("orderAcceptedByMotoboy", (data) => {
       console.log("✅ Pedido aceito pelo motoboy:", data);

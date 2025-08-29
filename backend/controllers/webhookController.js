@@ -63,7 +63,7 @@ class WebhookController {
         const orderIdSystem = await Order.findOne({ ifoodId: orderId });
 
         const orderService = new OrderService();
-        if (orderIdSystem.deliveryMode !== "delivery") {
+        if (orderIdSystem.deliveryMode !== "entrega") {
           orderService.updateOrderStatus(orderIdSystem._id, "ready_takeout");
         } else {
           await orderService.findDriverForOrder(orderIdSystem);
@@ -71,6 +71,10 @@ class WebhookController {
       }
 
       if (fullCode === "CANCELLATION_REQUESTED") {
+        const orderService = new (require("../services/orderService"))();
+        await orderService.updateOrderStatus(orderId, "cancelado");
+      }
+      if (fullCode === "CANCELLED") {
         const orderService = new (require("../services/orderService"))();
         await orderService.updateOrderStatus(orderId, "cancelado");
       }

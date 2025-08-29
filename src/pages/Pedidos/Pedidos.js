@@ -37,6 +37,8 @@ import {
   InputAdornment,
   Drawer,
   List,
+  RadioGroup,
+  Radio,
   ListItem,
   ListItemIcon,
   ListItemText,
@@ -179,6 +181,9 @@ const Pedidos = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [storeId, setStoreId] = useState(null); // ID da loja atual
   const [socketConnected, setSocketConnected] = useState(false); // Status da conexão socket
+  const [openCancelDialog, setOpenCancelDialog] = useState(false);
+  const [cancellationReasons, setCancellationReasons] = useState([{}]);
+  const [selectedReason, setSelectedReason] = useState(null);
   // Estado para o formulário de novo pedido
   const [novoPedido, setNovoPedido] = useState({
     store: {
@@ -348,6 +353,72 @@ const Pedidos = () => {
     }
   }, [currentUser, currentPedido]);
 
+  useEffect(() => {
+    if (openCancelDialog) {
+      if (currentPedido) {
+        // Buscar motivos de cancelamento ao abrir o diálogo
+        const fetchCancellationReasons = async () => {
+          try {
+            const response = await api.get("/orders/cancelarIfood", {
+              params: { orderId: currentPedido.ifoodId },
+            });
+            console.log("this bullshit", response.data);
+            setCancellationReasons(response.data);
+          } catch (error) {
+            console.error("Erro ao buscar motivos de cancelamento:", error);
+          }
+        };
+
+        fetchCancellationReasons();
+      }
+    }
+  }, [openCancelDialog]);
+
+  const handleCancelOrder = async () => {
+    if (selectedReason) {
+      console.log(
+        "seleectetetujdfbu8j0idsub80dfbuydfsbyufdgbyudgfbyu8fdgbyufdgbuyfdgbuf",
+        selectedReason
+      );
+      try {
+        const response = await api.post("/orders/cancelarIfood", {
+          orderId: currentPedido.ifoodId,
+          reason: selectedReason,
+        });
+        console.log("Pedido cancelado com sucesso:", response.data);
+        setSnackbar({
+          open: true,
+          message: `Pedido #${currentPedido.ifoodId} cancelado.`,
+          severity: "success",
+        });
+        setOpenCancelDialog(false);
+        setOpenDialog(false);
+        setPedidos((prev) =>
+          prev.map((pedido) =>
+            pedido._id === currentPedido._id
+              ? { ...pedido, status: "cancelado" }
+              : pedido
+          )
+        );
+        setCurrentPedido((prev) =>
+          prev ? { ...prev, status: "cancelado" } : null
+        );
+      } catch (error) {
+        console.error("Erro ao cancelar pedido:", error);
+        setSnackbar({
+          open: true,
+          message: `Erro ao cancelar pedido #${currentPedido.ifoodId}.`,
+          severity: "error",
+        });
+      }
+    } else {
+      setSnackbar({
+        open: true,
+        message: "Selecione um motivo para o cancelamento.",
+        severity: "warning",
+      });
+    }
+  };
   // useEffect para conectar e escutar eventos do WebSocket
   useEffect(() => {
     if (currentUser && storeId) {
@@ -578,6 +649,15 @@ const Pedidos = () => {
       socketService.on("motoboyLocationUpdated", handleMotoboyLocationUpdated);
       socketService.on("orderDelivered", handleOrderDelivered);
       socketService.on("orderUpdate", handleOrderUpdateSocket);
+      socketService.on("newOrder", (data) => {
+        console.log("📦 Novo pedido recebido via socket:", data._doc);
+        setPedidos((prevPedidos) => {
+          if (prevPedidos.some((pedido) => pedido._id === data._doc._id)) {
+            return prevPedidos;
+          }
+          return [data._doc, ...prevPedidos];
+        });
+      });
 
       // Cleanup na desmontagem
       return () => {
@@ -603,6 +683,11 @@ const Pedidos = () => {
         );
         socketService.off("orderDelivered", handleOrderDelivered);
         socketService.off("orderUpdate", handleOrderUpdateSocket);
+        socketService.off("newOrder", (data) => {
+          if (!pedidos.includes(data._doc)) {
+            setPedidos((prevPedidos) => [data._doc, ...prevPedidos]);
+          }
+        });
 
         setSocketConnected(false);
         // Não desconectar completamente pois outros componentes podem usar
@@ -848,18 +933,18 @@ const Pedidos = () => {
   };
 
   // Ver detalhes do pedido
-  const handleViewPedido = (pedido) => {
+  const handleViewPedido = async (pedido) => {
     setCurrentPedido(pedido);
-    if (pedido.status === "pendente") {
-      setBuscandoMotoboy(true);
-      setOrderCreated({
-        orderNumber: pedido.orderNumber,
-        customerName: Array.isArray(pedido.customer)
-          ? pedido.customer.map((c) => c.name).join(", ")
-          : pedido.customer?.name || "Cliente",
-        createdAt: pedido.createdAt,
-      });
-    }
+    // if (pedido.status === "pendente") {
+    //   setBuscandoMotoboy(true);
+    //   setOrderCreated({
+    //     orderNumber: pedido.orderNumber,
+    //     customerName: Array.isArray(pedido.customer)
+    //       ? pedido.customer.map((c) => c.name).join(", ")
+    //       : pedido.customer?.name || "Cliente",
+    //     createdAt: pedido.createdAt,
+    //   });
+    // }
 
     setOpenDialog(true);
   };
@@ -1609,6 +1694,8 @@ const Pedidos = () => {
     const newStatus =
       pedido.deliveryMode === "retirada" ? "ready_takeout" : "pronto";
 
+    console.log("Novo status do pedido:", newStatus);
+
     if (newStatus === "ready_takeout") {
       try {
         await orderReady(pedido._id, newStatus);
@@ -1657,7 +1744,7 @@ const Pedidos = () => {
         pedido.hasArrived = true;
 
         // Atualizar o estado do pedido atual para refletir a mudança
-        setCurrentPedido({ ...pedido, hasArrived: true });
+        setCurrentPedido({ ...pedido, hasArrived: true, status: newStatus });
 
         // Atualizar também na lista de pedidos
         setPedidos((prevPedidos) =>
@@ -2446,6 +2533,107 @@ const Pedidos = () => {
             </TableContainer>
           )}
 
+          <Dialog
+            open={openCancelDialog}
+            onClose={() => setOpenCancelDialog(false)}
+            maxWidth="sm"
+            fullWidth
+            PaperProps={{
+              sx: { borderRadius: 3, p: 1, bgcolor: "background.paper" },
+            }}
+          >
+            <DialogTitle
+              sx={{
+                bgcolor: "error.main",
+                color: "white",
+                borderTopLeftRadius: 12,
+                borderTopRightRadius: 12,
+              }}
+            >
+              <Box display="flex" alignItems="center" gap={1}>
+                <CloseIcon sx={{ fontSize: 28, color: "white" }} />
+                <span>Cancelar Pedido</span>
+              </Box>
+            </DialogTitle>
+            <DialogContent sx={{ pb: 1 }}>
+              <Typography
+                sx={{ mb: 2, fontWeight: 500, color: "text.primary" }}
+              >
+                {currentPedido
+                  ? `Você tem certeza que deseja cancelar o pedido #${currentPedido.orderNumber}?`
+                  : "Nenhum pedido selecionado para cancelar."}
+              </Typography>
+              {currentPedido && currentPedido.ifoodId && (
+                <Box>
+                  <Typography
+                    sx={{ mb: 1, fontWeight: 500, color: "text.secondary" }}
+                  >
+                    Selecione o motivo do cancelamento:
+                  </Typography>
+                  <RadioGroup
+                    value={selectedReason || ""}
+                    onChange={(e) => setSelectedReason(e.target.value)}
+                  >
+                    {cancellationReasons.map((reason) => (
+                      <Box
+                        key={reason.cancelCodeId}
+                        sx={{
+                          mb: 1,
+                          borderRadius: 2,
+                          border:
+                            selectedReason === reason.cancelCodeId
+                              ? "2px solid #f44336"
+                              : "1px solid #e0e0e0",
+                          bgcolor:
+                            selectedReason === reason.cancelCodeId
+                              ? "rgba(244,67,54,0.08)"
+                              : "background.paper",
+                          transition: "all 0.2s",
+                          display: "flex",
+                          alignItems: "center",
+                          px: 2,
+                          py: 1,
+                          cursor: "pointer",
+                        }}
+                        onClick={() => setSelectedReason(reason)}
+                      >
+                        <Radio
+                          checked={selectedReason === reason}
+                          value={reason}
+                          color="error"
+                          sx={{ mr: 1 }}
+                        />
+                        <Typography
+                          sx={{ fontWeight: 500, color: "text.primary" }}
+                        >
+                          {reason.description}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </RadioGroup>
+                </Box>
+              )}
+            </DialogContent>
+            <DialogActions sx={{ px: 3, pb: 2 }}>
+              <Button
+                onClick={() => setOpenCancelDialog(false)}
+                variant="outlined"
+                color="inherit"
+              >
+                Voltar
+              </Button>
+              <Button
+                onClick={() => handleCancelOrder(currentPedido?.ifoodId)}
+                color="error"
+                variant="contained"
+                disabled={!selectedReason}
+                sx={{ boxShadow: 2 }}
+              >
+                Confirmar Cancelamento
+              </Button>
+            </DialogActions>
+          </Dialog>
+
           {/* Dialog para visualizar detalhes do pedido */}
           <Dialog
             open={openDialog}
@@ -2595,54 +2783,7 @@ const Pedidos = () => {
                           ))
                         ) : (
                           <Typography variant="body2" color="text.secondary">
-                            {currentPedido.customer?.name ? (
-                              // Compatibilidade com pedidos antigos (customer como objeto único)
-                              <Box
-                                sx={{
-                                  p: 2,
-                                  border: 1,
-                                  borderColor: "divider",
-                                  borderRadius: 1,
-                                }}
-                              >
-                                <Typography
-                                  variant="subtitle1"
-                                  sx={{
-                                    fontWeight: "bold",
-                                    mb: 1,
-                                    color: "primary.main",
-                                  }}
-                                >
-                                  Cliente
-                                </Typography>
-                                <Grid container spacing={2}>
-                                  <Grid item xs={12} sm={6}>
-                                    <Typography variant="body2">
-                                      <strong>Nome:</strong>{" "}
-                                      {currentPedido.customer.name}
-                                    </Typography>
-                                  </Grid>
-                                  <Grid item xs={12} sm={6}>
-                                    <Typography variant="body2">
-                                      <strong>Telefone:</strong>{" "}
-                                      {currentPedido.customer.phone ||
-                                        "Não informado"}
-                                    </Typography>
-                                  </Grid>
-                                  {currentPedido.customer.customerAddress && (
-                                    <Grid item xs={12}>
-                                      <Typography variant="body2">
-                                        <strong>Endereço:</strong>{" "}
-                                        {currentPedido.customer.customerAddress
-                                          .address || "Não informado"}
-                                      </Typography>
-                                    </Grid>
-                                  )}
-                                </Grid>
-                              </Box>
-                            ) : (
-                              "Nenhum cliente informado"
-                            )}
+                            Nenhum cliente informado ou dados inválidos.
                           </Typography>
                         )}
                       </Paper>
@@ -2785,6 +2926,181 @@ const Pedidos = () => {
                       </Grid>
                     )}
                     {/* Atualizar Status */}
+
+                    <Grid item xs={12}>
+                      <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            mb: 3,
+                            color: "primary.main",
+                            fontWeight: "bold",
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                        >
+                          <DeliveryIcon sx={{ mr: 1 }} /> Informações da Corrida
+                        </Typography>
+
+                        <Grid container spacing={2}>
+                          {/* Modo de entrega */}
+                          <Grid item xs={12} sm={6}>
+                            <Box
+                              sx={{
+                                p: 2,
+                                bgcolor: "background.paper",
+                                borderRadius: 1,
+                                border: 1,
+                                borderColor: "divider",
+                              }}
+                            >
+                              <Typography
+                                variant="subtitle2"
+                                sx={{ fontWeight: "bold", mb: 1 }}
+                              >
+                                Modo de Entrega
+                              </Typography>
+                              <Chip
+                                label={
+                                  currentPedido.deliveryMode === "retirada"
+                                    ? "RETIRADA"
+                                    : "ENTREGA"
+                                }
+                                color="success"
+                                variant="outlined"
+                                size="small"
+                              />
+                            </Box>
+                          </Grid>
+
+                          {/* Informações do motoboy */}
+                          {currentPedido.deliveryMode === "entrega" && (
+                            <Grid item xs={12} sm={6}>
+                              <Box
+                                sx={{
+                                  p: 2,
+                                  bgcolor: "background.paper",
+                                  borderRadius: 1,
+                                  border: 1,
+                                  borderColor: "divider",
+                                }}
+                              >
+                                <Typography
+                                  variant="subtitle2"
+                                  sx={{ fontWeight: "bold", mb: 1 }}
+                                >
+                                  Entregador
+                                </Typography>
+                                {currentPedido.motoboy?.name ? (
+                                  <Box>
+                                    <Typography
+                                      variant="body2"
+                                      sx={{ mb: 0.5 }}
+                                    >
+                                      <strong>Nome:</strong>{" "}
+                                      {currentPedido.motoboy?.name}
+                                    </Typography>
+                                    <Typography
+                                      variant="body2"
+                                      sx={{ mb: 0.5 }}
+                                    >
+                                      <strong>Telefone:</strong>{" "}
+                                      {currentPedido.motoboy?.phone}
+                                    </Typography>
+                                    <Typography variant="body2">
+                                      <strong>ID:</strong>{" "}
+                                      {currentPedido.motoboy?.motoboyId}
+                                    </Typography>
+                                  </Box>
+                                ) : (
+                                  <Chip
+                                    label="Motoboy não atribuído"
+                                    color="warning"
+                                    variant="outlined"
+                                    size="small"
+                                  />
+                                )}
+                              </Box>
+                            </Grid>
+                          )}
+
+                          {/* Valor da corrida */}
+                          {currentPedido.motoboy?.price && (
+                            <Grid item xs={12} sm={6}>
+                              <Box
+                                sx={{
+                                  p: 2,
+                                  bgcolor: "background.paper",
+                                  borderRadius: 1,
+                                  border: 1,
+                                  borderColor: "divider",
+                                }}
+                              >
+                                <Typography
+                                  variant="subtitle2"
+                                  sx={{ fontWeight: "bold", mb: 1 }}
+                                >
+                                  Valor da Corrida
+                                </Typography>
+                                <Typography
+                                  variant="h6"
+                                  sx={{
+                                    color: "success.main",
+                                    fontWeight: "bold",
+                                  }}
+                                >
+                                  {formatCurrency(currentPedido.motoboy?.price)}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                          )}
+
+                          {/* Status de chegada na loja */}
+                          {currentPedido.deliveryMode === "entrega" && (
+                            <Grid item xs={12} sm={6}>
+                              <Box
+                                sx={{
+                                  p: 2,
+                                  bgcolor: "background.paper",
+                                  borderRadius: 1,
+                                  border: 1,
+                                  borderColor: "divider",
+                                }}
+                              >
+                                <Typography
+                                  variant="subtitle2"
+                                  sx={{ fontWeight: "bold", mb: 1 }}
+                                >
+                                  Motoboy chegou
+                                </Typography>
+                                <Chip
+                                  label={
+                                    currentPedido.motoboy?.hasArrived
+                                      ? "Motoboy chegou"
+                                      : "Aguardando chegada"
+                                  }
+                                  color={
+                                    currentPedido.motoboy?.hasArrived
+                                      ? "success"
+                                      : "warning"
+                                  }
+                                  variant="outlined"
+                                  size="small"
+                                  icon={
+                                    currentPedido.motoboy?.hasArrived ? (
+                                      <CheckIcon />
+                                    ) : (
+                                      <ScheduleIcon />
+                                    )
+                                  }
+                                />
+                              </Box>
+                            </Grid>
+                          )}
+                        </Grid>
+                      </Paper>
+                    </Grid>
+
                     <Grid item xs={12}>
                       <Paper elevation={1} sx={{ p: 2 }}>
                         <Typography
@@ -2797,64 +3113,28 @@ const Pedidos = () => {
                         >
                           Atualizar Status do Pedido
                         </Typography>
-                        {currentPedido.motoboy?.name !== null &&
-                        currentPedido.deliveryMode !== "retirada" ? (
-                          <Box display="flex">
-                            <Typography
-                              fontSize={"12px"}
-                              sx={{ mb: 2, color: "secundary.main" }}
-                            >
-                              Nome do motoboy:
-                            </Typography>
-                            <Typography
-                              fontSize={"12px"}
-                              sx={{
-                                ml: 0.5,
-                                mb: 2,
-                                color: "primary.main",
-                                fontWeight: "bold",
-                              }}
-                            >
-                              {currentPedido.motoboy?.name}
-                            </Typography>
-                          </Box>
-                        ) : (
-                          <Box
-                            display="flex"
-                            sx={{
-                              display: "flex",
-                              flexWrap: "wrap",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              mb: 2,
-                            }}
-                          >
-                            <Typography
-                              fontSize={"12px"}
-                              sx={{
-                                color: "primary.main",
-                                fontWeight: "bold",
-                              }}
-                            >
-                              Motoboy não encontrado.
-                            </Typography>
-                            <Button
-                              onClick={() =>
-                                handleThisFetchPedido(currentPedido._id)
-                              }
-                            >
-                              {loading ? (
-                                <CircularProgress
-                                  sx={{ width: "14px", height: "14px" }}
-                                />
-                              ) : (
-                                <RefreshIcon
-                                  sx={{ width: "20px", height: "20px" }}
-                                />
-                              )}
-                            </Button>
-                          </Box>
-                        )}
+                        {currentPedido.motoboy?.name &&
+                          currentPedido.deliveryMode !== "retirada" && (
+                            <Box display="flex">
+                              <Typography
+                                fontSize={"12px"}
+                                sx={{ mb: 2, color: "secundary.main" }}
+                              >
+                                Nome do motoboy:
+                              </Typography>
+                              <Typography
+                                fontSize={"12px"}
+                                sx={{
+                                  ml: 0.5,
+                                  mb: 2,
+                                  color: "primary.main",
+                                  fontWeight: "bold",
+                                }}
+                              >
+                                {currentPedido.motoboy?.name}
+                              </Typography>
+                            </Box>
+                          )}
                         {currentPedido.status !== "cancelado" &&
                         currentPedido.status !== "entregue" ? (
                           <Box
@@ -2889,7 +3169,7 @@ const Pedidos = () => {
                                 </Button>
                               )}
 
-                              {currentPedido.status === "em_preparo" && (
+                              {currentPedido.status && (
                                 <Box
                                   sx={{
                                     display: "flex",
@@ -2898,7 +3178,7 @@ const Pedidos = () => {
                                   }}
                                 >
                                   {/* Primeiro: Botão para Pedido Pronto */}
-                                  {!currentPedido.hasArrived && (
+                                  {currentPedido.status === "em_preparo" && (
                                     <Button
                                       variant="contained"
                                       color="warning"
@@ -2917,7 +3197,7 @@ const Pedidos = () => {
                                   )}
 
                                   {/* Segundo: Campo de código e botão para enviar (só aparece após Pedido Pronto) */}
-                                  {currentPedido.hasArrived && (
+                                  {currentPedido.status === "pronto" && (
                                     <>
                                       <TextField
                                         fullWidth
@@ -3010,16 +3290,7 @@ const Pedidos = () => {
                               color="error"
                               startIcon={<CloseIcon />}
                               onClick={() => {
-                                if (
-                                  window.confirm(
-                                    "Tem certeza que deseja cancelar este pedido?"
-                                  )
-                                ) {
-                                  handleUpdateStatus(
-                                    currentPedido._id,
-                                    "cancelado"
-                                  );
-                                }
+                                setOpenCancelDialog(true);
                               }}
                             >
                               Cancelar Pedido

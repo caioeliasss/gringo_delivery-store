@@ -66,6 +66,43 @@ router.get("/store/:storeId", async (req, res) => {
   }
 });
 
+router.get("/cancelarIfood", async (req, res) => {
+  try {
+    const { orderId } = req.query; // Corrigido: buscar via query string
+    const IfoodService = require("../services/ifoodService");
+    const ifoodService = new IfoodService();
+    const cancellationReasons = await ifoodService.cancellationReasons(orderId);
+    res.status(200).json(cancellationReasons);
+  } catch (error) {
+    console.error("Erro ao buscar motivos de cancelamento:", error);
+    res.status(500).json({
+      message: "Erro ao buscar motivos de cancelamento",
+      error: error.message,
+    });
+  }
+});
+
+router.post("/cancelarIfood", async (req, res) => {
+  try {
+    const { orderId, reason } = req.body; // Corrigido: buscar via query string
+    const IfoodService = require("../services/ifoodService");
+    const ifoodService = new IfoodService();
+    console.log("essa é a reason", reason);
+    const cancellationReasons = await ifoodService.cancelOrder(
+      orderId,
+      reason.description,
+      reason.cancelCodeId
+    );
+    res.status(200).json(cancellationReasons);
+  } catch (error) {
+    console.error("Erro ao buscar motivos de cancelamento:", error);
+    res.status(500).json({
+      message: "Erro ao buscar motivos de cancelamento",
+      error: error.message,
+    });
+  }
+});
+
 // Obter pedido por ID
 router.get("/:id", authenticateToken, async (req, res) => {
   try {

@@ -336,6 +336,14 @@ class OrderService {
         );
       }
 
+      if (global.sendSocketNotification) {
+        global.sendSocketNotification(
+          cnpj_approved.firebaseUid,
+          "newOrder",
+          savedOrder
+        );
+      }
+
       return {
         message: "Pedido criado com sucesso",
         order: savedOrder,
@@ -506,20 +514,19 @@ class OrderService {
         throw new Error("Status inválido");
       }
 
-      let order = await Order.findById(id);
+      let order = await Order.findOne({ ifoodId: id }); //FIXME
       if (!order) {
-        order = await Order.findOne({ ifoodId: id });
+        order = await Order.findById(id);
       }
       if (!order) {
         throw new Error("Pedido não encontrado");
       }
 
       // Se firebaseUid for fornecido, verificar se o usuário tem permissão
-      if (firebaseUid) {
-        const user = await Store.findOne({ cnpj: order.store.cnpj });
-        if (!user) {
-          throw new Error("Usuário não encontrado");
-        }
+
+      const user = await Store.findOne({ cnpj: order.store.cnpj });
+      if (!user) {
+        throw new Error("Usuário não encontrado");
       }
 
       // Se o pedido já estiver entregue ou cancelado, não permitir alteração
@@ -558,17 +565,17 @@ class OrderService {
 
       // Notificar motoboy sobre mudança de status (se houver motoboy atribuído)
       if (previousStatus !== status && order.motoboy?.motoboyId) {
-        try {
-          await NotificationService.updateNotificationStatus({
-            orderId: order._id,
-            newStatus: status,
-            previousStatus: previousStatus,
-            motoboyId: order.motoboy.motoboyId,
-            storeName: order.store.name,
-          });
-        } catch (notifyError) {
-          console.error("Erro ao notificar motoboy:", notifyError);
-        }
+        // try {
+        //   await NotificationService.createGenericNotification({
+        //     orderId: order._id,
+        //     newStatus: status,
+        //     previousStatus: previousStatus,
+        //     motoboyId: order.motoboy.motoboyId,
+        //     storeName: order.store.name,
+        //   });
+        // } catch (notifyError) {
+        //   console.error("Erro ao notificar motoboy:", notifyError);
+        // }
       }
 
       if (order.ifoodId) {
@@ -598,20 +605,6 @@ class OrderService {
           }
         }
 
-        if (previousStatus === "em_entrega" && status === "entregue") {
-          try {
-            const deliveryCode = order.customer[0]?.phone?.slice(-4);
-            await ifoodService.verifyOrderDeliveryCode(
-              order.ifoodId,
-              deliveryCode
-            );
-          } catch (ifoodError) {
-            console.error(
-              "Erro ao atualizar status no iFood (verifyOrderDeliveryCode):",
-              ifoodError
-            );
-          }
-        }
         if (status === "ready_takeout") {
           try {
             await ifoodService.readyToPickup(order.ifoodId, firebaseUid);
@@ -622,6 +615,24 @@ class OrderService {
             );
           }
         }
+        if (status === "cancelado") {
+          try {
+            await ifoodService.cancelOrder(order.ifoodId, firebaseUid);
+          } catch (ifoodError) {
+            console.error(
+              "Erro ao atualizar status no iFood (cancelOrder):",
+              ifoodError
+            );
+          }
+        }
+      }
+
+      if (global.sendSocketNotification) {
+        global.sendSocketNotification(user.firebaseUid, "orderUpdate", {
+          orderId: order._id,
+          status: status,
+          data: { status, orderId: order._id },
+        });
       }
 
       return {

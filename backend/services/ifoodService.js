@@ -3,43 +3,29 @@ const OrderService = require("./orderService");
 const Store = require("../models/Store");
 
 class IfoodService {
-  constructor(storeFirebaseUid = null, clientId = null, clientSecret = null) {
+  constructor(storeFirebaseUid = null) {
     this.baseURL = "https://merchant-api.ifood.com.br";
     this.storeFirebaseUid = storeFirebaseUid;
-    this.clientId = clientId || process.env.IFOOD_CLIENT_ID;
-    this.clientSecret = clientSecret || process.env.IFOOD_CLIENT_SECRET;
+    this.clientId = process.env.IFOOD_CLIENT_ID;
+    this.clientSecret = process.env.IFOOD_CLIENT_SECRET;
     this.accessToken = null;
     this.tokenExpiry = null;
   }
 
-  // Método para configurar as credenciais do store
+  // Método para configurar o store
   async setStoreCredentials(storeFirebaseUid) {
     try {
       const store = await Store.findOne({ firebaseUid: storeFirebaseUid });
-      if (!store || !store.ifoodConfig) {
-        throw new Error(
-          `Store não encontrada ou sem configuração iFood: ${storeFirebaseUid}`
-        );
-      }
-
-      if (!store.ifoodConfig.clientId || !store.ifoodConfig.clientSecret) {
-        throw new Error(
-          `Credenciais iFood não configuradas para o store: ${storeFirebaseUid}`
-        );
+      if (!store) {
+        throw new Error(`Store não encontrada: ${storeFirebaseUid}`);
       }
 
       this.storeFirebaseUid = storeFirebaseUid;
-      this.clientId = store.ifoodConfig.clientId;
-      this.clientSecret = store.ifoodConfig.clientSecret;
-      this.merchantId = store.ifoodConfig.merchantId;
-
-      // Reset token quando mudamos as credenciais
-      this.accessToken = null;
-      this.tokenExpiry = null;
+      this.merchantId = store.ifoodConfig?.merchantId;
 
       return store;
     } catch (error) {
-      console.error("Erro ao configurar credenciais do store:", error);
+      console.error("Erro ao configurar store:", error);
       throw error;
     }
   }
@@ -78,7 +64,7 @@ class IfoodService {
   async authenticate() {
     if (!this.clientId || !this.clientSecret) {
       throw new Error(
-        "Credenciais iFood não configuradas. Use setStoreCredentials() primeiro."
+        "Credenciais iFood não configuradas nas variáveis de ambiente."
       );
     }
 
@@ -348,6 +334,67 @@ class IfoodService {
     }
   }
 
+  async cancelOrder(
+    orderId,
+    reason,
+    cancellationCode,
+    storeFirebaseUid = null
+  ) {
+    // Se foi passado um storeFirebaseUid, configurar as credenciais
+    if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
+      await this.setStoreCredentials(storeFirebaseUid);
+    }
+
+    await this.ensureAuthenticated();
+
+    try {
+      const response = await axios.post(
+        `${this.baseURL}/order/v1.0/orders/${orderId}/requestCancellation`,
+        {
+          reason,
+          cancellationCode,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao cancelar pedido: ifoodservice");
+      throw error;
+    }
+  }
+
+  async cancellationReasons(orderId, firebaseUid = null) {
+    // Se foi passado um firebaseUid, configurar as credenciais
+    if (firebaseUid && firebaseUid !== this.storeFirebaseUid) {
+      await this.setStoreCredentials(firebaseUid);
+    }
+
+    await this.ensureAuthenticated();
+
+    try {
+      const response = await axios.get(
+        `${this.baseURL}/order/v1.0/orders/${orderId}/cancellationReasons`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao informar motivo de cancelamento:", error);
+      throw error;
+    }
+  }
+
   // Método helper para identificar a qual store pertence um pedido
   async getStoreFromOrderId(orderId) {
     try {
@@ -376,7 +423,7 @@ class IfoodService {
 
   // Método para verificar se as credenciais estão configuradas
   hasCredentials() {
-    return !!(this.clientId && this.clientSecret);
+    return !!(process.env.IFOOD_CLIENT_ID && process.env.IFOOD_CLIENT_SECRET);
   }
 }
 
