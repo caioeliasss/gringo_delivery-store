@@ -36,12 +36,22 @@ class IfoodService {
     //   await this.setStoreCredentials(storeFirebaseUid);
     // }
 
+    const tokenStatus = this.getTokenStatus();
+    console.log(`[IFOOD] Polling iniciado - ${tokenStatus.message}`);
+
     await this.ensureAuthenticated();
 
     if (!this.accessToken) {
       throw new Error("Access token não disponível. Autentique-se primeiro.");
     }
+
     try {
+      console.log(
+        `[IFOOD] Fazendo polling para eventos - Store: ${
+          this.storeFirebaseUid || "global"
+        }`
+      );
+
       const response = await axios.get(
         `${this.baseURL}/order/v1.0/events:polling`,
         {
@@ -49,14 +59,21 @@ class IfoodService {
             Authorization: `Bearer ${this.accessToken}`,
             "Content-Type": "application/json",
           },
+          timeout: 30000, // 30 segundos de timeout
         }
       );
 
+      console.log(
+        `[IFOOD] Polling concluído - ${
+          response.data.length || 0
+        } eventos recebidos`
+      );
       return response.data;
     } catch (error) {
-      console.error("Erro ao buscar pedidos:", error.message);
-      throw error;
+      this.handleAuthError(error, "pollingIfood");
     } finally {
+      // Reagendar próximo polling em 29 segundos
+      console.log(`[IFOOD] Reagendando próximo polling em 29 segundos`);
       setTimeout(() => this.pollingIfood(storeFirebaseUid), 29000);
     }
   }
@@ -69,6 +86,12 @@ class IfoodService {
     }
 
     try {
+      console.log(
+        `[IFOOD] Iniciando autenticação para store: ${
+          this.storeFirebaseUid || "global"
+        }`
+      );
+
       const response = await axios.post(
         `${this.baseURL}/authentication/v1.0/oauth/token`,
         {
@@ -84,16 +107,34 @@ class IfoodService {
       );
 
       this.accessToken = response.data.accessToken;
-      // console.log("Access Token:", this.accessToken);
+
       // Configurar expiração do token (normalmente 1 hora)
-      this.tokenExpiry = Date.now() + (response.data.expiresIn || 3600) * 1000;
+      const expiresInSeconds = response.data.expiresIn || 3600;
+      this.tokenExpiry = Date.now() + expiresInSeconds * 1000;
+
+      // Calcular data/hora de expiração para log
+      const expiryDate = new Date(this.tokenExpiry);
+      const timeLeftMinutes = Math.floor(expiresInSeconds / 60);
 
       console.log(
-        `[IFOOD] Autenticado com sucesso para store: ${this.storeFirebaseUid}`
+        `[IFOOD] ✅ Autenticado com sucesso para store: ${
+          this.storeFirebaseUid || "global"
+        }`
       );
+      console.log(
+        `[IFOOD] Token válido por ${timeLeftMinutes} minutos, expira em: ${expiryDate.toLocaleString(
+          "pt-BR"
+        )}`
+      );
+
       return this.accessToken;
     } catch (error) {
-      console.error("Erro na autenticação iFood:", error);
+      console.error(
+        `[IFOOD] ❌ Erro na autenticação para store ${
+          this.storeFirebaseUid || "global"
+        }:`,
+        error.response?.data || error.message
+      );
       throw error;
     }
   }
@@ -133,12 +174,32 @@ class IfoodService {
 
   async ensureAuthenticated() {
     // Verificar se precisa autenticar
+    // Renovar token quando restarem menos de 5 minutos (300 segundos) para expirar
+    const bufferTime = 5 * 60 * 1000; // 5 minutos em milissegundos
+    const timeUntilExpiry = this.tokenExpiry
+      ? this.tokenExpiry - Date.now()
+      : 0;
+
     if (
       !this.accessToken ||
-      (this.tokenExpiry && Date.now() >= this.tokenExpiry)
+      !this.tokenExpiry ||
+      timeUntilExpiry <= bufferTime
     ) {
-      console.log("Token expirado ou inexistente, autenticando...");
+      const timeLeft =
+        timeUntilExpiry > 0 ? Math.floor(timeUntilExpiry / 1000) : 0;
+      console.log(
+        `[IFOOD] Token ${
+          !this.accessToken
+            ? "não existe"
+            : timeUntilExpiry <= 0
+            ? "expirado"
+            : `expira em ${timeLeft}s`
+        }, renovando...`
+      );
       await this.authenticate();
+    } else {
+      const timeLeft = Math.floor(timeUntilExpiry / 1000);
+      console.log(`[IFOOD] Token válido, expira em ${timeLeft}s`);
     }
   }
 
@@ -191,8 +252,7 @@ class IfoodService {
 
       return response.data;
     } catch (error) {
-      console.error("Erro ao buscar pedidos:", error.message);
-      throw error;
+      this.handleAuthError(error, "getOrders");
     }
   }
 
@@ -220,8 +280,7 @@ class IfoodService {
 
       return response.data;
     } catch (error) {
-      console.error("Erro ao buscar detalhes do pedido:", error.message);
-      throw error;
+      this.handleAuthError(error, "getOrderDetails");
     }
   }
 
@@ -421,9 +480,69 @@ class IfoodService {
     return service;
   }
 
+  // Método auxiliar para tratar erros de autenticação
+  handleAuthError(error, methodName) {
+    if (error.response?.status === 401) {
+      console.log(
+        `[IFOOD] Token inválido detectado em ${methodName}, limpando cache`
+      );
+      this.accessToken = null;
+      this.tokenExpiry = null;
+    }
+
+    console.error(
+      `[IFOOD] ❌ Erro em ${methodName}:`,
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+
   // Método para verificar se as credenciais estão configuradas
   hasCredentials() {
     return !!(process.env.IFOOD_CLIENT_ID && process.env.IFOOD_CLIENT_SECRET);
+  }
+
+  // Método para verificar status do token atual
+  getTokenStatus() {
+    if (!this.accessToken) {
+      return {
+        hasToken: false,
+        isExpired: true,
+        timeUntilExpiry: 0,
+        message: "Nenhum token disponível",
+      };
+    }
+
+    if (!this.tokenExpiry) {
+      return {
+        hasToken: true,
+        isExpired: true,
+        timeUntilExpiry: 0,
+        message: "Token sem data de expiração definida",
+      };
+    }
+
+    const now = Date.now();
+    const timeUntilExpiry = this.tokenExpiry - now;
+    const isExpired = timeUntilExpiry <= 0;
+    const bufferTime = 5 * 60 * 1000; // 5 minutos
+    const needsRenewal = timeUntilExpiry <= bufferTime;
+
+    return {
+      hasToken: true,
+      isExpired,
+      needsRenewal,
+      timeUntilExpiry: Math.max(0, timeUntilExpiry),
+      timeUntilExpirySeconds: Math.max(0, Math.floor(timeUntilExpiry / 1000)),
+      expiryDate: new Date(this.tokenExpiry),
+      message: isExpired
+        ? "Token expirado"
+        : needsRenewal
+        ? `Token precisa ser renovado em breve (${Math.floor(
+            timeUntilExpiry / 1000
+          )}s restantes)`
+        : `Token válido (${Math.floor(timeUntilExpiry / 1000)}s restantes)`,
+    };
   }
 }
 

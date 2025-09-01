@@ -706,7 +706,7 @@ const AdminFinanceiro = () => {
                     <TextField
                       label="Acréscimo (R$)"
                       type="number"
-                      value={newBilling.additionalFee || 0}
+                      value={newBilling.additionalFee || 1.89}
                       onChange={(e) =>
                         setNewBilling((b) => ({
                           ...b,
