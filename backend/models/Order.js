@@ -60,6 +60,10 @@ const orderItemSchema = new mongoose.Schema({
     type: Number,
     required: false,
   },
+  notes: {
+    type: String,
+    default: "-",
+  },
 });
 
 const storeSchema = new mongoose.Schema({
@@ -102,6 +106,10 @@ const customerSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  documentNumber: {
+    type: String,
+    required: false,
+  },
   customerAddress: customerAddress,
 });
 
@@ -138,6 +146,10 @@ const orderSchema = new mongoose.Schema({
     required: false,
   },
   phoneLocalizer: {
+    type: String,
+    required: false,
+  },
+  pickupCode: {
     type: String,
     required: false,
   },
@@ -316,6 +328,10 @@ const orderSchema = new mongoose.Schema({
   notes: {
     type: String,
     default: "",
+  },
+  benefits: {
+    type: [Object],
+    default: [],
   },
   cliente_cod: {
     type: Number,

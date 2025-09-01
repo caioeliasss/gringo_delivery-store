@@ -362,7 +362,6 @@ const Pedidos = () => {
             const response = await api.get("/orders/cancelarIfood", {
               params: { orderId: currentPedido.ifoodId },
             });
-            console.log("this bullshit", response.data);
             setCancellationReasons(response.data);
           } catch (error) {
             console.error("Erro ao buscar motivos de cancelamento:", error);
@@ -1599,6 +1598,35 @@ const Pedidos = () => {
     }).format(value);
   };
 
+  // Função para formatar informações de benefícios/descontos
+  const formatBenefitInfo = (benefit) => {
+    const targetNames = {
+      ITEM: "Item específico",
+      PROGRESSIVE_DISCOUNT_ITEM: "Desconto progressivo no item",
+      ORDER: "Pedido completo",
+      DELIVERY: "Taxa de entrega",
+    };
+
+    const sponsorNames = {
+      IFOOD: "iFood",
+      MERCHANT: "Loja",
+      CUSTOMER: "Cliente",
+    };
+
+    return {
+      targetName: targetNames[benefit.target] || benefit.target,
+      sponsorshipInfo:
+        benefit.sponsorshipValues?.map((sponsor) => ({
+          name: sponsorNames[sponsor.name] || sponsor.name,
+          value: sponsor.value,
+          percentage:
+            benefit.value > 0
+              ? Math.round((sponsor.value / benefit.value) * 100)
+              : 0,
+        })) || [],
+    };
+  };
+
   // Obter chip colorido de acordo com o status
   const getStatusChip = (status) => {
     const statusConfig = {
@@ -2574,42 +2602,46 @@ const Pedidos = () => {
                     value={selectedReason || ""}
                     onChange={(e) => setSelectedReason(e.target.value)}
                   >
-                    {cancellationReasons.map((reason) => (
-                      <Box
-                        key={reason.cancelCodeId}
-                        sx={{
-                          mb: 1,
-                          borderRadius: 2,
-                          border:
-                            selectedReason === reason.cancelCodeId
-                              ? "2px solid #f44336"
-                              : "1px solid #e0e0e0",
-                          bgcolor:
-                            selectedReason === reason.cancelCodeId
-                              ? "rgba(244,67,54,0.08)"
-                              : "background.paper",
-                          transition: "all 0.2s",
-                          display: "flex",
-                          alignItems: "center",
-                          px: 2,
-                          py: 1,
-                          cursor: "pointer",
-                        }}
-                        onClick={() => setSelectedReason(reason)}
-                      >
-                        <Radio
-                          checked={selectedReason === reason}
-                          value={reason}
-                          color="error"
-                          sx={{ mr: 1 }}
-                        />
-                        <Typography
-                          sx={{ fontWeight: 500, color: "text.primary" }}
+                    {!cancellationReasons ? (
+                      <CircularProgress size={24} />
+                    ) : (
+                      cancellationReasons.map((reason) => (
+                        <Box
+                          key={reason.cancelCodeId}
+                          sx={{
+                            mb: 1,
+                            borderRadius: 2,
+                            border:
+                              selectedReason === reason.cancelCodeId
+                                ? "2px solid #f44336"
+                                : "1px solid #e0e0e0",
+                            bgcolor:
+                              selectedReason === reason.cancelCodeId
+                                ? "rgba(244,67,54,0.08)"
+                                : "background.paper",
+                            transition: "all 0.2s",
+                            display: "flex",
+                            alignItems: "center",
+                            px: 2,
+                            py: 1,
+                            cursor: "pointer",
+                          }}
+                          onClick={() => setSelectedReason(reason)}
                         >
-                          {reason.description}
-                        </Typography>
-                      </Box>
-                    ))}
+                          <Radio
+                            checked={selectedReason === reason}
+                            value={reason}
+                            color="error"
+                            sx={{ mr: 1 }}
+                          />
+                          <Typography
+                            sx={{ fontWeight: 500, color: "text.primary" }}
+                          >
+                            {reason.description}
+                          </Typography>
+                        </Box>
+                      ))
+                    )}
                   </RadioGroup>
                 </Box>
               )}
@@ -2638,7 +2670,7 @@ const Pedidos = () => {
           <Dialog
             open={openDialog}
             onClose={() => setOpenDialog(false)}
-            maxWidth="md"
+            maxWidth="lg"
             fullWidth
           >
             {currentPedido && (
@@ -2712,6 +2744,12 @@ const Pedidos = () => {
                                   <Typography variant="body2">
                                     <strong>Telefone:</strong>{" "}
                                     {customer.phone || "Não informado"}
+                                  </Typography>
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                  <Typography variant="body2">
+                                    <strong>CPF/CNPJ:</strong>{" "}
+                                    {customer.documentNumber || "Não informado"}
                                   </Typography>
                                 </Grid>
 
@@ -2815,6 +2853,9 @@ const Pedidos = () => {
                           >
                             {currentPedido.payment.method}
                           </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {currentPedido.payment.cardBrand}
+                          </Typography>
                         </Box>
                         <Box sx={{ mb: 1 }}>
                           <Typography
@@ -2825,6 +2866,17 @@ const Pedidos = () => {
                           </Typography>
                           <Typography variant="body2">
                             {formatCurrency(currentPedido.total)}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ mb: 1 }}>
+                          <Typography
+                            variant="subtitle2"
+                            sx={{ fontWeight: "bold" }}
+                          >
+                            Troco:
+                          </Typography>
+                          <Typography variant="body2">
+                            {formatCurrency(currentPedido.payment.change)}
                           </Typography>
                         </Box>
                         {currentPedido.payment.change > 0 && (
@@ -2846,6 +2898,157 @@ const Pedidos = () => {
                       </Paper>
                     </Grid>
 
+                    {/* Benefícios e Descontos */}
+                    {currentPedido.benefits &&
+                      currentPedido.benefits.length > 0 && (
+                        <Grid item xs={12} md={6}>
+                          <Paper elevation={1} sx={{ p: 2, height: "100%" }}>
+                            <Typography
+                              variant="h6"
+                              sx={{
+                                mb: 2,
+                                color: "primary.main",
+                                fontWeight: "bold",
+                                display: "flex",
+                                alignItems: "center",
+                              }}
+                            >
+                              <StarIcon sx={{ mr: 1 }} />
+                              Benefícios e Descontos
+                            </Typography>
+                            {currentPedido.benefits.map((benefit, index) => {
+                              const benefitInfo = formatBenefitInfo(benefit);
+                              return (
+                                <Box
+                                  key={index}
+                                  sx={{
+                                    mb: 2,
+                                    p: 2,
+                                    bgcolor: "#ececec",
+                                    borderRadius: 1,
+                                    border: 1,
+                                    borderColor: "success.main",
+                                  }}
+                                >
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      alignItems: "center",
+                                      mb: 1,
+                                    }}
+                                  >
+                                    <Typography
+                                      variant="subtitle2"
+                                      sx={{
+                                        fontWeight: "bold",
+                                        color: "success.dark",
+                                      }}
+                                    >
+                                      {benefitInfo.targetName}
+                                    </Typography>
+                                    <Chip
+                                      label={`-${formatCurrency(
+                                        benefit.value
+                                      )}`}
+                                      color="success"
+                                      size="small"
+                                      sx={{ fontWeight: "bold" }}
+                                    />
+                                  </Box>
+
+                                  {benefit.targetId && (
+                                    <Typography
+                                      variant="body2"
+                                      sx={{ mb: 1, fontStyle: "italic" }}
+                                    >
+                                      Aplicado ao item #{benefit.targetId}
+                                    </Typography>
+                                  )}
+
+                                  {benefitInfo.sponsorshipInfo.length > 0 && (
+                                    <Box sx={{ mt: 1 }}>
+                                      <Typography
+                                        variant="body2"
+                                        sx={{ fontWeight: "bold", mb: 1 }}
+                                      >
+                                        Responsáveis pelo Subsídio:
+                                      </Typography>
+                                      {benefitInfo.sponsorshipInfo.map(
+                                        (sponsorship, sponsorIndex) => (
+                                          <Box
+                                            key={sponsorIndex}
+                                            sx={{
+                                              display: "flex",
+                                              justifyContent: "space-between",
+                                              alignItems: "center",
+                                              ml: 2,
+                                              mb: 0.5,
+                                              p: 1,
+                                              bgcolor: "rgba(255,255,255,0.7)",
+                                              borderRadius: 0.5,
+                                            }}
+                                          >
+                                            <Box
+                                              sx={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 1,
+                                              }}
+                                            >
+                                              <Typography variant="body2">
+                                                {sponsorship.name}
+                                              </Typography>
+                                              <Chip
+                                                label={`${sponsorship.percentage}%`}
+                                                size="small"
+                                                color="info"
+                                                variant="outlined"
+                                              />
+                                            </Box>
+                                            <Typography
+                                              variant="body2"
+                                              sx={{ fontWeight: "bold" }}
+                                            >
+                                              {formatCurrency(
+                                                sponsorship.value
+                                              )}
+                                            </Typography>
+                                          </Box>
+                                        )
+                                      )}
+                                    </Box>
+                                  )}
+                                </Box>
+                              );
+                            })}
+
+                            <Box
+                              sx={{
+                                mt: 2,
+                                p: 1,
+                                bgcolor: "info.light",
+                                borderRadius: 1,
+                              }}
+                            >
+                              <Typography
+                                variant="body2"
+                                sx={{ fontWeight: "bold", color: "white" }}
+                              >
+                                Total em Benefícios:{" "}
+                                {formatCurrency(
+                                  currentPedido.benefits.reduce(
+                                    (sum, benefit) =>
+                                      sum + (benefit.value || 0),
+                                    0
+                                  )
+                                )}
+                              </Typography>
+                            </Box>
+                          </Paper>
+                        </Grid>
+                      )}
+
                     {/* Itens do Pedido */}
                     <Grid item xs={12}>
                       <Paper elevation={1} sx={{ p: 2 }}>
@@ -2864,6 +3067,7 @@ const Pedidos = () => {
                             <TableHead>
                               <TableRow>
                                 <TableCell>Item</TableCell>
+                                <TableCell align="left">Observações</TableCell>
                                 <TableCell align="center">Quantidade</TableCell>
                                 <TableCell align="right">Preço Unit.</TableCell>
                                 <TableCell align="right">Subtotal</TableCell>
@@ -2873,6 +3077,9 @@ const Pedidos = () => {
                               {currentPedido.items.map((item, index) => (
                                 <TableRow key={index}>
                                   <TableCell>{item.productName}</TableCell>
+                                  <TableCell align="center">
+                                    {item.notes}
+                                  </TableCell>
                                   <TableCell align="center">
                                     {item.quantity}
                                   </TableCell>
@@ -2884,9 +3091,77 @@ const Pedidos = () => {
                                   </TableCell>
                                 </TableRow>
                               ))}
+
+                              {/* Linha de subtotal antes dos descontos */}
+                              {currentPedido.benefits &&
+                                currentPedido.benefits.length > 0 && (
+                                  <TableRow>
+                                    <TableCell
+                                      colSpan={4}
+                                      align="right"
+                                      sx={{
+                                        fontWeight: "normal",
+                                        color: "text.secondary",
+                                      }}
+                                    >
+                                      Subtotal antes dos descontos:
+                                    </TableCell>
+                                    <TableCell
+                                      align="right"
+                                      sx={{
+                                        fontWeight: "normal",
+                                        color: "text.secondary",
+                                      }}
+                                    >
+                                      {formatCurrency(
+                                        currentPedido.total +
+                                          (currentPedido.benefits?.reduce(
+                                            (sum, benefit) =>
+                                              sum + (benefit.value || 0),
+                                            0
+                                          ) || 0)
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+
+                              {/* Linhas de desconto */}
+                              {currentPedido.benefits &&
+                                currentPedido.benefits.map((benefit, index) => (
+                                  <TableRow key={`benefit-${index}`}>
+                                    <TableCell
+                                      colSpan={4}
+                                      align="right"
+                                      sx={{
+                                        color: "success.main",
+                                        fontStyle: "italic",
+                                      }}
+                                    >
+                                      {benefit.target === "ITEM"
+                                        ? "Desconto item específico"
+                                        : benefit.target ===
+                                          "PROGRESSIVE_DISCOUNT_ITEM"
+                                        ? "Desconto progressivo"
+                                        : "Desconto"}
+                                      {benefit.targetId &&
+                                        ` (Item #${benefit.targetId})`}
+                                      :
+                                    </TableCell>
+                                    <TableCell
+                                      align="right"
+                                      sx={{
+                                        color: "success.main",
+                                        fontWeight: "bold",
+                                      }}
+                                    >
+                                      -{formatCurrency(benefit.value)}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+
                               <TableRow>
                                 <TableCell
-                                  colSpan={3}
+                                  colSpan={4}
                                   align="right"
                                   sx={{ fontWeight: "bold" }}
                                 >
@@ -2991,7 +3266,8 @@ const Pedidos = () => {
                                 >
                                   Entregador
                                 </Typography>
-                                {currentPedido.motoboy?.name ? (
+                                {currentPedido.motoboy?.name ||
+                                currentPedido.pickupCode ? (
                                   <Box>
                                     <Typography
                                       variant="body2"
@@ -3007,6 +3283,15 @@ const Pedidos = () => {
                                       <strong>Telefone:</strong>{" "}
                                       {currentPedido.motoboy?.phone}
                                     </Typography>
+                                    {currentPedido.pickupCode && (
+                                      <Typography
+                                        variant="body2"
+                                        sx={{ mb: 0.5 }}
+                                      >
+                                        <strong>Codigo de coleta:</strong>{" "}
+                                        {currentPedido.pickupCode}
+                                      </Typography>
+                                    )}
                                     <Typography variant="body2">
                                       <strong>ID:</strong>{" "}
                                       {currentPedido.motoboy?.motoboyId}

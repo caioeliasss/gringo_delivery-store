@@ -72,7 +72,8 @@ class OrderImportService {
         : null;
 
     // Processar informações de pagamento
-    const paymentInfo = this.processPaymentInfo(ifoodOrder.payment);
+    const paymentInfo = this.processPaymentInfo(ifoodOrder.payments);
+
     return {
       // Número do pedido (pode ser gerado automaticamente ou usar o ID do iFood)
       orderNumber: `IFOOD-${ifoodOrder.id}`,
@@ -114,6 +115,7 @@ class OrderImportService {
         {
           name: ifoodOrder.customer.name,
           phone: ifoodOrder.customer.phone.number || "",
+          documentNumber: ifoodOrder.customer.documentNumber || "",
           customerAddress: {
             cep: this.extractCepFromAddress(
               ifoodOrder.delivery?.deliveryAddress?.postalCode
@@ -132,13 +134,15 @@ class OrderImportService {
         },
       ],
 
+      pickupCode: ifoodOrder.delivery?.pickupCode || "",
       // Items do pedido
       items:
-        ifoodOrder.orderItems?.map((item) => ({
+        ifoodOrder.items?.map((item) => ({
           productId: null, // Será null pois vem do iFood, você pode implementar matching depois
           productName: item.name,
           quantity: item.quantity,
           price: item.totalPrice || item.unitPrice,
+          notes: item.observations || "",
         })) || [],
 
       // Status do pedido - pedidos agendados começam como 'agendado'
@@ -154,6 +158,7 @@ class OrderImportService {
 
       // Método de pagamento
       payment: paymentInfo,
+      benefits: ifoodOrder.benefits || [],
 
       // Informações de entrega
       delivery: {
@@ -193,16 +198,16 @@ class OrderImportService {
     if (paymentData.methods.length > 1) {
       const hasCard = paymentData.methods.some(
         (method) =>
-          method.name &&
-          (method.name.toLowerCase().includes("cartão") ||
-            method.name.toLowerCase().includes("card") ||
-            method.name.toLowerCase().includes("crédito") ||
-            method.name.toLowerCase().includes("débito"))
+          method.method &&
+          (method.method.toLowerCase().includes("card") ||
+            method.method.toLowerCase().includes("credit") ||
+            method.method.toLowerCase().includes("debit") ||
+            method.method.toLowerCase().includes("voucher"))
       );
 
       const hasCash = paymentData.methods.some(
         (method) =>
-          method.name && method.name.toLowerCase().includes("dinheiro")
+          method.method && method.method.toLowerCase().includes("cash")
       );
 
       if (hasCard && hasCash) {
@@ -218,9 +223,7 @@ class OrderImportService {
 
     // Processar método único ou principal
     const primaryMethod = paymentData.methods[0];
-    const methodType = this.mapPaymentMethod(
-      primaryMethod.name || primaryMethod.method
-    );
+    const methodType = this.mapPaymentMethod(primaryMethod.method);
 
     const result = {
       method: methodType,
@@ -260,8 +263,8 @@ class OrderImportService {
         return parseFloat(method.changeFor.value) || 0;
       }
 
-      // Se o método tem amount e é dinheiro, pode haver troco
-      if (method.name && method.name.toLowerCase().includes("dinheiro")) {
+      // Se o método é dinheiro, pode haver troco
+      if (method.method && method.method.toLowerCase().includes("cash")) {
         if (method.changeValue) {
           return parseFloat(method.changeValue) || 0;
         }
@@ -288,15 +291,18 @@ class OrderImportService {
       }
 
       // Tentar extrair da descrição do método
-      if (method.name) {
-        const name = method.name.toLowerCase();
-        if (name.includes("visa")) return "Visa";
-        if (name.includes("master")) return "MasterCard";
-        if (name.includes("american") || name.includes("amex"))
+      if (method.method) {
+        const methodName = method.method.toLowerCase();
+        if (methodName.includes("visa")) return "Visa";
+        if (methodName.includes("master")) return "MasterCard";
+        if (methodName.includes("american") || methodName.includes("amex"))
           return "American Express";
-        if (name.includes("elo")) return "Elo";
-        if (name.includes("hipercard")) return "Hipercard";
-        if (name.includes("diners")) return "Diners Club";
+        if (methodName.includes("elo")) return "Elo";
+        if (methodName.includes("hipercard")) return "Hipercard";
+        if (methodName.includes("diners")) return "Diners Club";
+        if (methodName.includes("sodexo")) return "SODEXO";
+        if (methodName.includes("alelo")) return "ALELO";
+        if (methodName.includes("ticket")) return "TICKET";
       }
     }
     return null;
@@ -322,17 +328,14 @@ class OrderImportService {
 
   extractPaymentDetails(methods) {
     return methods.map((method) => ({
-      name: method.name || "Não informado",
-      amount: method.amount
-        ? parseFloat(method.amount.value || method.amount)
-        : null,
-      currency: method.amount ? method.amount.currency : null,
-      inPerson: method.inPerson || false,
-      liability: method.liability || null,
+      method: method.method || "Não informado",
+      value: method.value || null,
+      currency: method.currency || "BRL",
+      prepaid: method.prepaid || false,
+      type: method.type || null,
       cardBrand: method.card ? method.card.brand : null,
       cardProvider: method.card ? method.card.provider : null,
       walletProvider: method.wallet ? method.wallet.provider : null,
-      digitalData: method.digitalData || null,
     }));
   }
 

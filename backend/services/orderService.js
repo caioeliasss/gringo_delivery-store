@@ -531,11 +531,10 @@ class OrderService {
 
       // Se o pedido já estiver entregue ou cancelado, não permitir alteração
       if (order.status === "entregue" || order.status === "cancelado") {
-        throw new Error(
-          `Pedido já ${
-            order.status === "entregue" ? "entregue" : "cancelado"
-          }, não é possível alterar o status`
-        );
+        return {
+          error:
+            "Pedido já entregue ou cancelado, não é possível alterar o status",
+        };
       }
 
       // Guardar status anterior para comparação
