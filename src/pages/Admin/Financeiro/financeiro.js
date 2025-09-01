@@ -698,6 +698,20 @@ const AdminFinanceiro = () => {
                       fullWidth
                     />
                     <TextField
+                      label="Acrescimo (R$)"
+                      type="number"
+                      required
+                      value={1.89}
+                      onChange={(e) =>
+                        setNewBilling((b) => ({
+                          ...b,
+                          amount: b.amount + e.target.value,
+                        }))
+                      }
+                      inputProps={{ min: 1, step: 0.01 }}
+                      fullWidth
+                    />
+                    <TextField
                       label="Vencimento"
                       type="date"
                       required
