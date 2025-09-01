@@ -288,7 +288,12 @@ const travelRoutes = require("./routes/travelRoutes");
 const occurrenceRoutes = require("./routes/occurrenceRoutes");
 const deliveryPricesRoutes = require("./routes/deliveryPricesRoutes");
 const cronService = require("./services/cronService");
+const ScheduledOrderService = require("./services/scheduledOrderService");
+
+// Inicializar serviços
 cronService.startAll(); // Iniciar serviço de cron
+const scheduledOrderService = new ScheduledOrderService(); // Inicializar serviço de pedidos agendados
+console.log("✅ ScheduledOrderService inicializado");
 
 app.use("/api/webhooks", express.raw({ type: "application/json" }));
 
@@ -388,12 +393,13 @@ app.post("/api/socket/test-notification", authenticateToken, (req, res) => {
       : "Usuário não está conectado ou erro ao enviar",
   });
 });
+
 app.use("/api/webhook/ifood", (req, res) => {
   if (req.body.code === "KEEPALIVE") {
     console.log("KEEPALIVE");
     return res.sendStatus(200); // responde e sai
   }
-  console.log("Webhook recebido Ifood:", req.body.fullCode);
+  // console.log("Webhook recebido Ifood:", req.body.fullCode);
   const WebhookController = require("./controllers/webhookController");
   const OrderService = require("./services/orderService");
   const orderService = new OrderService();

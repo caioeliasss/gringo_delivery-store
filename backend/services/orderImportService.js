@@ -64,6 +64,15 @@ class OrderImportService {
       );
     }
 
+    // Processar informações de agendamento
+    const isScheduled = ifoodOrder.orderTiming === "SCHEDULED";
+    const scheduledDateTime =
+      isScheduled && ifoodOrder.scheduledDateTime
+        ? new Date(ifoodOrder.scheduledDateTime)
+        : null;
+
+    // Processar informações de pagamento
+    const paymentInfo = this.processPaymentInfo(ifoodOrder.payment);
     return {
       // Número do pedido (pode ser gerado automaticamente ou usar o ID do iFood)
       orderNumber: `IFOOD-${ifoodOrder.id}`,
@@ -72,7 +81,14 @@ class OrderImportService {
       ifoodId: ifoodOrder.id,
 
       deliveryMode:
-        ifoodOrder.orderType === "DELIVERY" ? "delivery" : "retirada",
+        ifoodOrder.orderType === "DELIVERY" ? "entrega" : "retirada",
+
+      // Campos de agendamento
+      orderType: ifoodOrder.orderType || "IMMEDIATE",
+      orderTiming: ifoodOrder.orderTiming || "IMMEDIATE",
+      isScheduled: isScheduled,
+      scheduledDateTime: scheduledDateTime,
+      scheduledDeliveryTime: scheduledDateTime,
 
       // Informações da loja (você pode definir valores padrão ou buscar do banco)
       store: {
@@ -125,8 +141,10 @@ class OrderImportService {
           price: item.totalPrice || item.unitPrice,
         })) || [],
 
-      // Status do pedido
-      status: this.mapIfoodStatus(ifoodOrder.orderStatus),
+      // Status do pedido - pedidos agendados começam como 'agendado'
+      status: isScheduled
+        ? "agendado"
+        : this.mapIfoodStatus(ifoodOrder.orderStatus),
 
       // Total do pedido
       total: ifoodOrder.total?.orderAmount || 0,
@@ -135,10 +153,7 @@ class OrderImportService {
       orderDate: new Date(ifoodOrder.createdAt),
 
       // Método de pagamento
-      payment: {
-        method: this.mapPaymentMethod(ifoodOrder.payments?.[0]?.method),
-        change: 0, // iFood não tem troco, sempre 0
-      },
+      payment: paymentInfo,
 
       // Informações de entrega
       delivery: {
@@ -159,6 +174,168 @@ class OrderImportService {
     };
   }
 
+  processPaymentInfo(paymentData) {
+    if (
+      !paymentData ||
+      !paymentData.methods ||
+      paymentData.methods.length === 0
+    ) {
+      return {
+        method: "erro",
+        change: 0,
+        cardBrand: null,
+        cardProvider: null,
+        details: null,
+      };
+    }
+
+    // Se houver múltiplos métodos de pagamento
+    if (paymentData.methods.length > 1) {
+      const hasCard = paymentData.methods.some(
+        (method) =>
+          method.name &&
+          (method.name.toLowerCase().includes("cartão") ||
+            method.name.toLowerCase().includes("card") ||
+            method.name.toLowerCase().includes("crédito") ||
+            method.name.toLowerCase().includes("débito"))
+      );
+
+      const hasCash = paymentData.methods.some(
+        (method) =>
+          method.name && method.name.toLowerCase().includes("dinheiro")
+      );
+
+      if (hasCard && hasCash) {
+        return {
+          method: "diversos",
+          change: this.extractChangeValue(paymentData),
+          cardBrand: this.extractCardBrand(paymentData),
+          cardProvider: this.extractCardProvider(paymentData),
+          details: this.extractPaymentDetails(paymentData.methods),
+        };
+      }
+    }
+
+    // Processar método único ou principal
+    const primaryMethod = paymentData.methods[0];
+    const methodType = this.mapPaymentMethod(
+      primaryMethod.name || primaryMethod.method
+    );
+
+    const result = {
+      method: methodType,
+      change: 0,
+      cardBrand: null,
+      cardProvider: null,
+      details: null,
+    };
+
+    // Se for dinheiro, extrair valor do troco
+    if (methodType === "dinheiro") {
+      result.change = this.extractChangeValue(paymentData);
+    }
+
+    // Se for cartão, extrair bandeira e provedor
+    if (methodType === "cartao") {
+      result.cardBrand = this.extractCardBrand(paymentData);
+      result.cardProvider = this.extractCardProvider(paymentData);
+    }
+
+    // Adicionar detalhes completos do pagamento
+    result.details = this.extractPaymentDetails(paymentData.methods);
+
+    return result;
+  }
+
+  extractChangeValue(paymentData) {
+    // Procurar por informações de troco nos métodos de pagamento
+    for (const method of paymentData.methods || []) {
+      // Verificar se existe informação de troco no método
+      if (method.cashChangeFor && method.cashChangeFor.value) {
+        return parseFloat(method.cashChangeFor.value) || 0;
+      }
+
+      // Verificar outras possíveis estruturas de troco
+      if (method.changeFor && method.changeFor.value) {
+        return parseFloat(method.changeFor.value) || 0;
+      }
+
+      // Se o método tem amount e é dinheiro, pode haver troco
+      if (method.name && method.name.toLowerCase().includes("dinheiro")) {
+        if (method.changeValue) {
+          return parseFloat(method.changeValue) || 0;
+        }
+      }
+    }
+
+    // Verificar na raiz do objeto payment
+    if (paymentData.cashChangeFor && paymentData.cashChangeFor.value) {
+      return parseFloat(paymentData.cashChangeFor.value) || 0;
+    }
+
+    return 0;
+  }
+
+  extractCardBrand(paymentData) {
+    for (const method of paymentData.methods || []) {
+      // Verificar se existe informação da bandeira do cartão
+      if (method.card && method.card.brand) {
+        return method.card.brand;
+      }
+
+      if (method.cardBrand) {
+        return method.cardBrand;
+      }
+
+      // Tentar extrair da descrição do método
+      if (method.name) {
+        const name = method.name.toLowerCase();
+        if (name.includes("visa")) return "Visa";
+        if (name.includes("master")) return "MasterCard";
+        if (name.includes("american") || name.includes("amex"))
+          return "American Express";
+        if (name.includes("elo")) return "Elo";
+        if (name.includes("hipercard")) return "Hipercard";
+        if (name.includes("diners")) return "Diners Club";
+      }
+    }
+    return null;
+  }
+
+  extractCardProvider(paymentData) {
+    for (const method of paymentData.methods || []) {
+      // Verificar se existe informação do provedor do cartão
+      if (method.card && method.card.provider) {
+        return method.card.provider;
+      }
+
+      if (method.cardProvider) {
+        return method.cardProvider;
+      }
+
+      if (method.provider) {
+        return method.provider;
+      }
+    }
+    return null;
+  }
+
+  extractPaymentDetails(methods) {
+    return methods.map((method) => ({
+      name: method.name || "Não informado",
+      amount: method.amount
+        ? parseFloat(method.amount.value || method.amount)
+        : null,
+      currency: method.amount ? method.amount.currency : null,
+      inPerson: method.inPerson || false,
+      liability: method.liability || null,
+      cardBrand: method.card ? method.card.brand : null,
+      cardProvider: method.card ? method.card.provider : null,
+      walletProvider: method.wallet ? method.wallet.provider : null,
+      digitalData: method.digitalData || null,
+    }));
+  }
+
   mapIfoodStatus(ifoodStatus) {
     const statusMap = {
       PLACED: "pendente",
@@ -168,12 +345,55 @@ class OrderImportService {
       DISPATCHED: "em_entrega",
       DELIVERED: "entregue",
       CANCELLED: "cancelado",
+      SCHEDULED: "agendado", // Novo status para pedidos agendados
     };
 
     return statusMap[ifoodStatus] || "pendente";
   }
 
   mapPaymentMethod(ifoodPaymentMethod) {
+    if (!ifoodPaymentMethod) return "erro";
+
+    const method = ifoodPaymentMethod.toLowerCase();
+
+    // Mapeamento para diferentes variações de nomes
+    if (
+      method.includes("credit") ||
+      method.includes("crédito") ||
+      method.includes("cartão de crédito")
+    ) {
+      return "cartao";
+    }
+
+    if (
+      method.includes("debit") ||
+      method.includes("débito") ||
+      method.includes("cartão de débito")
+    ) {
+      return "cartao";
+    }
+
+    if (
+      method.includes("cash") ||
+      method.includes("dinheiro") ||
+      method.includes("espécie")
+    ) {
+      return "dinheiro";
+    }
+
+    if (method.includes("pix")) {
+      return "pix";
+    }
+
+    if (
+      method.includes("voucher") ||
+      method.includes("vale") ||
+      method.includes("ticket")
+    ) {
+      return "cartao";
+    }
+
+    // Fallback para os valores originais do iFood
     const paymentMap = {
       CREDIT_CARD: "cartao",
       DEBIT_CARD: "cartao",

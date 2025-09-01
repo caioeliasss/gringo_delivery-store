@@ -2,9 +2,11 @@ const express = require("express");
 const router = express.Router();
 const admin = require("firebase-admin");
 const OrderService = require("../services/orderService");
+const ScheduledOrderService = require("../services/scheduledOrderService");
 
-// Instanciar o service
+// Instanciar os services
 const orderService = new OrderService();
+const scheduledOrderService = new ScheduledOrderService();
 
 // Middleware de autenticação
 const authenticateToken = async (req, res, next) => {
@@ -384,5 +386,136 @@ router.post("/:id/test-timer", authenticateToken, async (req, res) => {
     });
   }
 });
+
+// ========== ROTAS PARA PEDIDOS AGENDADOS ==========
+
+// Listar pedidos agendados
+router.get("/scheduled", authenticateToken, async (req, res) => {
+  try {
+    const scheduledOrders = await scheduledOrderService.getScheduledOrders();
+    res.json({
+      success: true,
+      data: scheduledOrders,
+      count: scheduledOrders.length,
+    });
+  } catch (error) {
+    console.error("Erro ao listar pedidos agendados:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erro ao listar pedidos agendados",
+      error: error.message,
+    });
+  }
+});
+
+// Obter estatísticas de pedidos agendados
+router.get("/scheduled/stats", authenticateToken, async (req, res) => {
+  try {
+    const stats = await scheduledOrderService.getScheduledOrdersStats();
+    res.json({
+      success: true,
+      data: stats,
+    });
+  } catch (error) {
+    console.error("Erro ao obter estatísticas de pedidos agendados:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erro ao obter estatísticas de pedidos agendados",
+      error: error.message,
+    });
+  }
+});
+
+// Reagendar um pedido
+router.patch("/:orderId/reschedule", authenticateToken, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { newScheduledDateTime } = req.body;
+
+    if (!newScheduledDateTime) {
+      return res.status(400).json({
+        success: false,
+        message: "Nova data de agendamento é obrigatória",
+      });
+    }
+
+    const result = await scheduledOrderService.rescheduleOrder(
+      orderId,
+      new Date(newScheduledDateTime)
+    );
+
+    if (result) {
+      res.json({
+        success: true,
+        message: "Pedido reagendado com sucesso",
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: "Pedido não encontrado ou erro ao reagendar",
+      });
+    }
+  } catch (error) {
+    console.error("Erro ao reagendar pedido:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erro ao reagendar pedido",
+      error: error.message,
+    });
+  }
+});
+
+// Cancelar agendamento de um pedido
+router.delete("/:orderId/schedule", authenticateToken, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    const cancelled = scheduledOrderService.cancelScheduledOrder(orderId);
+
+    if (cancelled) {
+      res.json({
+        success: true,
+        message: "Agendamento cancelado com sucesso",
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: "Agendamento não encontrado",
+      });
+    }
+  } catch (error) {
+    console.error("Erro ao cancelar agendamento:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erro ao cancelar agendamento",
+      error: error.message,
+    });
+  }
+});
+
+// Processar um pedido agendado imediatamente (força o processamento)
+router.post(
+  "/:orderId/process-scheduled",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { orderId } = req.params;
+
+      await scheduledOrderService.processScheduledOrder(orderId);
+
+      res.json({
+        success: true,
+        message: "Pedido agendado processado com sucesso",
+      });
+    } catch (error) {
+      console.error("Erro ao processar pedido agendado:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erro ao processar pedido agendado",
+        error: error.message,
+      });
+    }
+  }
+);
 
 module.exports = router;

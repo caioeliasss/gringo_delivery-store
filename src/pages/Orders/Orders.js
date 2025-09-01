@@ -61,6 +61,7 @@ import {
   Pending as PendingIcon,
   LocalShipping as ShippingIcon,
   Cancel as CancelIcon,
+  Schedule as ScheduleIcon,
   RemoveCircleOutline,
   AddCircleOutline,
   RestartAlt,
@@ -97,6 +98,13 @@ const ORDER_STATUS = [
     value: "pendente",
     icon: PendingIcon,
     color: "warning",
+    type: "order",
+  },
+  {
+    label: "Agendado",
+    value: "agendado",
+    icon: ScheduleIcon,
+    color: "info",
     type: "order",
   },
   { label: "Em Preparo", value: "em_preparo", icon: TimeIcon, color: "error" },
@@ -1208,6 +1216,25 @@ export default function OrdersPage() {
                       <Typography variant="body2" color="text.secondary">
                         Criado em: {formatDate(selectedOrder.createdAt)}
                       </Typography>
+                      {/* Exibir data de agendamento se for um pedido agendado */}
+                      {selectedOrder.isScheduled &&
+                        selectedOrder.scheduledDateTime && (
+                          <Typography
+                            variant="body2"
+                            color="warning.main"
+                            sx={{
+                              fontWeight: "bold",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 0.5,
+                              mt: 0.5,
+                            }}
+                          >
+                            <ScheduleIcon fontSize="small" />
+                            Agendado para:{" "}
+                            {formatDate(selectedOrder.scheduledDateTime)}
+                          </Typography>
+                        )}
                     </Box>
 
                     <Grid container spacing={3} direction={"column"}>

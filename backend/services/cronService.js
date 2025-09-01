@@ -28,7 +28,7 @@ class CronService {
     }
 
     const job = new cron.CronJob(
-      "0 9 10 * *", // Executa todo dia 10 às 09:00
+      "0 9 5 * *", // Executa todo dia 05 às 09:00
       this.createMonthlyBillings.bind(this),
       null,
       true,
@@ -86,8 +86,8 @@ class CronService {
     const dueDate = new Date(
       currentDate.getFullYear(),
       currentDate.getMonth() + 1,
-      15
-    ); // Vencimento dia 15
+      10
+    ); // Vencimento dia 10
 
     // Calcular valor baseado no plano da loja
     const amount = this.calculateBillingAmount(store);

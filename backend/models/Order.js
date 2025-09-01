@@ -219,6 +219,7 @@ const orderSchema = new mongoose.Schema({
     type: String,
     enum: [
       "pendente",
+      "agendado",
       "em_preparo",
       "pronto",
       "ready_takeout",
@@ -239,18 +240,52 @@ const orderSchema = new mongoose.Schema({
   payment: {
     method: {
       type: String,
-      enum: ["dinheiro", "cartao", "pix", "maquina"],
       required: true,
     },
     change: {
       type: Number,
       default: 0,
     },
+    cardBrand: {
+      type: String,
+      required: false,
+    },
+    cardProvider: {
+      type: String,
+      required: false,
+    },
+    details: {
+      type: mongoose.Schema.Types.Mixed,
+      required: false,
+    },
   },
   deliveryMode: {
     type: String,
     enum: ["entrega", "retirada"],
     default: "entrega",
+  },
+  // Campos para pedidos agendados
+  orderType: {
+    type: String,
+    enum: ["IMMEDIATE", "SCHEDULED", "DELIVERY", "TAKEOUT"],
+    default: "IMMEDIATE",
+  },
+  orderTiming: {
+    type: String,
+    enum: ["IMMEDIATE", "SCHEDULED"],
+    default: "IMMEDIATE",
+  },
+  scheduledDateTime: {
+    type: Date,
+    required: false,
+  },
+  scheduledDeliveryTime: {
+    type: Date,
+    required: false,
+  },
+  isScheduled: {
+    type: Boolean,
+    default: false,
   },
   delivery: {
     estimatedTime: {

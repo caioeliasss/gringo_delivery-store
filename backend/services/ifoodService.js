@@ -32,9 +32,9 @@ class IfoodService {
 
   async pollingIfood(storeFirebaseUid = null) {
     // Se foi passado um storeFirebaseUid, configurar as credenciais
-    if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
-      await this.setStoreCredentials(storeFirebaseUid);
-    }
+    // if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
+    //   await this.setStoreCredentials(storeFirebaseUid);
+    // }
 
     await this.ensureAuthenticated();
 
@@ -100,9 +100,9 @@ class IfoodService {
 
   async readyToPickup(orderId, storeFirebaseUid = null) {
     // Se foi passado um storeFirebaseUid, configurar as credenciais
-    if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
-      await this.setStoreCredentials(storeFirebaseUid);
-    }
+    // if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
+    //   await this.setStoreCredentials(storeFirebaseUid);
+    // }
 
     await this.ensureAuthenticated();
 
@@ -144,9 +144,9 @@ class IfoodService {
 
   async getMerchantDetails(merchantId, storeFirebaseUid = null) {
     // Se foi passado um storeFirebaseUid, configurar as credenciais
-    if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
-      await this.setStoreCredentials(storeFirebaseUid);
-    }
+    // if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
+    //   await this.setStoreCredentials(storeFirebaseUid);
+    // }
 
     await this.ensureAuthenticated();
 
@@ -173,9 +173,9 @@ class IfoodService {
 
   async getOrders(storeFirebaseUid = null) {
     // Se foi passado um storeFirebaseUid, configurar as credenciais
-    if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
-      await this.setStoreCredentials(storeFirebaseUid);
-    }
+    // if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
+    //   await this.setStoreCredentials(storeFirebaseUid);
+    // }
 
     await this.ensureAuthenticated();
     if (!this.accessToken) {
@@ -198,9 +198,9 @@ class IfoodService {
 
   async getOrderDetails(orderId, storeFirebaseUid = null) {
     // Se foi passado um storeFirebaseUid, configurar as credenciais
-    if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
-      await this.setStoreCredentials(storeFirebaseUid);
-    }
+    // if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
+    //   await this.setStoreCredentials(storeFirebaseUid);
+    // }
 
     await this.ensureAuthenticated();
 
@@ -227,9 +227,9 @@ class IfoodService {
 
   async confirmOrder(orderId, storeFirebaseUid = null) {
     // Se foi passado um storeFirebaseUid, configurar as credenciais
-    if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
-      await this.setStoreCredentials(storeFirebaseUid);
-    }
+    // if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
+    //   await this.setStoreCredentials(storeFirebaseUid);
+    // }
 
     await this.ensureAuthenticated();
 
@@ -260,9 +260,9 @@ class IfoodService {
 
   async dispatchOrder(orderId, storeFirebaseUid = null) {
     // Se foi passado um storeFirebaseUid, configurar as credenciais
-    if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
-      await this.setStoreCredentials(storeFirebaseUid);
-    }
+    // if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
+    //   await this.setStoreCredentials(storeFirebaseUid);
+    // }
 
     await this.ensureAuthenticated();
 
@@ -287,9 +287,9 @@ class IfoodService {
 
   async completeOrder(orderId, storeFirebaseUid = null) {
     // Se foi passado um storeFirebaseUid, configurar as credenciais
-    if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
-      await this.setStoreCredentials(storeFirebaseUid);
-    }
+    // if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
+    //   await this.setStoreCredentials(storeFirebaseUid);
+    // }
 
     await this.ensureAuthenticated();
 
@@ -341,9 +341,9 @@ class IfoodService {
     storeFirebaseUid = null
   ) {
     // Se foi passado um storeFirebaseUid, configurar as credenciais
-    if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
-      await this.setStoreCredentials(storeFirebaseUid);
-    }
+    // if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
+    //   await this.setStoreCredentials(storeFirebaseUid);
+    // }
 
     await this.ensureAuthenticated();
 
