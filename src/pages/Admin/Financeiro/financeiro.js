@@ -144,6 +144,7 @@ const AdminFinanceiro = () => {
     firebaseUid: "",
     customerId: "",
     amount: "",
+    additionalFee: 0,
     dueDate: formatDateFns(addDays(new Date(), 7), "yyyy-MM-dd"),
     description: "",
     paymentMethod: "BOLETO",
@@ -184,9 +185,13 @@ const AdminFinanceiro = () => {
     }
     setCreatingBilling(true);
     try {
+      // Calcular valor total (valor base + acréscimo)
+      const totalAmount =
+        Number(newBilling.amount) + Number(newBilling.additionalFee || 0);
+
       await api.post("/billing", {
         ...newBilling,
-        amount: Number(newBilling.amount),
+        amount: totalAmount,
         dueDate: newBilling.dueDate,
         paymentMethod: newBilling.paymentMethod,
         type: newBilling.type,
@@ -200,6 +205,7 @@ const AdminFinanceiro = () => {
         firebaseUid: "",
         customerId: "",
         amount: "",
+        additionalFee: 0,
         dueDate: formatDateFns(addDays(new Date(), 7), "yyyy-MM-dd"),
         description: "",
         paymentMethod: "BOLETO",
@@ -698,18 +704,44 @@ const AdminFinanceiro = () => {
                       fullWidth
                     />
                     <TextField
-                      label="Acrescimo (R$)"
+                      label="Acréscimo (R$)"
                       type="number"
-                      required
-                      value={1.89}
+                      value={newBilling.additionalFee || 0}
                       onChange={(e) =>
                         setNewBilling((b) => ({
                           ...b,
-                          amount: b.amount + e.target.value,
+                          additionalFee: parseFloat(e.target.value) || 0,
                         }))
                       }
-                      inputProps={{ min: 1, step: 0.01 }}
+                      inputProps={{ min: 0, step: 0.01 }}
                       fullWidth
+                      helperText="Valor que será somado ao valor principal"
+                    />
+                    <TextField
+                      label="Total da Cobrança (R$)"
+                      type="text"
+                      value={(() => {
+                        const baseAmount = parseFloat(newBilling.amount) || 0;
+                        const additionalFee =
+                          parseFloat(newBilling.additionalFee) || 0;
+                        const total = baseAmount + additionalFee;
+                        return new Intl.NumberFormat("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
+                        }).format(total);
+                      })()}
+                      InputProps={{
+                        readOnly: true,
+                      }}
+                      fullWidth
+                      sx={{
+                        "& .MuiInputBase-input": {
+                          fontWeight: "bold",
+                          color: "primary.main",
+                          fontSize: "1.1rem",
+                        },
+                      }}
+                      helperText="Valor final que será cobrado (valor + acréscimo)"
                     />
                     <TextField
                       label="Vencimento"
