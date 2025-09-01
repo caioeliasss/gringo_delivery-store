@@ -240,7 +240,7 @@ const deleteBilling = async (req, res) => {
         title: "Cobrança cancelada",
         message: `Uma cobrança de ${billing.amount} foi cancelada pelo administrador`,
         firebaseUid: billing.firebaseUid,
-        type: "BILLING_CANCELLED",
+        type: "BILLING",
       });
     } catch (notifError) {
       console.warn("Erro ao enviar notificação:", notifError.message);

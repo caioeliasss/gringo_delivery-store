@@ -97,6 +97,8 @@ const AdminFinanceiro = () => {
   // Estados de dados
   const [withdrawals, setWithdrawals] = useState([]);
   const [billings, setBillings] = useState([]);
+  const [allStores, setAllStores] = useState([]);
+  const [allMotoboys, setAllMotoboys] = useState([]);
   const [financialStats, setFinancialStats] = useState({
     totalWithdrawals: 0,
     pendingWithdrawals: 0,
@@ -115,6 +117,8 @@ const AdminFinanceiro = () => {
   // Estados de filtros
   const [withdrawalFilter, setWithdrawalFilter] = useState("all");
   const [billingFilter, setBillingFilter] = useState("all");
+  const [storeFilter, setStoreFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   // Estados de modais
   const [selectedWithdrawal, setSelectedWithdrawal] = useState(null);
@@ -241,25 +245,88 @@ const AdminFinanceiro = () => {
   // Carregar dados iniciais
   useEffect(() => {
     fetchFinancialData();
-  }, [withdrawalsPage, billingsPage, withdrawalFilter, billingFilter]);
+  }, [
+    withdrawalsPage,
+    billingsPage,
+    withdrawalFilter,
+    billingFilter,
+    storeFilter,
+    statusFilter,
+  ]);
+
+  // Carregar lojas e motoboys únicos ao inicializar
+  useEffect(() => {
+    const loadFilterOptions = async () => {
+      try {
+        // Buscar lojas
+        const storesResponse = await api.get("/stores");
+        setAllStores(storesResponse.data || []);
+
+        // Buscar motoboys únicos dos saques
+        const withdrawalsResponse = await adminService.getWithdrawals({
+          page: 1,
+          limit: 1000, // Buscar muitos para extrair motoboys únicos
+        });
+
+        // Extrair motoboys únicos
+        const uniqueMotoboys = [];
+        const motoboyMap = new Map();
+
+        (withdrawalsResponse.withdrawals || []).forEach((withdrawal) => {
+          if (withdrawal.motoboyId && !motoboyMap.has(withdrawal.motoboyId)) {
+            motoboyMap.set(withdrawal.motoboyId, {
+              id: withdrawal.motoboyId,
+              name: withdrawal.motoboyName || "Motoboy Desconhecido",
+            });
+            uniqueMotoboys.push({
+              id: withdrawal.motoboyId,
+              name: withdrawal.motoboyName || "Motoboy Desconhecido",
+            });
+          }
+        });
+
+        setAllMotoboys(uniqueMotoboys);
+      } catch (error) {
+        console.error("Erro ao carregar opções de filtro:", error);
+      }
+    };
+
+    loadFilterOptions();
+  }, []);
 
   const fetchFinancialData = async () => {
     try {
       setLoading(true);
 
+      // Preparar filtros para withdrawals
+      const withdrawalFilters = {
+        page: withdrawalsPage,
+        limit: 10,
+        status: withdrawalFilter === "all" ? undefined : withdrawalFilter,
+      };
+
+      // Adicionar filtro por motoboy se selecionado
+      if (activeTab === 0 && storeFilter !== "all") {
+        withdrawalFilters.motoboyId = storeFilter; // Reutilizando storeFilter para motoboy na aba de saques
+      }
+
+      // Preparar filtros para billings
+      const billingFilters = {
+        page: billingsPage,
+        limit: 10,
+        status: billingFilter === "all" ? undefined : billingFilter,
+      };
+
+      // Adicionar filtro por loja se selecionado
+      if (activeTab === 1 && storeFilter !== "all") {
+        billingFilters.storeId = storeFilter;
+      }
+
       // Buscar dados em paralelo
       const [statsData, withdrawalsData, billingsData] = await Promise.all([
         adminService.getFinancialStats(),
-        adminService.getWithdrawals({
-          page: withdrawalsPage,
-          limit: 10,
-          status: withdrawalFilter === "all" ? undefined : withdrawalFilter,
-        }),
-        adminService.getBillings({
-          page: billingsPage,
-          limit: 10,
-          status: billingFilter === "all" ? undefined : billingFilter, // ✅ DESCOMMENTAR: Reativar filtro
-        }),
+        adminService.getWithdrawals(withdrawalFilters),
+        adminService.getBillings(billingFilters),
       ]);
 
       console.log("Dados financeiros:", withdrawalsData.withdrawals);
@@ -332,6 +399,16 @@ const AdminFinanceiro = () => {
       console.error("Erro ao formatar data:", error);
       return "Data inválida";
     }
+  };
+
+  // Função para limpar filtros ao trocar de aba
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+    setStoreFilter("all"); // Limpar filtro de loja/motoboy
+
+    // Resetar páginas
+    setWithdrawalsPage(1);
+    setBillingsPage(1);
   };
 
   const getStatusChip = (status, type = "withdrawal") => {
@@ -770,7 +847,7 @@ const AdminFinanceiro = () => {
           <Paper elevation={3} sx={{ borderRadius: 2 }}>
             <Tabs
               value={activeTab}
-              onChange={(e, newValue) => setActiveTab(newValue)}
+              onChange={handleTabChange}
               variant="fullWidth"
               sx={{ borderBottom: 1, borderColor: "divider" }}
             >
@@ -807,24 +884,56 @@ const AdminFinanceiro = () => {
                   justifyContent="space-between"
                   alignItems="center"
                   mb={3}
+                  flexWrap="wrap"
+                  gap={2}
                 >
                   <Typography variant="h6" fontWeight="bold">
                     Saques dos Motoboys
                   </Typography>
-                  <FormControl size="small" sx={{ minWidth: 150 }}>
-                    <InputLabel>Filtrar por Status</InputLabel>
-                    <Select
-                      value={withdrawalFilter}
-                      label="Filtrar por Status"
-                      onChange={(e) => setWithdrawalFilter(e.target.value)}
+                  <Box display="flex" gap={2} flexWrap="wrap">
+                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                      <InputLabel>Filtrar por Motoboy</InputLabel>
+                      <Select
+                        value={storeFilter}
+                        label="Filtrar por Motoboy"
+                        onChange={(e) => setStoreFilter(e.target.value)}
+                      >
+                        <MenuItem value="all">Todos os Motoboys</MenuItem>
+                        {allMotoboys.map((motoboy) => (
+                          <MenuItem key={motoboy.id} value={motoboy.id}>
+                            {motoboy.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                      <InputLabel>Filtrar por Status</InputLabel>
+                      <Select
+                        value={withdrawalFilter}
+                        label="Filtrar por Status"
+                        onChange={(e) => setWithdrawalFilter(e.target.value)}
+                      >
+                        <MenuItem value="all">Todos</MenuItem>
+                        <MenuItem value="pending">Pendentes</MenuItem>
+                        <MenuItem value="processing">Processando</MenuItem>
+                        <MenuItem value="completed">Concluídos</MenuItem>
+                        <MenuItem value="failed">Falharam</MenuItem>
+                        <MenuItem value="rejected">Rejeitados</MenuItem>
+                      </Select>
+                    </FormControl>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<FilterIcon />}
+                      onClick={() => {
+                        setStoreFilter("all");
+                        setWithdrawalFilter("all");
+                        setWithdrawalsPage(1);
+                      }}
                     >
-                      <MenuItem value="all">Todos</MenuItem>
-                      <MenuItem value="pending">Pendentes</MenuItem>
-                      <MenuItem value="processing">Processando</MenuItem>
-                      <MenuItem value="completed">Concluídos</MenuItem>
-                      <MenuItem value="failed">Falharam</MenuItem>
-                    </Select>
-                  </FormControl>
+                      Limpar Filtros
+                    </Button>
+                  </Box>
                 </Box>
 
                 {/* Tabela de Withdrawals */}
@@ -953,25 +1062,60 @@ const AdminFinanceiro = () => {
                   justifyContent="space-between"
                   alignItems="center"
                   mb={3}
+                  flexWrap="wrap"
+                  gap={2}
                 >
                   <Typography variant="h6" fontWeight="bold">
                     Faturas das Lojas
                   </Typography>
-                  <FormControl size="small" sx={{ minWidth: 150 }}>
-                    <InputLabel>Filtrar por Status</InputLabel>
-                    <Select
-                      value={billingFilter}
-                      label="Filtrar por Status"
-                      onChange={(e) => setBillingFilter(e.target.value)}
+                  <Box display="flex" gap={2} flexWrap="wrap">
+                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                      <InputLabel>Filtrar por Loja</InputLabel>
+                      <Select
+                        value={storeFilter}
+                        label="Filtrar por Loja"
+                        onChange={(e) => setStoreFilter(e.target.value)}
+                      >
+                        <MenuItem value="all">Todas as Lojas</MenuItem>
+                        {allStores.map((store) => (
+                          <MenuItem key={store._id} value={store._id}>
+                            {store.businessName ||
+                              store.displayName ||
+                              store.email ||
+                              store._id}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                      <InputLabel>Filtrar por Status</InputLabel>
+                      <Select
+                        value={billingFilter}
+                        label="Filtrar por Status"
+                        onChange={(e) => setBillingFilter(e.target.value)}
+                      >
+                        <MenuItem value="all">Todos</MenuItem>
+                        <MenuItem value="PENDING">Pendentes</MenuItem>
+                        <MenuItem value="PAID">Pagos</MenuItem>
+                        <MenuItem value="CONFIRMED">Confirmados</MenuItem>
+                        <MenuItem value="COMPLETED">Completados</MenuItem>
+                        <MenuItem value="OVERDUE">Vencidos</MenuItem>
+                        <MenuItem value="CANCELLED">Cancelados</MenuItem>
+                      </Select>
+                    </FormControl>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<FilterIcon />}
+                      onClick={() => {
+                        setStoreFilter("all");
+                        setBillingFilter("all");
+                        setBillingsPage(1);
+                      }}
                     >
-                      <MenuItem value="all">Todos</MenuItem>
-                      <MenuItem value="PENDING">Pendentes</MenuItem>
-                      <MenuItem value="PAID">Pagos</MenuItem>
-                      <MenuItem value="COMPLETED">Completados</MenuItem>
-                      <MenuItem value="OVERDUE">Vencidos</MenuItem>
-                      <MenuItem value="CANCELLED">Cancelados</MenuItem>
-                    </Select>
-                  </FormControl>
+                      Limpar Filtros
+                    </Button>
+                  </Box>
                 </Box>
 
                 {/* Tabela de Billings */}

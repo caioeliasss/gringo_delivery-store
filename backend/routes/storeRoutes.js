@@ -709,7 +709,39 @@ const removeStore = async (req, res) => {
   }
 };
 
+const sendMerchant = async (req, res) => {
+  const { storeId, merchantId } = req.body;
+
+  if (!storeId || !merchantId) {
+    return res.status(400).json({
+      message: "storeId e merchantId são obrigatórios",
+    });
+  }
+
+  try {
+    const store = await Store.findById(storeId);
+    if (!store) {
+      return res.status(404).json({ message: "Loja não encontrada" });
+    }
+
+    await Store.findByIdAndUpdate(storeId, {
+      $set: { "ifoodConfig.merchantId": merchantId },
+    });
+
+    res.status(200).json({
+      message: "merchantId enviada com sucesso",
+    });
+  } catch (error) {
+    console.error("Erro ao enviar merchantId:", error);
+    res.status(500).json({
+      message: "Erro ao enviar merchantId",
+      error: error.message,
+    });
+  }
+};
+
 router.post("/coordinates", changeCoordinates);
 router.delete("/remove-store", removeStore);
+router.post("/sendMerchant", sendMerchant);
 
 module.exports = router;

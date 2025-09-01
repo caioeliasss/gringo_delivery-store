@@ -71,10 +71,6 @@ const storeSchema = new mongoose.Schema({
     required: true,
   },
   ifoodConfig: ifoodConfigSchema,
-  merchantId: {
-    type: String,
-    required: false,
-  },
   asaasCustomerId: {
     type: String,
     required: false,

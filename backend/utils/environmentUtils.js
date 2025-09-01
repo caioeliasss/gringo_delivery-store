@@ -4,11 +4,17 @@
 
 class EnvironmentUtils {
   static isDevelopment() {
-    return process.env.NODE_ENV === "development";
+    const nodeEnv = (process.env.NODE_ENV || "").trim().toLowerCase();
+    const isDev = nodeEnv === "development";
+    console.log(
+      `is this development? ${isDev}, NODE_ENV: "${process.env.NODE_ENV}" (trimmed: "${nodeEnv}")`
+    );
+    return isDev;
   }
 
   static isProduction() {
-    return process.env.NODE_ENV === "production";
+    const nodeEnv = (process.env.NODE_ENV || "").trim().toLowerCase();
+    return nodeEnv === "production";
   }
 
   static shouldSkipInDevelopment(functionName = "função") {
@@ -22,7 +28,7 @@ class EnvironmentUtils {
   }
 
   static logEnvironmentInfo() {
-    const env = process.env.NODE_ENV || "undefined";
+    const env = process.env.NODE_ENV;
     const isDev = this.isDevelopment();
 
     console.log("=".repeat(50));

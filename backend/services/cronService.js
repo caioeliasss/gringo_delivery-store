@@ -619,11 +619,11 @@ class CronService {
           billing.asaasInvoiceId = asaasInvoice.id;
           await billing.save();
 
-          // console.log(
-          //   `✅ Taxa de motoboy semanal criada: ${store.businessName} - ${
-          //     deliveredOrders.length
-          //   } entregas - R$ ${totalAmount.toFixed(2)}`
-          // );
+          console.log(
+            `✅ Taxa de motoboy semanal criada: ${store.businessName} - ${
+              deliveredOrders.length
+            } entregas - R$ ${totalAmount.toFixed(2)}`
+          );
         } catch (asaasError) {
           console.error(
             `❌ Erro no Asaas para taxa de motoboy ${store.businessName}:`,
