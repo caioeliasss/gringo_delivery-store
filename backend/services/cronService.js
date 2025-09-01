@@ -90,8 +90,10 @@ class CronService {
     ); // Vencimento dia 10
 
     // Calcular valor baseado no plano da loja
-    const amount = this.calculateBillingAmount(store);
-
+    let amount = this.calculateBillingAmount(store);
+    if (amount > 0 && amount < 5) {
+      amount = 6.5;
+    }
     // ATUALIZAR: Usar nova função ensureCustomer
     const cusId = await asaasService.ensureCustomer(store);
 
@@ -349,7 +351,10 @@ class CronService {
 
       // Calcular valor total
       const motoboyFee = store.billingOptions?.motoBoyFee || 0;
-      const totalAmount = deliveredOrders.length * motoboyFee;
+      let totalAmount = deliveredOrders.length * motoboyFee;
+      if (totalAmount > 0 && totalAmount < 5) {
+        totalAmount = 6.5;
+      }
 
       // Data de vencimento (próxima quarta-feira às 12h)
       const dueDate = new Date();
