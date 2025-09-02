@@ -8,6 +8,7 @@ const { sendNotification } = require("../services/fcmService");
 const NotificationService = require("../services/notificationService");
 const OccurrenceService = require("../services/OccurrenceService");
 const Travel = require("../models/Travel");
+const IfoodService = require("../services/ifoodService");
 const FullScreenNotificationService = require("../services/fullScreenNotificationService");
 
 const authenticateToken = async (req, res, next) => {
@@ -685,6 +686,19 @@ const arrivedAtStore = async (req, res) => {
         .json({ message: "Pedido não encontrado para este motoboy" });
     }
     order.motoboy.hasArrived = true;
+
+    if (order.ifoodId) {
+      try {
+        const ifoodService = new IfoodService();
+        await ifoodService.arrivedAtOrigin(order.id);
+      } catch (e) {
+        console.error(
+          "Erro ao atualizar status do pedido para 'arrived at origin':",
+          e.message
+        );
+      }
+    }
+
     await order.save();
     res.status(200).json({ message: "Chegada na loja registrada com sucesso" });
   } catch (error) {

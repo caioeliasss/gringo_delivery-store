@@ -146,6 +146,153 @@ class IfoodService {
     }
   }
 
+  async goingToOrigin(orderId, storeFirebaseUid = null) {
+    // Se foi passado um storeFirebaseUid, configurar as credenciais
+    // if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
+    //   await this.setStoreCredentials(storeFirebaseUid);
+    // }
+
+    await this.ensureAuthenticated();
+
+    if (!this.accessToken) {
+      throw new Error("Access token não disponível. Autentique-se primeiro.");
+    }
+
+    try {
+      const response = await axios.post(
+        `${this.baseURL}/logistics/v1.0/orders/${orderId}/goingToOrigin`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error(
+        "Erro ao atualizar status do pedido para 'going to origin':",
+        error.message
+      );
+      throw error;
+    }
+  }
+
+  async assignMotoboy(orderId, driver, storeFirebaseUid = null) {
+    // Se foi passado um storeFirebaseUid, configurar as credenciais
+    // if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
+    //   await this.setStoreCredentials(storeFirebaseUid);
+    // }
+
+    await this.ensureAuthenticated();
+
+    if (!this.accessToken) {
+      throw new Error("Access token não disponível. Autentique-se primeiro.");
+    }
+
+    try {
+      const response = await axios.post(
+        `${this.baseURL}/logistics/v1.0/orders/${orderId}/assignDriver`,
+        {
+          workerName: driver.name,
+          workerPhone: driver.phone,
+          workerVehicleType: driver.vehicleType || "MOTORCYCLE",
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data.success) {
+        try {
+          await this.goingToOrigin(orderId, storeFirebaseUid);
+        } catch (error) {
+          console.error(
+            "Erro ao atualizar status do pedido para 'going to origin':",
+            error.message
+          );
+        }
+      }
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao atribuir motoboy ao pedido:", error.message);
+      throw error;
+    }
+  }
+
+  async arrivedAtOrigin(orderId, storeFirebaseUid = null) {
+    // Se foi passado um storeFirebaseUid, configurar as credenciais
+    // if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
+    //   await this.setStoreCredentials(storeFirebaseUid);
+    // }
+
+    await this.ensureAuthenticated();
+
+    if (!this.accessToken) {
+      throw new Error("Access token não disponível. Autentique-se primeiro.");
+    }
+
+    try {
+      const response = await axios.post(
+        `${this.baseURL}/logistics/v1.0/orders/${orderId}/arrivedAtOrigin`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error(
+        "Erro ao atualizar status do pedido para 'arrived at origin':",
+        error.message
+      );
+      throw error;
+    }
+  }
+
+  async arrivedAtDestination(orderId, storeFirebaseUid = null) {
+    // Se foi passado um storeFirebaseUid, configurar as credenciais
+    // if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {
+    //   await this.setStoreCredentials(storeFirebaseUid);
+    // }
+
+    await this.ensureAuthenticated();
+
+    if (!this.accessToken) {
+      throw new Error("Access token não disponível. Autentique-se primeiro.");
+    }
+
+    try {
+      const response = await axios.post(
+        `${this.baseURL}/logistics/v1.0/orders/${orderId}/arrivedAtDestination`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error(
+        "Erro ao atualizar status do pedido para 'arrived at destination':",
+        error.message
+      );
+      throw error;
+    }
+  }
+
   async readyToPickup(orderId, storeFirebaseUid = null) {
     // Se foi passado um storeFirebaseUid, configurar as credenciais
     // if (storeFirebaseUid && storeFirebaseUid !== this.storeFirebaseUid) {

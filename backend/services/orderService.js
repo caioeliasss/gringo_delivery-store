@@ -8,6 +8,7 @@ const Store = require("../models/Store");
 const Motoboy = require("../models/Motoboy");
 const Travel = require("../models/Travel");
 const NotificationService = require("./notificationService");
+const IfoodService = require("./ifoodService");
 
 class OrderService {
   // Funções auxiliares para busca de dados externos
@@ -1171,6 +1172,20 @@ class OrderService {
         order.delivery.estimatedTime = Math.round((distance / 1000) * 3); // 3 min por km
       }
 
+      if (order.ifoodId) {
+        const driver = {
+          name: motoboy.name,
+          phone: motoboy.phoneNumber,
+          vehicleType: "MOTORCYCLE",
+        };
+        const ifoodService = new IfoodService();
+        try {
+          await ifoodService.assignMotoboy(order.ifoodId, driver);
+        } catch (error) {
+          console.error("Erro ao atribuir motoboy no iFood:", error);
+        }
+      }
+
       await order.save();
 
       return {
@@ -1180,6 +1195,38 @@ class OrderService {
     } catch (error) {
       console.error("Erro ao atribuir motoboy ao pedido:", error);
       throw new Error(`Erro ao atribuir motoboy: ${error.message}`);
+    }
+  }
+
+  async arrivedDestination(orderId) {
+    try {
+      const order = await Order.findById(orderId);
+      if (!order) {
+        throw new Error("Pedido não encontrado");
+      }
+
+      order.arrivedDestination = true;
+      await order.save();
+
+      if (order.ifoodId) {
+        try {
+          const ifoodService = new IfoodService();
+          await ifoodService.arrivedAtDestination(order.ifoodId);
+        } catch (error) {
+          console.error(
+            "Erro ao arrivedAtDestination status do pedido no iFood:",
+            error.message
+          );
+        }
+      }
+
+      return {
+        message: "Pedido marcado como entregue com sucesso",
+        order,
+      };
+    } catch (error) {
+      console.error("Erro ao marcar pedido como entregue:", error);
+      throw new Error(`Erro ao marcar pedido como entregue: ${error.message}`);
     }
   }
 

@@ -518,4 +518,32 @@ router.post(
   }
 );
 
+router.post("/arrivedDestination", authenticateToken, async (req, res) => {
+  try {
+    const { orderId } = req.body;
+
+    if (!orderId) {
+      return res.status(400).json({
+        success: false,
+        message: "ID do pedido é obrigatório",
+      });
+    }
+
+    const result = await orderService.arrivedDestination(orderId);
+
+    res.json({
+      success: true,
+      message: result.message,
+      data: result.order,
+    });
+  } catch (error) {
+    console.error("Erro ao marcar pedido como entregue:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erro ao marcar pedido como entregue",
+      error: error.message,
+    });
+  }
+});
+
 module.exports = router;

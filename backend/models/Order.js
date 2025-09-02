@@ -153,6 +153,10 @@ const orderSchema = new mongoose.Schema({
     type: String,
     required: false,
   },
+  arrivedDestination: {
+    type: Boolean,
+    default: false,
+  },
   customer: [customerSchema],
   motoboy: {
     blacklist: {

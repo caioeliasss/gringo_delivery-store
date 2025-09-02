@@ -144,7 +144,7 @@ const AdminFinanceiro = () => {
     firebaseUid: "",
     customerId: "",
     amount: "",
-    additionalFee: 0,
+    additionalFee: 1.89,
     dueDate: formatDateFns(addDays(new Date(), 7), "yyyy-MM-dd"),
     description: "",
     paymentMethod: "BOLETO",
