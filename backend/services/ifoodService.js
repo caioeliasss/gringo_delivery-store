@@ -1,6 +1,8 @@
 const axios = require("axios");
 const OrderService = require("./orderService");
 const Store = require("../models/Store");
+const HandshakeDispute = require("../models/HandshakeDispute");
+const HandshakeSettlement = require("../models/HandshakeSettlement");
 
 class IfoodService {
   constructor(storeFirebaseUid = null) {
@@ -63,12 +65,17 @@ class IfoodService {
         }
       );
 
+      const events = response.data;
       console.log(
-        `[IFOOD] Polling concluído - ${
-          response.data.length || 0
-        } eventos recebidos`
+        `[IFOOD] Polling concluído - ${events.length || 0} eventos recebidos`
       );
-      return response.data;
+
+      // Processar eventos de negociação
+      if (events && events.length > 0) {
+        await this.processEvents(events, storeFirebaseUid);
+      }
+
+      return events;
     } catch (error) {
       this.handleAuthError(error, "pollingIfood");
     } finally {
@@ -543,6 +550,323 @@ class IfoodService {
           )}s restantes)`
         : `Token válido (${Math.floor(timeUntilExpiry / 1000)}s restantes)`,
     };
+  }
+
+  // Método para processar eventos recebidos
+  async processEvents(events, storeFirebaseUid = null) {
+    try {
+      for (const event of events) {
+        console.log(
+          `[IFOOD] Processando evento: ${event.eventType} - ${event.id}`
+        );
+
+        switch (event.eventType) {
+          case "HANDSHAKE_DISPUTE":
+            await this.processHandshakeDispute(event, storeFirebaseUid);
+            break;
+          case "HANDSHAKE_SETTLEMENT":
+            await this.processHandshakeSettlement(event, storeFirebaseUid);
+            break;
+          default:
+            console.log(`[IFOOD] Evento não processado: ${event.eventType}`);
+            break;
+        }
+      }
+    } catch (error) {
+      console.error("[IFOOD] Erro ao processar eventos:", error);
+      throw error;
+    }
+  }
+
+  // Processar evento HANDSHAKE_DISPUTE
+  async processHandshakeDispute(event, storeFirebaseUid = null) {
+    try {
+      console.log(`[IFOOD] Processando HANDSHAKE_DISPUTE - ID: ${event.id}`);
+
+      // Verificar se já existe
+      const existingDispute = await HandshakeDispute.findOne({
+        eventId: event.id,
+      });
+      if (existingDispute) {
+        console.log(`[IFOOD] Dispute já processado: ${event.id}`);
+        return;
+      }
+
+      // Extrair dados do evento
+      const disputeData = {
+        eventId: event.id,
+        orderId: event.orderId,
+        disputeId: event.disputeId,
+        merchantId: event.merchantId,
+        storeFirebaseUid: storeFirebaseUid,
+        disputeType: event.disputeType || "OTHER",
+        description: event.description || "",
+        customerComplaint: event.customerComplaint || "",
+        media: event.media || [],
+        disputedItems: event.disputedItems || [],
+        availableAlternatives: event.availableAlternatives || [],
+        expiresAt: new Date(
+          event.expiresAt || Date.now() + 24 * 60 * 60 * 1000
+        ), // 24h padrão
+      };
+
+      // Salvar no banco
+      const dispute = new HandshakeDispute(disputeData);
+      await dispute.save();
+
+      console.log(`[IFOOD] ✅ HANDSHAKE_DISPUTE salvo: ${event.id}`);
+
+      // TODO: Aqui você pode implementar notificações para o merchant
+      // await this.notifyMerchantOfDispute(dispute);
+    } catch (error) {
+      console.error(
+        `[IFOOD] ❌ Erro ao processar HANDSHAKE_DISPUTE ${event.id}:`,
+        error
+      );
+      throw error;
+    }
+  }
+
+  // Processar evento HANDSHAKE_SETTLEMENT
+  async processHandshakeSettlement(event, storeFirebaseUid = null) {
+    try {
+      console.log(`[IFOOD] Processando HANDSHAKE_SETTLEMENT - ID: ${event.id}`);
+
+      // Verificar se já existe
+      const existingSettlement = await HandshakeSettlement.findOne({
+        eventId: event.id,
+      });
+      if (existingSettlement) {
+        console.log(`[IFOOD] Settlement já processado: ${event.id}`);
+        return;
+      }
+
+      // Buscar o dispute relacionado
+      const relatedDispute = await HandshakeDispute.findOne({
+        disputeId: event.disputeId,
+      });
+
+      // Extrair dados do evento
+      const settlementData = {
+        eventId: event.id,
+        orderId: event.orderId,
+        disputeId: event.disputeId,
+        merchantId: event.merchantId,
+        storeFirebaseUid: storeFirebaseUid,
+        originalDisputeEventId: event.originalDisputeEventId,
+        settlementResult: event.settlementResult,
+        settlementDetails: event.settlementDetails || {},
+        decisionMaker: event.decisionMaker || "PLATFORM",
+        negotiationTimeline: {
+          disputeCreatedAt:
+            event.negotiationTimeline?.disputeCreatedAt || new Date(),
+          merchantRespondedAt: event.negotiationTimeline?.merchantRespondedAt,
+          settlementReachedAt:
+            event.negotiationTimeline?.settlementReachedAt || new Date(),
+        },
+        financialImpact: event.financialImpact || {},
+        relatedDispute: relatedDispute?._id,
+      };
+
+      // Salvar no banco
+      const settlement = new HandshakeSettlement(settlementData);
+      await settlement.save();
+
+      // Atualizar o dispute relacionado se existir
+      if (relatedDispute) {
+        relatedDispute.status = "SETTLED";
+        await relatedDispute.save();
+      }
+
+      console.log(`[IFOOD] ✅ HANDSHAKE_SETTLEMENT salvo: ${event.id}`);
+    } catch (error) {
+      console.error(
+        `[IFOOD] ❌ Erro ao processar HANDSHAKE_SETTLEMENT ${event.id}:`,
+        error
+      );
+      throw error;
+    }
+  }
+
+  // Endpoint para aceitar uma disputa
+  async acceptDispute(disputeId, storeFirebaseUid = null) {
+    await this.ensureAuthenticated();
+
+    try {
+      const response = await axios.post(
+        `${this.baseURL}/handshake/v1.0/disputes/${disputeId}/accept`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      // Atualizar status local
+      await HandshakeDispute.updateOne(
+        { disputeId },
+        {
+          status: "ACCEPTED",
+          respondedAt: new Date(),
+          "merchantResponse.type": "ACCEPT",
+          "merchantResponse.respondedBy": storeFirebaseUid || "system",
+        }
+      );
+
+      console.log(`[IFOOD] ✅ Dispute aceito: ${disputeId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`[IFOOD] ❌ Erro ao aceitar dispute ${disputeId}:`, error);
+      throw error;
+    }
+  }
+
+  // Endpoint para rejeitar uma disputa
+  async rejectDispute(disputeId, reason, storeFirebaseUid = null) {
+    await this.ensureAuthenticated();
+
+    try {
+      const response = await axios.post(
+        `${this.baseURL}/handshake/v1.0/disputes/${disputeId}/reject`,
+        { reason },
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      // Atualizar status local
+      await HandshakeDispute.updateOne(
+        { disputeId },
+        {
+          status: "REJECTED",
+          respondedAt: new Date(),
+          "merchantResponse.type": "REJECT",
+          "merchantResponse.reason": reason,
+          "merchantResponse.respondedBy": storeFirebaseUid || "system",
+        }
+      );
+
+      console.log(`[IFOOD] ✅ Dispute rejeitado: ${disputeId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`[IFOOD] ❌ Erro ao rejeitar dispute ${disputeId}:`, error);
+      throw error;
+    }
+  }
+
+  // Endpoint para fazer contraproposta
+  async proposeAlternative(
+    disputeId,
+    alternativeData,
+    storeFirebaseUid = null
+  ) {
+    await this.ensureAuthenticated();
+
+    try {
+      const response = await axios.post(
+        `${this.baseURL}/handshake/v1.0/disputes/${disputeId}/alternative`,
+        alternativeData,
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      // Atualizar status local
+      await HandshakeDispute.updateOne(
+        { disputeId },
+        {
+          status: "COUNTER_PROPOSED",
+          respondedAt: new Date(),
+          "merchantResponse.type": "ALTERNATIVE",
+          "merchantResponse.proposedAlternative": alternativeData,
+          "merchantResponse.respondedBy": storeFirebaseUid || "system",
+        }
+      );
+
+      console.log(
+        `[IFOOD] ✅ Contraproposta enviada para dispute: ${disputeId}`
+      );
+      return response.data;
+    } catch (error) {
+      console.error(
+        `[IFOOD] ❌ Erro ao enviar contraproposta para dispute ${disputeId}:`,
+        error
+      );
+      throw error;
+    }
+  }
+
+  // Método para buscar disputes pendentes
+  async getPendingDisputes(storeFirebaseUid = null) {
+    try {
+      const query = {
+        status: "PENDING",
+        expiresAt: { $gt: new Date() }, // Apenas não expirados
+      };
+
+      if (storeFirebaseUid) {
+        query.storeFirebaseUid = storeFirebaseUid;
+      }
+
+      const disputes = await HandshakeDispute.find(query).sort({
+        receivedAt: -1,
+      });
+
+      return disputes;
+    } catch (error) {
+      console.error("[IFOOD] Erro ao buscar disputes pendentes:", error);
+      throw error;
+    }
+  }
+
+  // Método para buscar histórico de settlements
+  async getSettlementsHistory(storeFirebaseUid = null, limit = 50) {
+    try {
+      const query = {};
+
+      if (storeFirebaseUid) {
+        query.storeFirebaseUid = storeFirebaseUid;
+      }
+
+      const settlements = await HandshakeSettlement.find(query)
+        .populate("relatedDispute")
+        .sort({ receivedAt: -1 })
+        .limit(limit);
+
+      return settlements;
+    } catch (error) {
+      console.error("[IFOOD] Erro ao buscar histórico de settlements:", error);
+      throw error;
+    }
+  }
+
+  // Método para verificar disputes expirados
+  async checkExpiredDisputes() {
+    try {
+      const expiredDisputes = await HandshakeDispute.find({
+        status: "PENDING",
+        expiresAt: { $lt: new Date() },
+      });
+
+      for (const dispute of expiredDisputes) {
+        dispute.status = "EXPIRED";
+        await dispute.save();
+        console.log(`[IFOOD] ⏰ Dispute expirado: ${dispute.disputeId}`);
+      }
+
+      return expiredDisputes.length;
+    } catch (error) {
+      console.error("[IFOOD] Erro ao verificar disputes expirados:", error);
+      throw error;
+    }
   }
 }
 

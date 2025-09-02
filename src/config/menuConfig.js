@@ -16,6 +16,7 @@ import {
   DriveEta as DriversIcon,
   Notifications as NotificationsIcon,
   DirectionsCar as CorridasIcon,
+  Gavel as NegotiationsIcon,
 } from "@mui/icons-material";
 
 // Configuração centralizada dos itens de menu para o sistema de suporte
@@ -175,6 +176,11 @@ export const STORE_MENU_ITEMS = [
     path: "/settings",
     text: "Configurações",
     icon: <SettingsIcon />,
+  },
+  {
+    path: "/negociacoes-ifood",
+    text: "Negociações iFood",
+    icon: <NegotiationsIcon />,
   },
 ];
 

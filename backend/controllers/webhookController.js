@@ -101,6 +101,28 @@ class WebhookController {
           }
         }
       }
+      if (fullCode === "SEPARATION_ENDED") {
+        const orderService = new (require("../services/orderService"))();
+        let storeFirebaseUid = null;
+        const verifyOrder = await Order.findOne({
+          ifoodId: orderId,
+        }).populate("store");
+
+        // Se não encontrou o store, terá que tentar com as credenciais globais
+        const IfoodService = require("../services/ifoodService");
+        const ifoodService = new IfoodService();
+
+        const orderDetails = await ifoodService.getOrderDetails(
+          orderId,
+          storeFirebaseUid
+        );
+
+        if (verifyOrder.deliveryMode !== "entrega") {
+          orderService.updateOrderStatus(verifyOrder._id, "ready_takeout");
+        } else {
+          await orderService.updateOrderStatus(verifyOrder._id, "pronto");
+        }
+      }
 
       if (fullCode === "CANCELLATION_REQUESTED") {
         const orderService = new (require("../services/orderService"))();

@@ -1,0 +1,395 @@
+/* HandshakeNegotiation.css */
+
+/* Cores principais */
+:root {
+  --gringo-primary: #eb2e3e;
+  --gringo-secondary: #fbbf24;
+  --gringo-success: #4caf50;
+  --gringo-warning: #ff9800;
+  --gringo-error: #f44336;
+  --gringo-info: #2196f3;
+  --gringo-background: #f5f5f5;
+  --gringo-white: #ffffff;
+  --gringo-text: #333333;
+  --gringo-subtext: #666666;
+}
+
+/* Layout principal */
+.handshake-negotiation {
+  min-height: 100vh;
+  background-color: var(--gringo-background);
+  font-family: "Poppins", "Roboto", sans-serif;
+}
+
+/* Cards personalizados */
+.negotiation-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.negotiation-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+/* Status chips */
+.status-chip {
+  font-weight: bold;
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  border-radius: 16px;
+}
+
+.status-chip.critical {
+  background-color: var(--gringo-error);
+  color: white;
+  animation: pulse 2s infinite;
+}
+
+.status-chip.urgent {
+  background-color: var(--gringo-warning);
+  color: white;
+}
+
+.status-chip.pending {
+  background-color: var(--gringo-info);
+  color: white;
+}
+
+.status-chip.accepted {
+  background-color: var(--gringo-success);
+  color: white;
+}
+
+.status-chip.rejected {
+  background-color: var(--gringo-error);
+  color: white;
+}
+
+/* Animação de pulse para itens críticos */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Buttons personalizados */
+.action-button {
+  font-weight: 600;
+  text-transform: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  transition: all 0.3s ease;
+}
+
+.action-button.accept {
+  background-color: var(--gringo-success);
+  color: white;
+}
+
+.action-button.accept:hover {
+  background-color: #3b873e;
+  transform: translateY(-1px);
+}
+
+.action-button.reject {
+  background-color: var(--gringo-error);
+  color: white;
+}
+
+.action-button.reject:hover {
+  background-color: #d32f2f;
+  transform: translateY(-1px);
+}
+
+.action-button.alternative {
+  background-color: var(--gringo-warning);
+  color: white;
+}
+
+.action-button.alternative:hover {
+  background-color: #e6ad20;
+  transform: translateY(-1px);
+}
+
+/* Tabela responsiva */
+.negotiation-table {
+  width: 100%;
+  background-color: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.negotiation-table .table-header {
+  background-color: var(--gringo-primary);
+  color: white;
+  font-weight: bold;
+}
+
+.negotiation-table .table-row:hover {
+  background-color: rgba(235, 46, 62, 0.05);
+}
+
+.negotiation-table .critical-row {
+  background-color: rgba(244, 67, 54, 0.05);
+  border-left: 4px solid var(--gringo-error);
+}
+
+.negotiation-table .urgent-row {
+  background-color: rgba(255, 152, 0, 0.05);
+  border-left: 4px solid var(--gringo-warning);
+}
+
+/* Dialog personalizado */
+.negotiation-dialog .dialog-header {
+  background-color: var(--gringo-primary);
+  color: white;
+  padding: 16px 24px;
+}
+
+.negotiation-dialog .dialog-content {
+  padding: 24px;
+}
+
+.negotiation-dialog .dialog-actions {
+  padding: 16px 24px;
+  background-color: #f9f9f9;
+}
+
+/* Progress bar personalizada */
+.time-progress {
+  height: 8px;
+  border-radius: 4px;
+  background-color: #e0e0e0;
+  overflow: hidden;
+}
+
+.time-progress.critical .progress-bar {
+  background-color: var(--gringo-error);
+}
+
+.time-progress.urgent .progress-bar {
+  background-color: var(--gringo-warning);
+}
+
+.time-progress.normal .progress-bar {
+  background-color: var(--gringo-success);
+}
+
+/* Cards de resumo */
+.summary-card {
+  border-radius: 12px;
+  padding: 20px;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.summary-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  pointer-events: none;
+}
+
+.summary-card.info {
+  background: linear-gradient(135deg, var(--gringo-info) 0%, #1976d2 100%);
+}
+
+.summary-card.warning {
+  background: linear-gradient(135deg, var(--gringo-warning) 0%, #e6ad20 100%);
+}
+
+.summary-card.success {
+  background: linear-gradient(135deg, var(--gringo-success) 0%, #3b873e 100%);
+}
+
+.summary-card.error {
+  background: linear-gradient(135deg, var(--gringo-error) 0%, #d32f2f 100%);
+}
+
+/* Mobile responsivo */
+@media (max-width: 768px) {
+  .negotiation-table {
+    font-size: 0.875rem;
+  }
+
+  .summary-card {
+    padding: 16px;
+  }
+
+  .action-button {
+    padding: 6px 12px;
+    font-size: 0.875rem;
+  }
+
+  .negotiation-dialog .dialog-content {
+    padding: 16px;
+  }
+}
+
+/* Drawer personalizado */
+.navigation-drawer {
+  width: 280px;
+}
+
+.navigation-drawer .drawer-header {
+  background-color: var(--gringo-primary);
+  color: white;
+  padding: 16px;
+}
+
+.navigation-drawer .drawer-item {
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin: 4px 8px;
+  transition: all 0.3s ease;
+}
+
+.navigation-drawer .drawer-item:hover {
+  background-color: rgba(235, 46, 62, 0.1);
+}
+
+.navigation-drawer .drawer-item.selected {
+  background-color: rgba(235, 46, 62, 0.15);
+  color: var(--gringo-primary);
+  font-weight: 600;
+}
+
+/* Snackbar customizado */
+.custom-snackbar {
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+/* Loading states */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+}
+
+.loading-spinner {
+  color: var(--gringo-primary);
+}
+
+/* Empty states */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--gringo-subtext);
+}
+
+.empty-state .empty-icon {
+  font-size: 64px;
+  color: var(--gringo-subtext);
+  margin-bottom: 16px;
+}
+
+/* Badge personalizado */
+.custom-badge {
+  background-color: var(--gringo-error);
+  color: white;
+  font-weight: bold;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+}
+
+/* Tabs personalizadas */
+.custom-tabs {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.custom-tabs .tab-indicator {
+  background-color: var(--gringo-primary);
+  height: 3px;
+  border-radius: 3px;
+}
+
+.custom-tabs .tab-selected {
+  color: var(--gringo-primary);
+  font-weight: 600;
+}
+
+/* Chip types personalizados */
+.dispute-type-chip {
+  font-weight: bold;
+  color: white;
+  border-radius: 16px;
+  font-size: 0.75rem;
+}
+
+.dispute-type-chip.quality {
+  background-color: #ff5722;
+}
+
+.dispute-type-chip.missing-items {
+  background-color: #ff9800;
+}
+
+.dispute-type-chip.wrong-items {
+  background-color: #f44336;
+}
+
+.dispute-type-chip.delay {
+  background-color: #9c27b0;
+}
+
+.dispute-type-chip.other {
+  background-color: #607d8b;
+}
+
+/* Animações de entrada */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+/* Scrollbar personalizada */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--gringo-primary);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #d12535;
+}

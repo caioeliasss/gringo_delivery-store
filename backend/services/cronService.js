@@ -3,11 +3,11 @@ const Billing = require("../models/Billing");
 const Order = require("../models/Order");
 const asaasService = require("./asaasService");
 const { response } = require("express");
-
+const enviromentUtils = require("../utils/environmentUtils");
 class CronService {
   constructor() {
     this.jobs = [];
-    this.isDevelopment = process.env.NODE_ENV === "development";
+    this.isDevelopment = enviromentUtils.isDevelopment;
   }
 
   // Verificar se deve executar em ambiente de desenvolvimento

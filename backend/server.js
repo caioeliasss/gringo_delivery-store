@@ -287,13 +287,20 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const travelRoutes = require("./routes/travelRoutes");
 const occurrenceRoutes = require("./routes/occurrenceRoutes");
 const deliveryPricesRoutes = require("./routes/deliveryPricesRoutes");
+const handshakeRoutes = require("./routes/handshakeRoutes");
 const cronService = require("./services/cronService");
 const ScheduledOrderService = require("./services/scheduledOrderService");
+const HandshakeMonitoringService = require("./services/handshakeMonitoringService");
 
 // Inicializar serviços
 cronService.startAll(); // Iniciar serviço de cron
 const scheduledOrderService = new ScheduledOrderService(); // Inicializar serviço de pedidos agendados
 console.log("✅ ScheduledOrderService inicializado");
+
+// Inicializar serviço de monitoramento de negociações
+const handshakeMonitoringService = new HandshakeMonitoringService();
+handshakeMonitoringService.start();
+console.log("✅ HandshakeMonitoringService inicializado");
 
 app.use("/api/webhooks", express.raw({ type: "application/json" }));
 
@@ -304,6 +311,10 @@ app.use("/api/motoboys", motoboyRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/travels", travelRoutes);
 app.use("/api/delivery-price", authenticateToken, deliveryPricesRoutes);
+app.use("/api/handshake", handshakeRoutes);
+const testHandshakeRoutes = require("./routes/testHandshakeRoutes");
+app.use("/api/test/handshake", testHandshakeRoutes);
+
 app.use("/api/avaliates", require("./routes/avaliateRoute"));
 app.use("/api/files", authenticateToken, require("./routes/fileRoutes"));
 app.use("/api/occurrences", authenticateToken, occurrenceRoutes);
