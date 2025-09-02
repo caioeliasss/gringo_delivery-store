@@ -46,10 +46,26 @@ async function deleteOrdersByStoreName() {
       process.exit(1);
     }
 
-    console.log(`\n🔍 Buscando pedidos da loja: ${storeName}`);
-    const orders = await Order.find({ "store.name": storeName });
+    const status = await askQuestion(
+      "\n📋 Digite o STATUS dos pedidos (ou deixe vazio para TODOS): "
+    );
+
+    // Construir filtro de busca
+    const filter = { "store.name": storeName };
+    if (status && status.trim() !== "") {
+      filter.status = status.trim();
+    }
+
     console.log(
-      `📊 Encontrados ${orders.length} pedidos para a loja '${storeName}'`
+      `\n🔍 Buscando pedidos da loja: ${storeName}${
+        status ? ` com status: ${status}` : ` (todos os status)`
+      }`
+    );
+    const orders = await Order.find(filter);
+    console.log(
+      `📊 Encontrados ${orders.length} pedidos para a loja '${storeName}'${
+        status ? ` com status '${status}'` : ``
+      }`
     );
 
     if (orders.length === 0) {
@@ -62,8 +78,8 @@ async function deleteOrdersByStoreName() {
     orders.forEach((order, i) => {
       const createdAt = new Date(order.createdAt).toLocaleString("pt-BR");
       console.log(
-        `${i + 1}. ID: ${order._id} | Número: ${
-          order.orderNumber
+        `${i + 1}. ID: ${order._id} | Número: ${order.orderNumber} | Status: ${
+          order.status
         } | Data: ${createdAt}`
       );
     });
@@ -79,10 +95,7 @@ async function deleteOrdersByStoreName() {
     }
 
     console.log("\n🗑️  Deletando pedidos...");
-    const result = await Order.deleteMany({
-      "store.name": storeName,
-      status: "pendente",
-    });
+    const result = await Order.deleteMany(filter);
     console.log(`\n🎉 Operação concluída!`);
     console.log(`   ✅ ${result.deletedCount} pedidos deletados`);
     if (result.deletedCount !== orders.length) {
