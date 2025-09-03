@@ -4,6 +4,7 @@ const admin = require("firebase-admin");
 const Store = require("../models/Store");
 const { listInvoices } = require("../services/asaasService");
 const asaasService = require("../services/asaasService");
+const emailService = require("../services/emailService");
 // Middleware de autenticação
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -218,6 +219,33 @@ router.post("/profile", authenticateToken, async (req, res) => {
       }
 
       await user.save();
+
+      // 📧 Enviar email para administradores sobre novo cadastro
+      try {
+        console.log(
+          "📧 Enviando notificação de novo cadastro para administradores..."
+        );
+        const emailResult = await emailService.notifyAdminsNewStoreRegistration(
+          user
+        );
+
+        if (emailResult.success) {
+          console.log(
+            "✅ Email de notificação enviado com sucesso para administradores"
+          );
+        } else {
+          console.warn(
+            "⚠️ Falha ao enviar email para administradores:",
+            emailResult.error
+          );
+        }
+      } catch (emailError) {
+        console.error(
+          "❌ Erro ao enviar email para administradores:",
+          emailError
+        );
+        // Não interromper o fluxo principal se o email falhar
+      }
     }
 
     res.status(200).json(user);
@@ -225,6 +253,52 @@ router.post("/profile", authenticateToken, async (req, res) => {
     res
       .status(500)
       .json({ message: "Erro ao salvar perfil", error: error.message });
+  }
+});
+
+router.post("/freeToNavigate", authenticateToken, async (req, res) => {
+  const { storeId } = req.body;
+  try {
+    const user = await Store.findById(storeId);
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    user.freeToNavigate = true;
+    await user.save();
+
+    await emailService.notifyUserAccessLiberation(user);
+
+    res.status(200).json({ message: "Acesso liberado com sucesso" });
+  } catch (error) {
+    console.error("Erro ao liberar acesso:", error);
+    res.status(500).json({
+      message: "Erro ao liberar acesso",
+      error: error.message,
+    });
+  }
+});
+
+router.post("/reproveFreeToNavigate", authenticateToken, async (req, res) => {
+  const { storeId } = req.body;
+  try {
+    const user = await Store.findById(storeId);
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    user.freeToNavigate = false;
+    await user.save();
+
+    await emailService.notifyUserAccessReproval(user);
+
+    res.status(200).json({ message: "Acesso reprovado com sucesso" });
+  } catch (error) {
+    console.error("Erro ao reprovar acesso:", error);
+    res.status(500).json({
+      message: "Erro ao reprovar acesso",
+      error: error.message,
+    });
   }
 });
 
@@ -743,5 +817,127 @@ const sendMerchant = async (req, res) => {
 router.post("/coordinates", changeCoordinates);
 router.delete("/remove-store", removeStore);
 router.post("/sendMerchant", sendMerchant);
+
+// Rota de teste para configuração de email (remover em produção)
+router.post("/test-email", async (req, res) => {
+  try {
+    const testResult = await emailService.testEmailConfiguration();
+
+    if (testResult.success) {
+      // Testar envio de email real
+      const testStore = {
+        businessName: "Loja Teste",
+        displayName: "Teste Display",
+        email: "teste@exemplo.com",
+        phone: "(11) 99999-9999",
+        cnpj: "12.345.678/0001-90",
+        address: {
+          address: "Rua Teste, 123",
+          bairro: "Centro",
+          cidade: "São Paulo",
+          cep: "01234-567",
+        },
+      };
+
+      const emailResult = await emailService.notifyAdminsNewStoreRegistration(
+        testStore
+      );
+
+      res.status(200).json({
+        message: "Teste de email concluído",
+        configTest: testResult,
+        emailTest: emailResult,
+      });
+    } else {
+      res.status(500).json({
+        message: "Configuração de email inválida",
+        error: testResult.error,
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      message: "Erro ao testar email",
+      error: error.message,
+    });
+  }
+});
+
+// Rota para liberar acesso de uma loja (definir freeToNavigate = true)
+router.put("/liberar-acesso/:storeId", async (req, res) => {
+  try {
+    const { storeId } = req.params;
+
+    if (!storeId) {
+      return res.status(400).json({
+        message: "storeId é obrigatório",
+      });
+    }
+
+    const store = await Store.findById(storeId);
+    if (!store) {
+      return res.status(404).json({
+        message: "Loja não encontrada",
+      });
+    }
+
+    // Liberar acesso
+    store.freeToNavigate = true;
+    await store.save();
+
+    res.status(200).json({
+      message: "Acesso liberado com sucesso",
+      store: {
+        _id: store._id,
+        businessName: store.businessName,
+        freeToNavigate: store.freeToNavigate,
+      },
+    });
+  } catch (error) {
+    console.error("Erro ao liberar acesso:", error);
+    res.status(500).json({
+      message: "Erro ao liberar acesso",
+      error: error.message,
+    });
+  }
+});
+
+// Rota para restringir acesso de uma loja (definir freeToNavigate = false)
+router.put("/restringir-acesso/:storeId", async (req, res) => {
+  try {
+    const { storeId } = req.params;
+
+    if (!storeId) {
+      return res.status(400).json({
+        message: "storeId é obrigatório",
+      });
+    }
+
+    const store = await Store.findById(storeId);
+    if (!store) {
+      return res.status(404).json({
+        message: "Loja não encontrada",
+      });
+    }
+
+    // Restringir acesso
+    store.freeToNavigate = false;
+    await store.save();
+
+    res.status(200).json({
+      message: "Acesso restringido com sucesso",
+      store: {
+        _id: store._id,
+        businessName: store.businessName,
+        freeToNavigate: store.freeToNavigate,
+      },
+    });
+  } catch (error) {
+    console.error("Erro ao restringir acesso:", error);
+    res.status(500).json({
+      message: "Erro ao restringir acesso",
+      error: error.message,
+    });
+  }
+});
 
 module.exports = router;

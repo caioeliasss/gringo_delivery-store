@@ -46,6 +46,7 @@ import FinanceiroStore from "./pages/Store/Financeiro/financeiro";
 import StoreNotificationsPage from "./pages/Store/Notifications/StoreNotifications";
 import Configuracao from "./pages/Store/Configuracao/Configuracao";
 import HandshakeNegotiation from "./pages/Store/HandshakeNegotiation/HandshakeNegotiation";
+import StoreAccessControl from "./components/StoreAccessControl";
 // Definir tema personalizado com a paleta de cores da Gringo Delivery
 const theme = createTheme({
   typography: {
@@ -238,7 +239,11 @@ function CustomerApp() {
               path="/dashboard"
               element={
                 <PrivateRoute>
-                  <Dashboard />
+                  <StoreAuthProvider>
+                    <StoreAccessControl>
+                      <Dashboard />
+                    </StoreAccessControl>
+                  </StoreAuthProvider>
                 </PrivateRoute>
               }
             />
@@ -247,7 +252,11 @@ function CustomerApp() {
               path="/produtos"
               element={
                 <PrivateRoute>
-                  <Produtos />
+                  <StoreAuthProvider>
+                    <StoreAccessControl>
+                      <Produtos />
+                    </StoreAccessControl>
+                  </StoreAuthProvider>
                 </PrivateRoute>
               }
             />
@@ -255,7 +264,11 @@ function CustomerApp() {
               path="/pedidos"
               element={
                 <PrivateRoute>
-                  <Pedidos />
+                  <StoreAuthProvider>
+                    <StoreAccessControl>
+                      <Pedidos />
+                    </StoreAccessControl>
+                  </StoreAuthProvider>
                 </PrivateRoute>
               }
             />
@@ -263,7 +276,11 @@ function CustomerApp() {
               path="/ocorrencias"
               element={
                 <PrivateRoute>
-                  <OcorrenciasPage />
+                  <StoreAuthProvider>
+                    <StoreAccessControl>
+                      <OcorrenciasPage />
+                    </StoreAccessControl>
+                  </StoreAuthProvider>
                 </PrivateRoute>
               }
             />
@@ -271,7 +288,11 @@ function CustomerApp() {
               path="/chat"
               element={
                 <PrivateRoute>
-                  <ChatStore />
+                  <StoreAuthProvider>
+                    <StoreAccessControl>
+                      <ChatStore />
+                    </StoreAccessControl>
+                  </StoreAuthProvider>
                 </PrivateRoute>
               }
             />
@@ -280,7 +301,9 @@ function CustomerApp() {
               element={
                 <PrivateRoute>
                   <StoreAuthProvider>
-                    <CorridasStore />
+                    <StoreAccessControl>
+                      <CorridasStore />
+                    </StoreAccessControl>
                   </StoreAuthProvider>
                 </PrivateRoute>
               }
@@ -290,7 +313,9 @@ function CustomerApp() {
               element={
                 <PrivateRoute>
                   <StoreAuthProvider>
-                    <FinanceiroStore />
+                    <StoreAccessControl>
+                      <FinanceiroStore />
+                    </StoreAccessControl>
                   </StoreAuthProvider>
                 </PrivateRoute>
               }
@@ -299,7 +324,11 @@ function CustomerApp() {
               path="/coordenadas"
               element={
                 <PrivateRoute>
-                  <ViewCoordinates />
+                  <StoreAuthProvider>
+                    <StoreAccessControl>
+                      <ViewCoordinates />
+                    </StoreAccessControl>
+                  </StoreAuthProvider>
                 </PrivateRoute>
               }
             />
@@ -308,7 +337,9 @@ function CustomerApp() {
               element={
                 <PrivateRoute>
                   <StoreAuthProvider>
-                    <Configuracao />
+                    <StoreAccessControl>
+                      <Configuracao />
+                    </StoreAccessControl>
                   </StoreAuthProvider>
                 </PrivateRoute>
               }
@@ -318,7 +349,9 @@ function CustomerApp() {
               element={
                 <PrivateRoute>
                   <StoreAuthProvider>
-                    <HandshakeNegotiation />
+                    <StoreAccessControl>
+                      <HandshakeNegotiation />
+                    </StoreAccessControl>
                   </StoreAuthProvider>
                 </PrivateRoute>
               }

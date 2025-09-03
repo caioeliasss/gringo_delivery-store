@@ -41,9 +41,7 @@ async function migrateCNPJToString() {
     // Buscar stores com CNPJ como Number
     const stores = await mongoose.connection.db
       .collection("stores")
-      .find({
-        cnpj: { $type: "number" },
-      })
+      .find()
       .toArray();
 
     console.log(`📊 Encontrados ${stores.length} stores com CNPJ como Number`);
@@ -71,10 +69,7 @@ async function migrateCNPJToString() {
     for (const store of stores) {
       const result = await mongoose.connection.db
         .collection("stores")
-        .updateOne(
-          { _id: store._id },
-          { $set: { cnpj: store.cnpj.toString() } }
-        );
+        .updateOne({ _id: store._id }, { $set: { freeToNavigate: true } });
 
       if (result.modifiedCount === 1) {
         converted++;

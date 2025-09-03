@@ -4,6 +4,7 @@ const router = express.Router();
 const asaasService = require("../services/asaasService");
 const { default: mongoose } = require("mongoose");
 const notificationService = require("../services/notificationService");
+const emailService = require("../services/emailService");
 
 // Criar fatura
 const createBilling = async (req, res) => {
@@ -158,12 +159,69 @@ const updateBilling = async (req, res) => {
     if (!billing) {
       return res.status(404).json({ message: "Fatura não encontrada" });
     }
+
+    // Se a fatura foi marcada como vencida, verificar se deve restringir acesso
+    if (updates.status === "OVERDUE") {
+      const Store = require("../models/Store");
+      const store = await Store.findById(billing.storeId);
+      if (store && store.freeToNavigate === true) {
+        store.freeToNavigate = false;
+        await store.save();
+        console.log(
+          `🚫 Acesso restringido para ${store.businessName} - fatura vencida`
+        );
+
+        // Notificar sobre suspensão
+        try {
+          await emailService.notifyUserAccessReproval(store);
+        } catch (notifError) {
+          console.warn(
+            "Erro ao enviar notificação de suspensão:",
+            notifError.message
+          );
+        }
+      }
+    }
+    // Se a fatura foi paga, verificar se deve liberar acesso
+    else if (updates.status === "PAID") {
+      // Verificar se ainda há outras faturas vencidas
+      const overdueCount = await Billing.countDocuments({
+        storeId: billing.storeId,
+        status: "OVERDUE",
+      });
+
+      if (overdueCount === 0) {
+        const Store = require("../models/Store");
+        const store = await Store.findById(billing.storeId);
+        if (
+          store &&
+          store.freeToNavigate === false &&
+          store.cnpj_approved === true
+        ) {
+          store.freeToNavigate = true;
+          await store.save();
+          console.log(
+            `✅ Acesso liberado para ${store.businessName} - sem faturas vencidas`
+          );
+
+          // Notificar sobre reativação
+          try {
+            await emailService.notifyUserAccessLiberation(store);
+          } catch (notifError) {
+            console.warn(
+              "Erro ao enviar notificação de reativação:",
+              notifError.message
+            );
+          }
+        }
+      }
+    }
+
     res.status(200).json(billing);
   } catch (error) {
     console.error("Erro ao atualizar fatura:", error);
     res.status(500).json({ message: error.message });
   }
-  // };
 };
 
 // Verificar status da fatura no Asaas
@@ -288,5 +346,126 @@ router.get("/", listBillings);
 router.get("/:id", getBilling);
 router.put("/:id", updateBilling);
 router.delete("/:id", deleteBilling); // ← Nova rota para deletar
+
+// ✅ NOVA ROTA: Verificar e atualizar status de acesso baseado em faturas
+router.post("/update-access-status/:storeId", async (req, res) => {
+  try {
+    const { storeId } = req.params;
+
+    if (!storeId) {
+      return res.status(400).json({
+        message: "storeId é obrigatório",
+      });
+    }
+
+    // Verificar se existe a loja
+    const Store = require("../models/Store");
+    const store = await Store.findById(storeId);
+    if (!store) {
+      return res.status(404).json({ message: "Loja não encontrada" });
+    }
+
+    // Buscar faturas vencidas
+    const overdueInvoices = await Billing.find({
+      storeId: storeId,
+      status: "OVERDUE",
+    });
+
+    // Determinar se deve restringir ou liberar acesso
+    const shouldRestrict = overdueInvoices.length > 0;
+
+    // Atualizar freeToNavigate se necessário
+    if (shouldRestrict && store.freeToNavigate === true) {
+      store.freeToNavigate = false;
+      await store.save();
+
+      console.log(
+        `🚫 Acesso restringido para loja ${store.businessName} - ${overdueInvoices.length} faturas vencidas`
+      );
+    } else if (!shouldRestrict && store.freeToNavigate === false) {
+      store.freeToNavigate = true;
+      await store.save();
+
+      console.log(
+        `✅ Acesso liberado para loja ${store.businessName} - sem faturas vencidas`
+      );
+    }
+
+    res.status(200).json({
+      message: "Status de acesso atualizado",
+      store: {
+        _id: store._id,
+        businessName: store.businessName,
+        freeToNavigate: store.freeToNavigate,
+      },
+      overdueCount: overdueInvoices.length,
+      accessRestricted: !store.freeToNavigate,
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar status de acesso:", error);
+    res.status(500).json({
+      message: "Erro ao atualizar status de acesso",
+      error: error.message,
+    });
+  }
+});
+
+// ✅ NOVA ROTA: Verificar status de todas as lojas (para jobs automáticos)
+router.post("/check-all-stores-access", async (req, res) => {
+  try {
+    const Store = require("../models/Store");
+    const stores = await Store.find({});
+
+    const results = [];
+
+    for (const store of stores) {
+      // Buscar faturas vencidas para cada loja
+      const overdueInvoices = await Billing.find({
+        storeId: store._id,
+        status: "OVERDUE",
+      });
+
+      const shouldRestrict = overdueInvoices.length > 0;
+      let updated = false;
+
+      // Atualizar se necessário
+      if (shouldRestrict && store.freeToNavigate === true) {
+        store.freeToNavigate = false;
+        await store.save();
+        updated = true;
+        console.log(`🚫 Acesso restringido: ${store.businessName}`);
+      } else if (!shouldRestrict && store.freeToNavigate === false) {
+        // Só liberar se não há outras restrições (ex: CNPJ não aprovado)
+        if (store.cnpj_approved === true) {
+          store.freeToNavigate = true;
+          await store.save();
+          updated = true;
+          console.log(`✅ Acesso liberado: ${store.businessName}`);
+        }
+      }
+
+      results.push({
+        storeId: store._id,
+        storeName: store.businessName,
+        overdueCount: overdueInvoices.length,
+        freeToNavigate: store.freeToNavigate,
+        updated: updated,
+      });
+    }
+
+    res.status(200).json({
+      message: "Verificação concluída",
+      totalStores: stores.length,
+      updatedStores: results.filter((r) => r.updated).length,
+      results: results,
+    });
+  } catch (error) {
+    console.error("Erro ao verificar todas as lojas:", error);
+    res.status(500).json({
+      message: "Erro ao verificar lojas",
+      error: error.message,
+    });
+  }
+});
 
 module.exports = router;

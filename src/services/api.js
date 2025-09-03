@@ -1,6 +1,5 @@
 import axios from "axios";
 import { auth } from "../firebase";
-
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080/api";
 
 // Sistema de cache TTL para evitar sobrecarregamento
@@ -389,7 +388,10 @@ api.interceptors.request.use(
         }
         config.headers = config.headers || {};
         config.headers.Authorization = `Bearer ${token}`;
-        console.log(token);
+        const nodeEnv = (process.env.NODE_ENV || "").trim().toLowerCase();
+        if (nodeEnv !== "production") {
+          console.log("Token de autenticação:", token);
+        }
       } catch (tokenError) {
         console.error("Erro ao obter token:", tokenError);
       }
@@ -588,6 +590,14 @@ export const getStore = async (id) => {
 
 export const getStoreOrders = async (storeId) => {
   return api.get(`/orders/store/${storeId}`);
+};
+
+export const freeToNavigate = async (storeId) => {
+  return api.post(`/stores/freeToNavigate`, { storeId });
+};
+
+export const reproveFreeToNavigate = async (storeId) => {
+  return api.post(`/stores/reproveFreeToNavigate`, { storeId });
 };
 
 export const approveStore = async (storeId) => {

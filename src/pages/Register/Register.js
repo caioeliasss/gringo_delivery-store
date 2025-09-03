@@ -14,6 +14,7 @@ import {
   CircularProgress,
   InputAdornment,
 } from "@mui/material";
+import PhoneIcon from "@mui/icons-material/Phone";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import BadgeIcon from "@mui/icons-material/Badge";
 import EmailIcon from "@mui/icons-material/Email";
@@ -26,6 +27,7 @@ const Register = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const { signup } = useAuth();
   const navigate = useNavigate();
@@ -58,7 +60,7 @@ const Register = () => {
 
     const cnpjNumbers = cnpj.replace(/\D/g, "");
 
-    if (!cnpjNumbers || !email || !password || !confirmPassword) {
+    if (!cnpjNumbers || !email || !password || !confirmPassword || !phone) {
       setError("Por favor, preencha todos os campos");
       return;
     }
@@ -163,6 +165,7 @@ const Register = () => {
           location: geolocation,
           address: storeAddress,
           businessName: businessName,
+          phone: phone,
         });
         navigate("/dashboard");
       } catch (profileError) {
@@ -283,6 +286,26 @@ const Register = () => {
                 startAdornment: (
                   <InputAdornment position="start">
                     <BadgeIcon color="primary" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="phone"
+              label="Telefone"
+              name="phone"
+              autoComplete="phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              variant="outlined"
+              placeholder="(XX) XXXXX-XXXX"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <PhoneIcon color="primary" />
                   </InputAdornment>
                 ),
               }}

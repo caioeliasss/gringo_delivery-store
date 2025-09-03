@@ -81,6 +81,8 @@ import api, {
   approveStore,
   reproveStore,
   updateStoreBilling,
+  reproveFreeToNavigate,
+  freeToNavigate,
 } from "../../services/api";
 import { getFileURL, getUserDocuments } from "../../services/storageService";
 import {
@@ -604,6 +606,36 @@ export default function EstabelecimentosPage() {
       }
     } catch (error) {
       console.error("Erro ao reprovar estabelecimento:", error);
+    }
+  };
+
+  const handleReproveFreeToNavigate = async (storeId) => {
+    try {
+      const response = await reproveFreeToNavigate(storeId);
+      const data = response.data;
+      if (response.status === 200) {
+        setSelectedStore((prev) => ({
+          ...prev,
+          freeToNavigate: false, // Atualiza o status para reprovado
+        }));
+      }
+    } catch (error) {
+      console.error("Erro ao reprovar acesso:", error);
+    }
+  };
+
+  const handleFreeToNavigate = async (storeId) => {
+    try {
+      const response = await freeToNavigate(storeId);
+      const data = response.data;
+      if (response.status === 200) {
+        setSelectedStore((prev) => ({
+          ...prev,
+          freeToNavigate: true, // Atualiza o status para liberado
+        }));
+      }
+    } catch (error) {
+      console.error("Erro ao liberar acesso:", error);
     }
   };
 
@@ -2098,7 +2130,7 @@ export default function EstabelecimentosPage() {
                               color="text.secondary"
                               sx={{ fontWeight: "bold" }}
                             >
-                              Aprovar Estabelecimento
+                              Aprovar Estabelecimento (para pedidos)
                             </Typography>
                             <Box>
                               <Button
@@ -2126,6 +2158,55 @@ export default function EstabelecimentosPage() {
                                 {selectedStore.cnpj_approved
                                   ? "Aprovado"
                                   : "Aprovar"}
+                              </Button>
+                            </Box>
+                          </Box>
+                        </CardContent>
+                        <CardContent>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                            }}
+                          >
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ fontWeight: "bold" }}
+                            >
+                              Liberação de uso do sistema:
+                            </Typography>
+                            <Box>
+                              <Button
+                                variant="contained"
+                                color="error"
+                                disabled={
+                                  selectedStore.freeToNavigate === false
+                                }
+                                onClick={() => {
+                                  handleReproveFreeToNavigate(
+                                    selectedStore._id
+                                  );
+                                }}
+                                sx={{ textTransform: "none", mr: 1 }}
+                              >
+                                <CloseIcon sx={{ mr: 1 }} />
+                                Cancelar Acesso
+                              </Button>
+                              <Button
+                                variant="contained"
+                                color="success"
+                                disabled={selectedStore.freeToNavigate === true}
+                                onClick={() => {
+                                  handleFreeToNavigate(selectedStore._id);
+                                }}
+                                sx={{ textTransform: "none" }}
+                              >
+                                <CheckIcon sx={{ mr: 1 }} />
+                                {selectedStore.freeToNavigate
+                                  ? "Acesso Liberado"
+                                  : "Liberar acesso"}
                               </Button>
                             </Box>
                           </Box>

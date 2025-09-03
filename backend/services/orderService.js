@@ -851,7 +851,6 @@ class OrderService {
       return orders;
     } catch (error) {
       console.error("Erro ao listar pedidos por Store ID:", error);
-      throw new Error(`Erro ao listar pedidos: ${error.message}`);
     }
   }
 

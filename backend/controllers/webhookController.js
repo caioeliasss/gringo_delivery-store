@@ -63,6 +63,7 @@ class WebhookController {
             );
           }
         }
+        res.status(200).json({ message: "Pedido importado com sucesso" });
 
         // const confirmOrder = await ifoodService.confirmOrder(
         //   orderId,
@@ -100,6 +101,7 @@ class WebhookController {
             await orderService.findDriverForOrder(orderIdSystem);
           }
         }
+        res.status(200).json({ message: "Pedido confirmado com sucesso" });
       }
       if (fullCode === "SEPARATION_ENDED") {
         const orderService = new (require("../services/orderService"))();
@@ -122,19 +124,27 @@ class WebhookController {
         } else {
           await orderService.updateOrderStatus(verifyOrder._id, "pronto");
         }
+        res.status(200).json({ message: "Pedido pronto para entrega" });
       }
 
       if (fullCode === "CANCELLATION_REQUESTED") {
         const orderService = new (require("../services/orderService"))();
         await orderService.updateOrderStatus(orderId, "cancelado");
+        res.status(200).json({ message: "Pedido cancelado com sucesso" });
       }
       if (fullCode === "CANCELLED") {
         const orderService = new (require("../services/orderService"))();
         await orderService.updateOrderStatus(orderId, "cancelado");
+        res.status(200).json({ message: "Pedido cancelado com sucesso" });
+      }
+
+      if (fullCode === "DELIVERY_DROP_CODE_REQUESTED") {
+        res.status(200).json({ message: "Aguardando entrega do pedido" });
       }
       if (fullCode === "CONCLUDED") {
         const orderService = new (require("../services/orderService"))();
         await orderService.updateOrderStatus(orderId, "entregue");
+        res.status(200).json({ message: "Pedido entregue com sucesso" });
       }
       res.status(200).json({ message: "Webhook processado com sucesso" });
     } catch (error) {

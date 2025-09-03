@@ -70,6 +70,10 @@ const storeSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  freeToNavigate: {
+    type: Boolean,
+    default: false,
+  },
   ifoodConfig: ifoodConfigSchema,
   asaasCustomerId: {
     type: String,
