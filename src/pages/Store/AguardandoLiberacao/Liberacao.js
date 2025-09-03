@@ -33,7 +33,7 @@ export default function Liberacao() {
   const handleContactSupport = () => {
     // Aqui você pode implementar a lógica para contatar o suporte
     // Por exemplo, abrir um chat, enviar email, etc.
-    window.open("mailto:suporte@gringodelivery.com.br", "_blank");
+    window.open("mailto:suportegringodelivery@gmail.com", "_blank");
   };
 
   const refreshPage = () => {
@@ -236,7 +236,7 @@ export default function Liberacao() {
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <EmailIcon fontSize="small" />
               <Typography variant="body2">
-                suporte@gringodelivery.com.br
+                suportegringodelivery@gmail.com
               </Typography>
             </Box>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>

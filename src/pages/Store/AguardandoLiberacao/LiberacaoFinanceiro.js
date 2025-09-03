@@ -78,7 +78,7 @@ export default function LiberacaoFinanceiro() {
     navigator.clipboard.writeText(text);
   };
   const handleContactSupport = () => {
-    window.open("mailto:financeiro@gringodelivery.com.br", "_blank");
+    window.open("mailto:financeirogringodelivery@gmail.com", "_blank");
   };
 
   const handleGenerateQRCode = async (billing) => {
@@ -396,7 +396,7 @@ export default function LiberacaoFinanceiro() {
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <EmailIcon fontSize="small" />
               <Typography variant="body2">
-                financeiro@gringodelivery.com.br
+                financeirogringodelivery@gmail.com
               </Typography>
             </Box>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
