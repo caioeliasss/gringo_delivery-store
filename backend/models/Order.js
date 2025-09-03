@@ -240,6 +240,7 @@ const orderSchema = new mongoose.Schema({
       "pronto",
       "ready_takeout",
       "em_entrega",
+      "codigo_pronto",
       "entregue",
       "cancelado",
     ],

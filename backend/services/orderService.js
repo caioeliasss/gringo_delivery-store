@@ -509,6 +509,7 @@ class OrderService {
         "pronto",
         "ready_takeout",
         "entregue",
+        "codigo_pronto",
         "cancelado",
       ];
       if (!validStatus.includes(status)) {

@@ -401,7 +401,7 @@ export default function LiberacaoFinanceiro() {
             </Box>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <PhoneIcon fontSize="small" />
-              <Typography variant="body2">(11) 99999-9999</Typography>
+              <Typography variant="body2">19 99396-4997</Typography>
             </Box>
           </Box>
         </Box>
