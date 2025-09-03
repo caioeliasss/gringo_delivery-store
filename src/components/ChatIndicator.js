@@ -1,5 +1,5 @@
 // src/components/ChatIndicator.js
-import React from "react";
+import React, { useMemo } from "react";
 import { IconButton, Badge, Tooltip, Box, Typography } from "@mui/material";
 import {
   Chat as ChatIcon,
@@ -8,20 +8,27 @@ import {
 import { useGlobalNotifications } from "../contexts/GlobalNotificationsContext";
 
 const ChatIndicator = ({ onClick, sx = {}, children }) => {
-  const { 
-    hasUnreadChatMessages, 
-    chatUnreadCount, 
-    isConnected 
-  } = useGlobalNotifications();
+  const { hasUnreadChatMessages, chatUnreadCount, isConnected } =
+    useGlobalNotifications();
+
+  // Memoizar os valores para evitar re-renders desnecessários
+  const memoizedValues = useMemo(
+    () => ({
+      hasUnread: Boolean(hasUnreadChatMessages),
+      count: Number(chatUnreadCount) || 0,
+      connected: Boolean(isConnected),
+    }),
+    [hasUnreadChatMessages, chatUnreadCount, isConnected]
+  );
 
   // Se children for fornecido, usar apenas como wrapper com badge
   if (children) {
     return (
       <Box sx={{ position: "relative", display: "inline-flex" }}>
         {children}
-        {hasUnreadChatMessages && chatUnreadCount > 0 && (
+        {memoizedValues.hasUnread && memoizedValues.count > 0 && (
           <Badge
-            badgeContent={chatUnreadCount}
+            badgeContent={memoizedValues.count}
             color="error"
             max={99}
             sx={{
@@ -36,8 +43,8 @@ const ChatIndicator = ({ onClick, sx = {}, children }) => {
   }
 
   // Determinar ícone e cor baseado no status
-  const getIconProps = () => {
-    if (!isConnected) {
+  const getIconProps = useMemo(() => {
+    if (!memoizedValues.connected) {
       return {
         icon: ChatIcon,
         color: "disabled",
@@ -45,13 +52,13 @@ const ChatIndicator = ({ onClick, sx = {}, children }) => {
       };
     }
 
-    if (hasUnreadChatMessages && chatUnreadCount > 0) {
+    if (memoizedValues.hasUnread && memoizedValues.count > 0) {
       return {
         icon: ChatBubbleIcon,
         color: "error",
-        tooltip: `${chatUnreadCount} mensagem${
-          chatUnreadCount > 1 ? "ns" : ""
-        } não lida${chatUnreadCount > 1 ? "s" : ""} no chat`,
+        tooltip: `${memoizedValues.count} mensagem${
+          memoizedValues.count > 1 ? "ns" : ""
+        } não lida${memoizedValues.count > 1 ? "s" : ""} no chat`,
       };
     }
 
@@ -60,9 +67,9 @@ const ChatIndicator = ({ onClick, sx = {}, children }) => {
       color: "inherit",
       tooltip: "Nenhuma mensagem nova no chat",
     };
-  };
+  }, [memoizedValues]);
 
-  const { icon: IconComponent, color, tooltip } = getIconProps();
+  const { icon: IconComponent, color, tooltip } = getIconProps;
 
   return (
     <Tooltip
@@ -70,7 +77,8 @@ const ChatIndicator = ({ onClick, sx = {}, children }) => {
         <Box>
           <Typography variant="body2">{tooltip}</Typography>
           <Typography variant="caption" color="textSecondary">
-            Chat: {isConnected ? "✅ Conectado" : "❌ Desconectado"}
+            Chat:{" "}
+            {memoizedValues.connected ? "✅ Conectado" : "❌ Desconectado"}
           </Typography>
         </Box>
       }
@@ -81,7 +89,10 @@ const ChatIndicator = ({ onClick, sx = {}, children }) => {
         color={color}
         sx={{
           ...sx,
-          animation: hasUnreadChatMessages && chatUnreadCount > 0 ? "pulse 2s infinite" : "none",
+          animation:
+            memoizedValues.hasUnread && memoizedValues.count > 0
+              ? "pulse 2s infinite"
+              : "none",
           "@keyframes pulse": {
             "0%": {
               transform: "scale(1)",
@@ -96,7 +107,11 @@ const ChatIndicator = ({ onClick, sx = {}, children }) => {
         }}
       >
         <Badge
-          badgeContent={hasUnreadChatMessages && chatUnreadCount > 0 ? chatUnreadCount : null}
+          badgeContent={
+            memoizedValues.hasUnread && memoizedValues.count > 0
+              ? memoizedValues.count
+              : null
+          }
           color="error"
           max={99}
           overlap="circular"

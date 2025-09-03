@@ -9,6 +9,97 @@ const fs = require("fs");
 const notificationService = require("../services/notificationService");
 const admin = require("../config/firebase-admin");
 
+// Cache simples em memória para endpoints críticos
+const cache = new Map();
+const CACHE_TTL = 120000; // 2 minutos
+
+// Função para limpar cache expirado
+const cleanupCache = () => {
+  const now = Date.now();
+  for (const [key, value] of cache.entries()) {
+    if (now > value.expiresAt) {
+      cache.delete(key);
+    }
+  }
+};
+
+// Limpar cache a cada 5 minutos
+setInterval(cleanupCache, 300000);
+
+// Wrapper para cache
+const cacheWrapper = {
+  get: (key) => {
+    const item = cache.get(key);
+    if (!item) return null;
+
+    if (Date.now() > item.expiresAt) {
+      cache.delete(key);
+      return null;
+    }
+
+    return item.data;
+  },
+  set: (key, data, ttl = CACHE_TTL) => {
+    cache.set(key, {
+      data,
+      expiresAt: Date.now() + ttl,
+    });
+  },
+  delete: (key) => {
+    cache.delete(key);
+  },
+  clear: () => {
+    cache.clear();
+  },
+};
+
+// Rate limiting específico para endpoints de chat
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minuto
+const MAX_REQUESTS_PER_WINDOW = 30; // máximo 30 requests por minuto por usuário
+
+const chatRateLimit = (req, res, next) => {
+  const userId = req.params.userId;
+  if (!userId) return next();
+
+  const now = Date.now();
+  const userKey = `rateLimit_${userId}`;
+  const userLimit = rateLimitMap.get(userKey) || { count: 0, windowStart: now };
+
+  // Se a janela expirou, resetar
+  if (now - userLimit.windowStart > RATE_LIMIT_WINDOW) {
+    userLimit.count = 0;
+    userLimit.windowStart = now;
+  }
+
+  userLimit.count++;
+  rateLimitMap.set(userKey, userLimit);
+
+  if (userLimit.count > MAX_REQUESTS_PER_WINDOW) {
+    console.warn(
+      `⚠️ Rate limit excedido para usuário ${userId}: ${userLimit.count} requests`
+    );
+    return res.status(429).json({
+      message: "Muitas requisições. Tente novamente em 1 minuto.",
+      retryAfter: Math.ceil(
+        (RATE_LIMIT_WINDOW - (now - userLimit.windowStart)) / 1000
+      ),
+    });
+  }
+
+  next();
+};
+
+// Limpar rate limit map periodicamente
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of rateLimitMap.entries()) {
+    if (now - value.windowStart > RATE_LIMIT_WINDOW * 2) {
+      rateLimitMap.delete(key);
+    }
+  }
+}, RATE_LIMIT_WINDOW);
+
 // Configurar o multer para upload em memória (para Firebase)
 const storage = multer.memoryStorage();
 
@@ -623,6 +714,13 @@ const sendMessage = async (req, res) => {
       }
     }
 
+    // ✅ INVALIDAR CACHE quando nova mensagem é enviada
+    // Invalidar cache para todos os participantes
+    for (const participant of chat.participants) {
+      const cacheKey = `hasUnread_${participant.firebaseUid}`;
+      cacheWrapper.delete(cacheKey);
+    }
+
     res.status(201).json(newMessage);
   } catch (error) {
     console.error("Erro ao enviar mensagem:", error);
@@ -733,6 +831,10 @@ const markMessagesAsRead = async (req, res) => {
       }
     );
 
+    // ✅ INVALIDAR CACHE quando mensagens são marcadas como lidas
+    const cacheKey = `hasUnread_${firebaseUid}`;
+    cacheWrapper.delete(cacheKey);
+
     res.json({ success: true });
   } catch (error) {
     console.error("Erro ao marcar mensagens como lidas:", error);
@@ -808,24 +910,80 @@ const getUnreadMessageCountOptimized = async (req, res) => {
   }
 };
 
-// Verificar se há mensagens não lidas (versão otimizada)
+// Verificar se há mensagens não lidas (versão ultra otimizada)
 const hasUnreadChatMessagesOptimized = async (req, res) => {
   const { userId } = req.params;
 
   try {
-    // Verificar se existe pelo menos um chat com unreadCount > 0
-    const hasUnread = await Chat.exists({
-      "participants.firebaseUid": userId,
-      "participants.unreadCount": { $gt: 0 },
-      status: "ACTIVE",
+    // Cache no nível do endpoint por 2 minutos
+    const cacheKey = `hasUnread_${userId}`;
+    const cached = cacheWrapper.get(cacheKey);
+
+    if (cached) {
+      return res.json({
+        hasUnreadMessages: cached.hasUnread,
+        timestamp: cached.timestamp,
+        fromCache: true,
+      });
+    }
+
+    // Usar agregação MongoDB para máxima performance
+    const result = await Chat.aggregate([
+      {
+        $match: {
+          "participants.firebaseUid": userId,
+          status: "ACTIVE",
+        },
+      },
+      {
+        $project: {
+          hasUnreadForUser: {
+            $gt: [
+              {
+                $sum: {
+                  $map: {
+                    input: {
+                      $filter: {
+                        input: "$participants",
+                        cond: { $eq: ["$$this.firebaseUid", userId] },
+                      },
+                    },
+                    in: "$$this.unreadCount",
+                  },
+                },
+              },
+              0,
+            ],
+          },
+        },
+      },
+      {
+        $match: {
+          hasUnreadForUser: true,
+        },
+      },
+      {
+        $limit: 1, // Só precisa de um resultado para confirmar
+      },
+    ]);
+
+    const hasUnread = result.length > 0;
+
+    // Cache por 2 minutos
+    cacheWrapper.set(cacheKey, {
+      hasUnread,
+      timestamp: new Date(),
     });
 
     res.json({
-      hasUnreadMessages: !!hasUnread,
+      hasUnreadMessages: hasUnread,
       timestamp: new Date(),
     });
   } catch (error) {
-    console.error("Erro ao verificar mensagens não lidas (otimizada):", error);
+    console.error(
+      "Erro ao verificar mensagens não lidas (ultra otimizada):",
+      error
+    );
     res.status(500).json({ message: error.message });
   }
 };
@@ -927,9 +1085,21 @@ router.post("/message", sendMessage);
 router.get("/message/all", getAllChatMessages);
 router.get("/message/:chatId", getChatMessagesByChatId);
 router.put("/message/:chatId/read/:firebaseUid", markMessagesAsRead);
-router.get("/message/unread/:userId", getUnreadMessageCountOptimized); // Usando versão otimizada
-router.get("/message/has-unread/:userId", hasUnreadChatMessagesOptimized); // Usando versão otimizada
-router.get("/message/unread-info/:userId", hasUnreadChatMessagesOptimized); // Usando versão otimizada
+router.get(
+  "/message/unread/:userId",
+  chatRateLimit,
+  getUnreadMessageCountOptimized
+); // Usando versão otimizada
+router.get(
+  "/message/has-unread/:userId",
+  chatRateLimit,
+  hasUnreadChatMessagesOptimized
+); // Usando versão otimizada
+router.get(
+  "/message/unread-info/:userId",
+  chatRateLimit,
+  hasUnreadChatMessagesOptimized
+); // Usando versão otimizada
 
 // Rota de debug para verificar arquivos
 router.get("/debug/files", debugFiles);

@@ -369,107 +369,109 @@ function SuporteApp() {
   return (
     <ThemeProvider theme={theme}>
       <AuthProvider>
-        <Routes>
-          {/* ✅ Login público - SEM SuporteAuthProvider */}
-          <Route path="/login" element={<SuporteLogin />} />
-          <Route path="/register" element={<RegisterSupport />} />
+        <GlobalNotificationsProvider userType="support">
+          <Routes>
+            {/* ✅ Login público - SEM SuporteAuthProvider */}
+            <Route path="/login" element={<SuporteLogin />} />
+            <Route path="/register" element={<RegisterSupport />} />
 
-          {/* ✅ Rotas protegidas - COM SuporteAuthProvider */}
-          <Route
-            path="/dashboard"
-            element={
-              <SuporteAuthProvider>
-                <PrivateRoute>
-                  <SuporteDashboard />
-                </PrivateRoute>
-              </SuporteAuthProvider>
-            }
-          />
-          <Route
-            path="/ocorrencias"
-            element={
-              <SuporteAuthProvider>
-                <PrivateRoute>
-                  <Occurrences />
-                </PrivateRoute>
-              </SuporteAuthProvider>
-            }
-          />
-          <Route
-            path="/notificacoes"
-            element={
-              <SuporteAuthProvider>
-                <PrivateRoute>
-                  <SupportNotifications />
-                </PrivateRoute>
-              </SuporteAuthProvider>
-            }
-          />
-          <Route
-            path="/chat"
-            element={
-              <SuporteAuthProvider>
-                <PrivateRoute>
-                  <ChatPage />
-                </PrivateRoute>
-              </SuporteAuthProvider>
-            }
-          />
-          <Route
-            path="/mapa"
-            element={
-              <SuporteAuthProvider>
-                <PrivateRoute>
-                  <SupportMapPage />
-                </PrivateRoute>
-              </SuporteAuthProvider>
-            }
-          />
-          <Route
-            path="/pedidos"
-            element={
-              <SuporteAuthProvider>
-                <PrivateRoute>
-                  <OrdersPage />
-                </PrivateRoute>
-              </SuporteAuthProvider>
-            }
-          />
-          <Route
-            path="/motoboys"
-            element={
-              <SuporteAuthProvider>
-                <PrivateRoute>
-                  <MotoboysPage />
-                </PrivateRoute>
-              </SuporteAuthProvider>
-            }
-          />
-          <Route
-            path="/estabelecimentos"
-            element={
-              <SuporteAuthProvider>
-                <PrivateRoute>
-                  <EstabelecimentosPage />
-                </PrivateRoute>
-              </SuporteAuthProvider>
-            }
-          />
-          <Route
-            path="/precificacao"
-            element={
-              <SuporteAuthProvider>
-                <PrivateRoute>
-                  <PrecificacaoPage />
-                </PrivateRoute>
-              </SuporteAuthProvider>
-            }
-          />
+            {/* ✅ Rotas protegidas - COM SuporteAuthProvider */}
+            <Route
+              path="/dashboard"
+              element={
+                <SuporteAuthProvider>
+                  <PrivateRoute>
+                    <SuporteDashboard />
+                  </PrivateRoute>
+                </SuporteAuthProvider>
+              }
+            />
+            <Route
+              path="/ocorrencias"
+              element={
+                <SuporteAuthProvider>
+                  <PrivateRoute>
+                    <Occurrences />
+                  </PrivateRoute>
+                </SuporteAuthProvider>
+              }
+            />
+            <Route
+              path="/notificacoes"
+              element={
+                <SuporteAuthProvider>
+                  <PrivateRoute>
+                    <SupportNotifications />
+                  </PrivateRoute>
+                </SuporteAuthProvider>
+              }
+            />
+            <Route
+              path="/chat"
+              element={
+                <SuporteAuthProvider>
+                  <PrivateRoute>
+                    <ChatPage />
+                  </PrivateRoute>
+                </SuporteAuthProvider>
+              }
+            />
+            <Route
+              path="/mapa"
+              element={
+                <SuporteAuthProvider>
+                  <PrivateRoute>
+                    <SupportMapPage />
+                  </PrivateRoute>
+                </SuporteAuthProvider>
+              }
+            />
+            <Route
+              path="/pedidos"
+              element={
+                <SuporteAuthProvider>
+                  <PrivateRoute>
+                    <OrdersPage />
+                  </PrivateRoute>
+                </SuporteAuthProvider>
+              }
+            />
+            <Route
+              path="/motoboys"
+              element={
+                <SuporteAuthProvider>
+                  <PrivateRoute>
+                    <MotoboysPage />
+                  </PrivateRoute>
+                </SuporteAuthProvider>
+              }
+            />
+            <Route
+              path="/estabelecimentos"
+              element={
+                <SuporteAuthProvider>
+                  <PrivateRoute>
+                    <EstabelecimentosPage />
+                  </PrivateRoute>
+                </SuporteAuthProvider>
+              }
+            />
+            <Route
+              path="/precificacao"
+              element={
+                <SuporteAuthProvider>
+                  <PrivateRoute>
+                    <PrecificacaoPage />
+                  </PrivateRoute>
+                </SuporteAuthProvider>
+              }
+            />
 
-          {/* Redirecionamentos */}
-          <Route path="/" element={<Navigate to="/login" />} />
-          <Route path="*" element={<Navigate to="/login" />} />
-        </Routes>
+            {/* Redirecionamentos */}
+            <Route path="/" element={<Navigate to="/login" />} />
+            <Route path="*" element={<Navigate to="/login" />} />
+          </Routes>
+        </GlobalNotificationsProvider>
       </AuthProvider>
     </ThemeProvider>
   );

@@ -70,10 +70,10 @@ class ApiCache {
       "/travels": 1 * 60 * 1000, // 1 minuto
 
       // Chat endpoints - Cache agressivo para prevenir 429
-      "/chat/message/has-unread": 45 * 1000, // 45 segundos (maior que intervalo de 30s)
-      "/chat/message/unread": 30 * 1000, // 30 segundos
-      "/chat/message/unread-info": 30 * 1000, // 30 segundos (endpoint otimizado)
-      "/chat/user": 60 * 1000, // 1 minuto para lista de chats
+      "/chat/message/has-unread": 120 * 1000, // 2 minutos (bem maior que intervalo)
+      "/chat/message/unread": 90 * 1000, // 1.5 minutos
+      "/chat/message/unread-info": 90 * 1000, // 1.5 minutos (endpoint otimizado)
+      "/chat/user": 180 * 1000, // 3 minutos para lista de chats
 
       // Dados em tempo real - TTL muito curto
       "/motoboys/find": 10 * 1000, // 10 segundos

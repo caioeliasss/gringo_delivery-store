@@ -1,5 +1,12 @@
 // src/contexts/GlobalNotificationsContext.js
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import { useAuth } from "./AuthContext";
 import { useSocketNotifications } from "../hooks/useSocketNotifications";
 import webPushService from "../services/webPushService";
@@ -44,6 +51,11 @@ export const GlobalNotificationsProvider = ({
   const [hasUnreadChatMessages, setHasUnreadChatMessages] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
 
+  // Estados para throttling e controle de requisições
+  const lastCheckRef = useRef(0);
+  const checkInProgressRef = useRef(false);
+  const mountedRef = useRef(true);
+
   // Estado para snackbar de feedback
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -51,21 +63,60 @@ export const GlobalNotificationsProvider = ({
     severity: "info",
   });
 
-  // Função para verificar mensagens de chat não lidas
-  const checkUnreadChatMessages = async () => {
-    if (!user?.uid) return;
+  // Função otimizada para verificar mensagens de chat não lidas com throttling
+  const checkUnreadChatMessages = useCallback(
+    async (force = false) => {
+      if (!user?.uid || !mountedRef.current) return;
 
-    try {
-      // Usar a função otimizada com cache automático
-      const response = await getUnreadChatInfo(user.uid);
+      const now = Date.now();
+      const timeSinceLastCheck = now - lastCheckRef.current;
+      const minInterval = 60000; // 1 minuto mínimo entre verificações
 
-      // Atualizar estados com os dados retornados
-      setHasUnreadChatMessages(response.data.hasUnreadMessages);
-      setChatUnreadCount(response.data.totalUnreadCount || 0);
-    } catch (error) {
-      console.error("Erro ao verificar mensagens de chat não lidas:", error);
-    }
-  };
+      // Se não forçado e foi verificado recentemente, pular
+      if (!force && timeSinceLastCheck < minInterval) {
+        console.log(
+          `⏭️ Pulando verificação de chat - checado há ${Math.round(
+            timeSinceLastCheck / 1000
+          )}s`
+        );
+        return;
+      }
+
+      // Se já tem uma verificação em andamento, pular
+      if (checkInProgressRef.current) {
+        console.log("⏳ Verificação de chat já em andamento, pulando...");
+        return;
+      }
+
+      try {
+        checkInProgressRef.current = true;
+        lastCheckRef.current = now;
+
+        console.log("🔍 Verificando mensagens de chat não lidas...");
+
+        const response = await getUnreadChatInfo(user.uid);
+
+        // Só atualizar se ainda estiver montado
+        if (mountedRef.current) {
+          setHasUnreadChatMessages(response.data.hasUnreadMessages);
+          setChatUnreadCount(response.data.totalUnreadCount || 0);
+
+          console.log("✅ Status do chat atualizado:", {
+            hasUnread: response.data.hasUnreadMessages,
+            count: response.data.totalUnreadCount || 0,
+          });
+        }
+      } catch (error) {
+        console.error(
+          "❌ Erro ao verificar mensagens de chat não lidas:",
+          error
+        );
+      } finally {
+        checkInProgressRef.current = false;
+      }
+    },
+    [user?.uid]
+  );
 
   // Função para mostrar feedback ao usuário
   const showFeedback = (message, severity = "info") => {
@@ -183,23 +234,28 @@ export const GlobalNotificationsProvider = ({
   // Inicializar quando o usuário estiver disponível
   useEffect(() => {
     if (user?.uid) {
+      console.log("🚀 Inicializando GlobalNotifications para:", user.uid);
       initializePushNotifications();
-      checkUnreadChatMessages(); // Verificar mensagens de chat também
+      checkUnreadChatMessages(true); // Forçar primeira verificação
     }
-  }, [user?.uid]);
+  }, [user?.uid, checkUnreadChatMessages]);
 
   // Verificação periódica de mensagens de chat não lidas
   useEffect(() => {
     if (!user?.uid) return;
 
-    // Verificar imediatamente
-    checkUnreadChatMessages();
+    // Verificar a cada 3 minutos (reduzido de 2 minutos)
+    const chatCheckInterval = setInterval(() => {
+      checkUnreadChatMessages(false);
+    }, 180000); // 3 minutos
 
-    // Verificar a cada 30 segundos
-    const chatCheckInterval = setInterval(checkUnreadChatMessages, 30000);
+    console.log("⏰ Timer de verificação de chat configurado para 3 minutos");
 
-    return () => clearInterval(chatCheckInterval);
-  }, [user?.uid]);
+    return () => {
+      clearInterval(chatCheckInterval);
+      console.log("🧹 Timer de verificação de chat limpo");
+    };
+  }, [user?.uid, checkUnreadChatMessages]);
 
   // Verificação periódica do status das notificações
   useEffect(() => {
@@ -231,9 +287,21 @@ export const GlobalNotificationsProvider = ({
       }
     }, 60000); // Verificar a cada minuto
 
-    return () => clearInterval(checkInterval);
+    return () => {
+      clearInterval(checkInterval);
+      console.log("🧹 Timer de verificação de notificações push limpo");
+    };
   }, [pushSupported, pushEnabled, user?.uid]);
 
+  // Cleanup no unmount
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+      console.log("🧹 GlobalNotificationsProvider desmontado");
+    };
+  }, []);
   const value = {
     // Estados
     pushEnabled,
