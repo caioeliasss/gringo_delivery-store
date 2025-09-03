@@ -6,6 +6,7 @@ const admin = require("../config/firebase-admin");
 const motoboyServices = require("../services/motoboyServices");
 const { sendNotification } = require("../services/fcmService");
 const NotificationService = require("../services/notificationService");
+const Notification = require("../models/Notification");
 const OccurrenceService = require("../services/OccurrenceService");
 const Travel = require("../models/Travel");
 const IfoodService = require("../services/ifoodService");

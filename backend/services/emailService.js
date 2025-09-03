@@ -1,5 +1,6 @@
 const nodemailer = require("nodemailer");
 const Admin = require("../models/Admin");
+const SupportTeam = require("../models/SupportTeam");
 
 class EmailService {
   constructor() {
@@ -52,6 +53,45 @@ class EmailService {
     } catch (error) {
       console.error("❌ Erro ao enviar email:", error);
       return { success: false, error: error.message };
+    }
+  }
+
+  async getSupportEmails() {
+    try {
+      const supportEmails = await SupportTeam.find({}, "email name");
+      return supportEmails.map((admin) => ({
+        email: admin.email,
+        name: admin.name,
+      }));
+    } catch (error) {
+      console.error("❌ Erro ao buscar emails de suporte:", error);
+      return [];
+    }
+  }
+
+  async notifySupportOccurrence(occurrence) {
+    try {
+      const subject = `🔔 Nova Ocorrência - ${occurrence.type}`;
+      const htmlContent = `
+        <div style="font-family: Arial, sans-serif;">
+          <h2>🔔 Nova Ocorrência Recebida</h2>
+          <p><strong>ID:</strong> ${occurrence._id}</p>
+          <p><strong>Tipo:</strong> ${occurrence.type}</p>
+          <p><strong>Status:</strong> ${occurrence.status}</p>
+          <p><strong>Descrição:</strong> ${occurrence.description}</p>
+        </div>
+      `;
+
+      const adminEmails = await this.getAdminEmails();
+      const supportEmails = await this.getSupportEmails();
+      const emailPromises = adminEmails.map((admin) =>
+        this.sendEmail(admin.email, subject, htmlContent)
+      );
+
+      await Promise.all(emailPromises);
+      console.log("✅ Notificações enviadas para os administradores");
+    } catch (error) {
+      console.error("❌ Erro ao notificar administradores:", error);
     }
   }
 

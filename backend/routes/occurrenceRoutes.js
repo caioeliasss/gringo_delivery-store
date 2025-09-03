@@ -3,6 +3,7 @@ const router = express.Router();
 const notificationService = require("../services/notificationService");
 // Modelo de Ocorrência
 const Occurrence = require("../models/Occurrence");
+const emailService = require("../services/emailService");
 
 // GET - Buscar todas as ocorrências
 router.get("/", async (req, res) => {
@@ -101,6 +102,8 @@ router.post("/", async (req, res) => {
         status: "ABERTO",
       },
     });
+
+    await emailService.notifySupportOccurrence(savedOccurrence);
 
     res.status(201).json(savedOccurrence);
   } catch (error) {
