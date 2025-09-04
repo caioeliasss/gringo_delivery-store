@@ -1,6 +1,7 @@
 const nodemailer = require("nodemailer");
 const Admin = require("../models/Admin");
 const SupportTeam = require("../models/SupportTeam");
+const Store = require("../models/Store");
 
 class EmailService {
   constructor() {
@@ -66,6 +67,69 @@ class EmailService {
     } catch (error) {
       console.error("❌ Erro ao buscar emails de suporte:", error);
       return [];
+    }
+  }
+
+  async notifyChatMessage(userId, chat, message) {
+    try {
+      const subject = `💬 Nova Mensagem no Chat - ${
+        chat.title || "Sem Título"
+      }`;
+      const htmlContent = `
+        <div style="font-family: Arial, sans-serif;">
+          <h2>💬 Nova Mensagem no Chat</h2>
+          <p><strong>Chat:</strong> ${chat.title || "Sem Título"}</p>
+          <p><strong>Mensagem:</strong> ${message.content}</p>
+        </div>
+      `;
+
+      let email;
+
+      email = await Store.findOne({ firebaseUid: userId }).select("email");
+      email =
+        email || (await Admin.findOne({ firebaseUid: userId }).select("email"));
+      email =
+        email ||
+        (await SupportTeam.findOne({ firebaseUid: userId }).select("email"));
+      email =
+        email ||
+        (await Motoboy.findOne({ firebaseUid: userId }).select("email"));
+
+      await this.sendEmail(email.email, subject, htmlContent);
+      console.log("✅ Notificação de nova mensagem enviada");
+    } catch (error) {
+      console.error("❌ Erro ao notificar nova mensagem:", error);
+    }
+  }
+
+  async notifyStatusChange(occurrence) {
+    try {
+      const subject = `🔔 Atualização de Ocorrência - ${occurrence.type}`;
+      const htmlContent = `
+        <div style="font-family: Arial, sans-serif;">
+          <h2>🔔 Atualização de Ocorrência</h2>
+          <p><strong>Descrição:</strong> ${occurrence.description}</p>
+          <p><strong>Status:</strong> ${occurrence.status}</p>
+          <p><strong>Resposta:</strong> ${
+            occurrence.answer || "Não informada"
+          }</p>
+        </div>
+      `;
+
+      let email;
+
+      if (occurrence.storeId) {
+        email = await Store.findById(occurrence.storeId).select("email");
+      }
+      if (occurrence.motoboyId) {
+        // Supondo que você tenha um modelo Motoboy similar ao Store
+        const Motoboy = require("../models/Motoboy");
+        email = await Motoboy.findById(occurrence.motoboyId).select("email");
+      }
+      await this.sendEmail(email.email, subject, htmlContent);
+      console.log("✅ Notificações de atualização de ocorrência enviadas");
+    } catch (error) {
+      console.error("❌ Erro ao notificar atualização de ocorrência:", error);
     }
   }
 

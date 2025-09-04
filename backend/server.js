@@ -412,7 +412,7 @@ app.post("/api/socket/test-notification", authenticateToken, (req, res) => {
 
 app.use("/api/webhook/ifood", (req, res) => {
   if (req.body.code === "KEEPALIVE") {
-    console.log("KEEPALIVE");
+    // console.log("KEEPALIVE");
     return res.sendStatus(200); // responde e sai
   }
   // console.log("Webhook recebido Ifood:", req.body.fullCode);

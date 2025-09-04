@@ -8,6 +8,7 @@ const path = require("path");
 const fs = require("fs");
 const notificationService = require("../services/notificationService");
 const admin = require("../config/firebase-admin");
+const emailService = require("../services/emailService");
 
 // Cache simples em memória para endpoints críticos
 const cache = new Map();
@@ -705,6 +706,11 @@ const sendMessage = async (req, res) => {
             chatId: chat._id,
             expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // Expira em 24 hrs
           });
+          await emailService.notifyChatMessage(
+            participant.firebaseUid,
+            chat,
+            newMessage
+          );
         } catch (notifError) {
           console.error(
             `Erro ao enviar notificação para ${participant.firebaseUid}:`,

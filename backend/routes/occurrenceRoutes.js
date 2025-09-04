@@ -165,6 +165,8 @@ router.put("/:id", async (req, res) => {
       },
     });
 
+    await emailService.notifyStatusChange(updatedOccurrence);
+
     res.status(200).json(updatedOccurrence);
   } catch (error) {
     console.error("Erro ao atualizar ocorrência:", error);
