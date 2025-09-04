@@ -69,18 +69,23 @@ const PORT = process.env.PORT || 8080;
 
 // Criar servidor HTTP
 const server = http.createServer(app);
+const isDevelopment = EnvironmentUtils.isDevelopment();
 
 // Configurar Socket.io com path específico
 const io = socketIO(server, {
   cors: {
-    origin: "*", // Em produção, especifique os domínios permitidos
+    origin: isDevelopment
+      ? "*" // Desenvolvimento: permite qualquer origin
+      : [
+          "https://gringodelivery.com.br",
+          "https://suporte.gringodelivery.com.br",
+          "https://admin.gringodelivery.com.br",
+        ], // Produção: apenas seus domínios
     methods: ["GET", "POST"],
   },
   path: "/socket", // Adicionar path específico para Socket.io
   transports: ["websocket", "polling"], // Usar apenas WebSocket para comunicação
 });
-
-const isDevelopment = process.env.NODE_ENV !== "production";
 
 app.use(
   cors({
@@ -91,7 +96,7 @@ app.use(
           "https://suporte.gringodelivery.com.br",
           "https://admin.gringodelivery.com.br",
         ], // Produção: apenas seus domínios
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })

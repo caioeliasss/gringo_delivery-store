@@ -24,10 +24,10 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  FormControl,
-  InputLabel,
   Select,
   MenuItem,
+  FormControl,
+  InputLabel,
   Alert,
   Tooltip,
   Badge,
@@ -67,6 +67,7 @@ import {
   Schedule as ScheduleIcon,
   Error as ErrorIcon,
   Delete as DeleteIcon,
+  Edit as EditIcon,
 } from "@mui/icons-material";
 import { Link } from "react-router-dom";
 import { UseAdminAuth } from "../../../contexts/AdminAuthContext";
@@ -128,6 +129,11 @@ const AdminFinanceiro = () => {
   const [deleteBillingOpen, setDeleteBillingOpen] = useState(false);
   const [deletingBilling, setDeletingBilling] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  // ✅ NOVOS ESTADOS: Modal de alterar status do billing
+  const [updateStatusOpen, setUpdateStatusOpen] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [newStatus, setNewStatus] = useState("");
+  const [statusReason, setStatusReason] = useState("");
 
   // Estados de erro/sucesso
   const [alert, setAlert] = useState({
@@ -248,6 +254,52 @@ const AdminFinanceiro = () => {
     }
   };
 
+  // ✅ NOVA FUNÇÃO: Alterar status do billing
+  const handleUpdateBillingStatus = async () => {
+    if (!selectedBilling || !newStatus) {
+      showAlert("Selecione um status válido", "warning");
+      return;
+    }
+
+    // Verificar se o status é diferente do atual
+    if (newStatus === selectedBilling.status) {
+      showAlert("O status selecionado é igual ao atual", "warning");
+      return;
+    }
+
+    setUpdatingStatus(true);
+    try {
+      const response = await adminService.updateBillingStatus(
+        selectedBilling._id,
+        newStatus,
+        statusReason
+      );
+
+      showAlert(
+        `Status da fatura alterado para ${newStatus} com sucesso!`,
+        "success"
+      );
+
+      setUpdateStatusOpen(false);
+      setSelectedBilling(null);
+      setNewStatus("");
+      setStatusReason("");
+      fetchFinancialData(); // Recarregar dados
+
+      console.log("✅ Status atualizado:", response);
+    } catch (error) {
+      console.error("Erro ao alterar status da fatura:", error);
+      showAlert(
+        error.response?.data?.error ||
+          error.response?.data?.message ||
+          "Erro ao alterar status da fatura",
+        "error"
+      );
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
   // Carregar dados iniciais
   useEffect(() => {
     fetchFinancialData();
@@ -258,6 +310,7 @@ const AdminFinanceiro = () => {
     billingFilter,
     storeFilter,
     statusFilter,
+    activeTab, // ✅ ADICIONAR: Recarregar quando trocar de aba
   ]);
 
   // Carregar lojas e motoboys únicos ao inicializar
@@ -328,6 +381,13 @@ const AdminFinanceiro = () => {
         billingFilters.storeId = storeFilter;
       }
 
+      console.log("🔍 DEBUG Frontend - Filtros sendo enviados:", {
+        activeTab,
+        storeFilter,
+        withdrawalFilters,
+        billingFilters,
+      });
+
       // Buscar dados em paralelo
       const [statsData, withdrawalsData, billingsData] = await Promise.all([
         adminService.getFinancialStats(),
@@ -335,7 +395,18 @@ const AdminFinanceiro = () => {
         adminService.getBillings(billingFilters),
       ]);
 
-      console.log("Dados financeiros:", withdrawalsData.withdrawals);
+      console.log("🔍 DEBUG Frontend - Dados retornados:", {
+        statsData,
+        withdrawalsData: {
+          total: withdrawalsData.total,
+          count: withdrawalsData.withdrawals?.length,
+        },
+        billingsData: {
+          total: billingsData.total,
+          count: billingsData.billings?.length,
+        },
+      });
+
       setFinancialStats(statsData);
       setWithdrawals(withdrawalsData.withdrawals || []);
       setWithdrawalsTotal(withdrawalsData.total || 0);
@@ -942,7 +1013,10 @@ const AdminFinanceiro = () => {
                       <Select
                         value={storeFilter}
                         label="Filtrar por Motoboy"
-                        onChange={(e) => setStoreFilter(e.target.value)}
+                        onChange={(e) => {
+                          setStoreFilter(e.target.value);
+                          setWithdrawalsPage(1); // ✅ RESETAR página ao filtrar
+                        }}
                       >
                         <MenuItem value="all">Todos os Motoboys</MenuItem>
                         {allMotoboys.map((motoboy) => (
@@ -957,7 +1031,10 @@ const AdminFinanceiro = () => {
                       <Select
                         value={withdrawalFilter}
                         label="Filtrar por Status"
-                        onChange={(e) => setWithdrawalFilter(e.target.value)}
+                        onChange={(e) => {
+                          setWithdrawalFilter(e.target.value);
+                          setWithdrawalsPage(1); // ✅ RESETAR página ao filtrar
+                        }}
                       >
                         <MenuItem value="all">Todos</MenuItem>
                         <MenuItem value="pending">Pendentes</MenuItem>
@@ -1120,7 +1197,10 @@ const AdminFinanceiro = () => {
                       <Select
                         value={storeFilter}
                         label="Filtrar por Loja"
-                        onChange={(e) => setStoreFilter(e.target.value)}
+                        onChange={(e) => {
+                          setStoreFilter(e.target.value);
+                          setBillingsPage(1); // ✅ RESETAR página ao filtrar
+                        }}
                       >
                         <MenuItem value="all">Todas as Lojas</MenuItem>
                         {allStores.map((store) => (
@@ -1138,7 +1218,10 @@ const AdminFinanceiro = () => {
                       <Select
                         value={billingFilter}
                         label="Filtrar por Status"
-                        onChange={(e) => setBillingFilter(e.target.value)}
+                        onChange={(e) => {
+                          setBillingFilter(e.target.value);
+                          setBillingsPage(1); // ✅ RESETAR página ao filtrar
+                        }}
                       >
                         <MenuItem value="all">Todos</MenuItem>
                         <MenuItem value="PENDING">Pendentes</MenuItem>
@@ -1234,6 +1317,20 @@ const AdminFinanceiro = () => {
                                 }}
                               >
                                 <ViewIcon />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Alterar Status">
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                onClick={() => {
+                                  setSelectedBilling(billing);
+                                  setNewStatus(billing.status);
+                                  setStatusReason("");
+                                  setUpdateStatusOpen(true);
+                                }}
+                              >
+                                <EditIcon />
                               </IconButton>
                             </Tooltip>
                             <Tooltip title="Excluir Cobrança">
@@ -1579,6 +1676,116 @@ const AdminFinanceiro = () => {
             disabled={deletingBilling || deleteConfirmText !== "EXCLUIR"}
           >
             {deletingBilling ? "Excluindo..." : "Excluir Cobrança"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ✅ NOVO MODAL: Alterar Status do Billing */}
+      <Dialog
+        open={updateStatusOpen}
+        onClose={() => setUpdateStatusOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center">
+            <EditIcon color="primary" sx={{ mr: 1 }} />
+            Alterar Status da Fatura
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {selectedBilling && (
+            <Box>
+              <Alert severity="info" sx={{ mb: 2 }}>
+                Alterando status da fatura de{" "}
+                {formatCurrency(selectedBilling.amount)}
+                da loja {selectedBilling.storeName}
+              </Alert>
+
+              <Typography variant="body2" color="textSecondary" gutterBottom>
+                <strong>Status atual:</strong>{" "}
+                {getStatusChip(selectedBilling.status, "billing")}
+              </Typography>
+
+              <Box sx={{ mt: 2 }}>
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>Novo Status</InputLabel>
+                  <Select
+                    value={newStatus}
+                    onChange={(e) => setNewStatus(e.target.value)}
+                    label="Novo Status"
+                  >
+                    <MenuItem value="PENDING">
+                      <Box display="flex" alignItems="center">
+                        <ScheduleIcon sx={{ mr: 1, color: "orange" }} />
+                        Pendente
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="PAID">
+                      <Box display="flex" alignItems="center">
+                        <CheckCircleIcon sx={{ mr: 1, color: "green" }} />
+                        Pago
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="OVERDUE">
+                      <Box display="flex" alignItems="center">
+                        <WarningIcon sx={{ mr: 1, color: "red" }} />
+                        Vencido
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="CANCELLED">
+                      <Box display="flex" alignItems="center">
+                        <ErrorIcon sx={{ mr: 1, color: "gray" }} />
+                        Cancelado
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="ERROR">
+                      <Box display="flex" alignItems="center">
+                        <ErrorIcon sx={{ mr: 1, color: "purple" }} />
+                        Erro
+                      </Box>
+                    </MenuItem>
+                  </Select>
+                </FormControl>
+
+                <TextField
+                  label="Motivo (opcional)"
+                  multiline
+                  rows={3}
+                  fullWidth
+                  variant="outlined"
+                  value={statusReason}
+                  onChange={(e) => setStatusReason(e.target.value)}
+                  placeholder="Digite o motivo da alteração do status..."
+                  sx={{ mt: 2 }}
+                />
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setUpdateStatusOpen(false);
+              setNewStatus("");
+              setStatusReason("");
+            }}
+            variant="outlined"
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<EditIcon />}
+            onClick={handleUpdateBillingStatus}
+            disabled={
+              updatingStatus ||
+              !newStatus ||
+              newStatus === selectedBilling?.status
+            }
+          >
+            {updatingStatus ? "Alterando..." : "Alterar Status"}
           </Button>
         </DialogActions>
       </Dialog>

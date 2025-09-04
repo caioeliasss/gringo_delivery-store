@@ -251,13 +251,26 @@ const financialStats = async (req, res) => {
 // Rota para listar billings - COM DEBUG E FILTRO CORRETO
 const getBillings = async (req, res) => {
   try {
-    const { page = 1, limit = 10, status } = req.query;
+    const { page = 1, limit = 10, status, storeId } = req.query;
+    // console.log("🔍 DEBUG: Filtro billing recebido:", {
+    //   page,
+    //   limit,
+    //   status,
+    //   storeId,
+    // }); // ✅ DEBUG
 
     const filter = {};
 
     if (status && status !== "all") {
       filter.status = status.toUpperCase(); // ✅ CORRIGIR: Garantir maiúsculo
     }
+
+    // ✅ ADICIONAR: Filtro por loja
+    if (storeId && storeId !== "all") {
+      filter.storeId = storeId;
+    }
+
+    // console.log("🔍 DEBUG: Filtro final aplicado:", filter); // ✅ DEBUG
 
     const billings = await Billing.find(filter)
       .populate("storeId", "displayName businessName email phone")
@@ -267,6 +280,11 @@ const getBillings = async (req, res) => {
       .lean();
 
     const total = await Billing.countDocuments(filter);
+
+    // console.log("🔍 DEBUG: Resultados encontrados:", {
+    //   totalBillings: total,
+    //   billingsRetornados: billings.length,
+    // }); // ✅ DEBUG
 
     // Formatar dados para o frontend
     const billingsFormatted = billings.map((b) => ({
@@ -302,18 +320,26 @@ const getBillings = async (req, res) => {
 // Rota para listar withdrawals - COM DEBUG E FILTRO CORRETO
 const getWithdrawals = async (req, res) => {
   try {
-    const { page = 1, limit = 10, status } = req.query;
-    console.log("🔍 DEBUG: Filtro withdrawal recebido:", {
-      page,
-      limit,
-      status,
-    }); // ✅ DEBUG
+    const { page = 1, limit = 10, status, motoboyId } = req.query;
+    // console.log("🔍 DEBUG: Filtro withdrawal recebido:", {
+    //   page,
+    //   limit,
+    //   status,
+    //   motoboyId,
+    // }); // ✅ DEBUG
 
     const filter = {};
 
     if (status && status !== "all") {
       filter.status = status; // ✅ Withdrawal usa minúsculo
     }
+
+    // ✅ ADICIONAR: Filtro por motoboy
+    if (motoboyId && motoboyId !== "all") {
+      filter.motoboyId = motoboyId;
+    }
+
+    // console.log("🔍 DEBUG: Filtro final aplicado:", filter); // ✅ DEBUG
 
     const withdrawals = await Withdrawal.find(filter)
       .populate("motoboyId", "name email phone")
@@ -323,6 +349,11 @@ const getWithdrawals = async (req, res) => {
       .lean();
 
     const total = await Withdrawal.countDocuments(filter);
+
+    // console.log("🔍 DEBUG: Resultados encontrados:", {
+    //   totalWithdrawals: total,
+    //   withdrawalsRetornados: withdrawals.length,
+    // }); // ✅ DEBUG
 
     // Formatar dados para o frontend
     const withdrawalsFormatted = withdrawals.map((w) => ({
@@ -419,12 +450,148 @@ const rejectWithdrawal = async (req, res) => {
   }
 };
 
+// ✅ NOVA FUNÇÃO: Alterar status do billing via admin
+const updateBillingStatus = async (req, res) => {
+  try {
+    const { billingId } = req.params;
+    const { status, reason } = req.body;
+
+    // Validar parâmetros obrigatórios
+    if (!status) {
+      return res.status(400).json({
+        error: "Status é obrigatório",
+      });
+    }
+
+    // Validar status permitidos
+    const allowedStatuses = [
+      "PENDING",
+      "PAID",
+      "OVERDUE",
+      "CANCELLED",
+      "ERROR",
+    ];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        error: `Status inválido. Valores permitidos: ${allowedStatuses.join(
+          ", "
+        )}`,
+      });
+    }
+
+    // Buscar a fatura
+    const billing = await Billing.findById(billingId).populate(
+      "storeId",
+      "businessName displayName email"
+    );
+    if (!billing) {
+      return res.status(404).json({ error: "Fatura não encontrada" });
+    }
+
+    // Verificar se o status já é o mesmo
+    if (billing.status === status) {
+      return res.status(400).json({
+        error: `A fatura já possui o status: ${status}`,
+      });
+    }
+
+    // Armazenar status anterior para log
+    const previousStatus = billing.status;
+
+    // Atualizar o status
+    billing.status = status;
+    billing.lastStatusUpdate = new Date();
+
+    // Adicionar motivo se fornecido
+    if (reason) {
+      billing.statusReason = reason;
+    }
+
+    await billing.save();
+
+    console.log(
+      `📋 [ADMIN] Status da fatura ${
+        billing._id
+      } alterado de ${previousStatus} para ${status}${
+        reason ? ` - Motivo: ${reason}` : ""
+      } - Loja: ${
+        billing.storeId?.businessName || billing.storeId?.displayName
+      }`
+    );
+
+    // Lógica específica para cada status (similar ao billingRoutes)
+    if (status === "OVERDUE") {
+      const store = await Store.findById(billing.storeId);
+      if (store && store.freeToNavigate === true) {
+        store.freeToNavigate = false;
+        await store.save();
+        console.log(
+          `🚫 [ADMIN] Acesso restringido para ${store.businessName} - fatura vencida`
+        );
+      }
+    } else if (status === "PAID") {
+      // Verificar se ainda há outras faturas vencidas
+      const overdueCount = await Billing.countDocuments({
+        storeId: billing.storeId,
+        status: "OVERDUE",
+      });
+
+      if (overdueCount === 0) {
+        const store = await Store.findById(billing.storeId);
+        if (
+          store &&
+          store.freeToNavigate === false &&
+          store.cnpj_approved === true
+        ) {
+          store.freeToNavigate = true;
+          await store.save();
+          console.log(
+            `✅ [ADMIN] Acesso liberado para ${store.businessName} - sem faturas vencidas`
+          );
+        }
+      }
+    }
+
+    // Buscar fatura atualizada com dados completos
+    const updatedBilling = await Billing.findById(billingId).populate(
+      "storeId",
+      "businessName displayName email"
+    );
+
+    res.json({
+      success: true,
+      message: "Status da fatura atualizado com sucesso",
+      billing: {
+        ...updatedBilling.toObject(),
+        storeName:
+          updatedBilling.storeId?.businessName ||
+          updatedBilling.storeId?.displayName ||
+          "Nome não encontrado",
+      },
+      changes: {
+        previousStatus,
+        newStatus: status,
+        reason: reason || null,
+        updatedAt: new Date(),
+        updatedBy: "admin",
+      },
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar status da fatura:", error);
+    res.status(500).json({
+      error: "Erro interno do servidor",
+      message: error.message,
+    });
+  }
+};
+
 // ✅ ADICIONAR: Registrar todas as rotas
 router.get("/financial/stats", financialStats);
 router.get("/financial/withdrawals", getWithdrawals);
 router.get("/financial/billings", getBillings);
 router.post("/financial/withdrawals/:withdrawalId/process", processWithdrawal);
 router.post("/financial/withdrawals/:withdrawalId/reject", rejectWithdrawal);
+router.patch("/financial/billings/:billingId/status", updateBillingStatus); // ← Nova rota
 
 router.get("/dashboard/stats", dashboardStats);
 router.post("/create", createAdmin);

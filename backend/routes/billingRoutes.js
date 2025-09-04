@@ -336,11 +336,190 @@ const getBillingPending = async (req, res) => {
   }
 };
 
+// ✅ NOVA FUNÇÃO: Alterar status do billing
+const updateBillingStatus = async (req, res) => {
+  const { id } = req.params;
+  const { status, reason } = req.body;
+
+  try {
+    // Validar parâmetros obrigatórios
+    if (!status) {
+      return res.status(400).json({
+        message: "Status é obrigatório",
+      });
+    }
+
+    // Validar status permitidos
+    const allowedStatuses = [
+      "PENDING",
+      "PAID",
+      "OVERDUE",
+      "CANCELLED",
+      "ERROR",
+    ];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        message: `Status inválido. Valores permitidos: ${allowedStatuses.join(
+          ", "
+        )}`,
+      });
+    }
+
+    // Buscar a fatura
+    const billing = await Billing.findById(id);
+    if (!billing) {
+      return res.status(404).json({ message: "Fatura não encontrada" });
+    }
+
+    // Verificar se o status já é o mesmo
+    if (billing.status === status) {
+      return res.status(400).json({
+        message: `A fatura já possui o status: ${status}`,
+      });
+    }
+
+    // Armazenar status anterior para log
+    const previousStatus = billing.status;
+
+    // Atualizar o status
+    billing.status = status;
+    billing.lastStatusUpdate = new Date();
+
+    // Adicionar motivo se fornecido
+    if (reason) {
+      billing.statusReason = reason;
+    }
+
+    await billing.save();
+
+    console.log(
+      `📋 Status da fatura ${
+        billing._id
+      } alterado de ${previousStatus} para ${status}${
+        reason ? ` - Motivo: ${reason}` : ""
+      }`
+    );
+
+    // Lógica específica para cada status
+    if (status === "OVERDUE") {
+      // Se marcado como vencido, verificar se deve restringir acesso
+      const Store = require("../models/Store");
+      const store = await Store.findById(billing.storeId);
+      if (store && store.freeToNavigate === true) {
+        store.freeToNavigate = false;
+        await store.save();
+        console.log(
+          `🚫 Acesso restringido para ${store.businessName} - fatura vencida`
+        );
+
+        // Notificar sobre suspensão
+        try {
+          await emailService.notifyUserAccessReproval(store);
+        } catch (notifError) {
+          console.warn(
+            "Erro ao enviar notificação de suspensão:",
+            notifError.message
+          );
+        }
+      }
+
+      // Notificar usuário sobre vencimento
+      try {
+        await notificationService.createGenericNotification({
+          title: "Fatura vencida",
+          message: `Sua fatura de ${billing.amount} está vencida. Regularize para manter o acesso.`,
+          firebaseUid: billing.firebaseUid,
+          type: "BILLING",
+        });
+      } catch (notifError) {
+        console.warn("Erro ao enviar notificação:", notifError.message);
+      }
+    } else if (status === "PAID") {
+      // Se marcado como pago, verificar se deve liberar acesso
+      const overdueCount = await Billing.countDocuments({
+        storeId: billing.storeId,
+        status: "OVERDUE",
+      });
+
+      if (overdueCount === 0) {
+        const Store = require("../models/Store");
+        const store = await Store.findById(billing.storeId);
+        if (
+          store &&
+          store.freeToNavigate === false &&
+          store.cnpj_approved === true
+        ) {
+          store.freeToNavigate = true;
+          await store.save();
+          console.log(
+            `✅ Acesso liberado para ${store.businessName} - sem faturas vencidas`
+          );
+
+          // Notificar sobre reativação
+          try {
+            await emailService.notifyUserAccessLiberation(store);
+          } catch (notifError) {
+            console.warn(
+              "Erro ao enviar notificação de reativação:",
+              notifError.message
+            );
+          }
+        }
+      }
+
+      // Notificar usuário sobre pagamento
+      try {
+        await notificationService.createGenericNotification({
+          title: "Pagamento confirmado",
+          message: `Seu pagamento de ${billing.amount} foi confirmado. Obrigado!`,
+          firebaseUid: billing.firebaseUid,
+          type: "BILLING",
+        });
+      } catch (notifError) {
+        console.warn("Erro ao enviar notificação:", notifError.message);
+      }
+    } else if (status === "CANCELLED") {
+      // Se cancelado, notificar usuário
+      try {
+        await notificationService.createGenericNotification({
+          title: "Fatura cancelada",
+          message: `Sua fatura de ${billing.amount} foi cancelada pelo administrador.`,
+          firebaseUid: billing.firebaseUid,
+          type: "BILLING",
+        });
+      } catch (notifError) {
+        console.warn("Erro ao enviar notificação:", notifError.message);
+      }
+    }
+
+    // Buscar fatura atualizada com dados completos
+    const updatedBilling = await Billing.findById(id);
+
+    res.status(200).json({
+      message: "Status da fatura atualizado com sucesso",
+      billing: updatedBilling,
+      changes: {
+        previousStatus,
+        newStatus: status,
+        reason: reason || null,
+        updatedAt: new Date(),
+      },
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar status da fatura:", error);
+    res.status(500).json({
+      message: "Erro interno do servidor",
+      error: error.message,
+    });
+  }
+};
+
 // ✅ ADICIONAR: Registrar as rotas
 router.get("/overdue/:storeId", getBillingOverdue);
 router.get("/pending/:storeId", getBillingPending); // ← Nova rota
 router.get("/qrcode/:id", getPaymentQRCode);
 router.get("/:id/status", checkBillingStatus);
+router.patch("/:id/status", updateBillingStatus); // ← Nova rota para alterar status
 router.post("/", createBilling);
 router.get("/", listBillings);
 router.get("/:id", getBilling);

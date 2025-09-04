@@ -21,27 +21,6 @@ const ChatIndicator = ({ onClick, sx = {}, children }) => {
     [hasUnreadChatMessages, chatUnreadCount, isConnected]
   );
 
-  // Se children for fornecido, usar apenas como wrapper com badge
-  if (children) {
-    return (
-      <Box sx={{ position: "relative", display: "inline-flex" }}>
-        {children}
-        {memoizedValues.hasUnread && memoizedValues.count > 0 && (
-          <Badge
-            badgeContent={memoizedValues.count}
-            color="error"
-            max={99}
-            sx={{
-              position: "absolute",
-              top: 0,
-              right: 0,
-            }}
-          />
-        )}
-      </Box>
-    );
-  }
-
   // Determinar ícone e cor baseado no status
   const getIconProps = useMemo(() => {
     if (!memoizedValues.connected) {
@@ -70,6 +49,27 @@ const ChatIndicator = ({ onClick, sx = {}, children }) => {
   }, [memoizedValues]);
 
   const { icon: IconComponent, color, tooltip } = getIconProps;
+
+  // Se children for fornecido, usar apenas como wrapper com badge
+  if (children) {
+    return (
+      <Box sx={{ position: "relative", display: "inline-flex" }}>
+        {children}
+        {memoizedValues.hasUnread && memoizedValues.count > 0 && (
+          <Badge
+            badgeContent={memoizedValues.count}
+            color="error"
+            max={99}
+            sx={{
+              position: "absolute",
+              top: 0,
+              right: 0,
+            }}
+          />
+        )}
+      </Box>
+    );
+  }
 
   return (
     <Tooltip

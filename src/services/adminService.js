@@ -19,6 +19,15 @@ class AdminService {
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+
+      // ✅ DEBUG: Log das requisições
+      console.log("🔍 AdminService Request:", {
+        method: config.method?.toUpperCase(),
+        url: config.url,
+        params: config.params,
+        headers: config.headers,
+      });
+
       return config;
     });
 
@@ -78,12 +87,52 @@ class AdminService {
   }
 
   async getWithdrawals(params = {}) {
+    console.log("🔍 DEBUG AdminService - getWithdrawals params:", params);
     const response = await this.api.get("/financial/withdrawals", { params });
+    console.log(
+      "🔍 DEBUG AdminService - getWithdrawals response:",
+      response.data
+    );
+    return response.data;
+  }
+
+  async processWithdrawal(withdrawalId) {
+    const response = await this.api.post(
+      `/financial/withdrawals/${withdrawalId}/process`
+    );
+    return response.data;
+  }
+
+  async rejectWithdrawal(withdrawalId, reason = "") {
+    const response = await this.api.post(
+      `/financial/withdrawals/${withdrawalId}/reject`,
+      { reason }
+    );
     return response.data;
   }
 
   async getBillings(params = {}) {
+    console.log("🔍 DEBUG AdminService - getBillings params:", params);
     const response = await this.api.get("/financial/billings", { params });
+    console.log("🔍 DEBUG AdminService - getBillings response:", response.data);
+    return response.data;
+  }
+
+  // ✅ NOVA FUNÇÃO: Alterar status do billing
+  async updateBillingStatus(billingId, status, reason = "") {
+    console.log("🔍 DEBUG AdminService - updateBillingStatus:", {
+      billingId,
+      status,
+      reason,
+    });
+    const response = await this.api.patch(
+      `/financial/billings/${billingId}/status`,
+      { status, reason }
+    );
+    console.log(
+      "🔍 DEBUG AdminService - updateBillingStatus response:",
+      response.data
+    );
     return response.data;
   }
 
