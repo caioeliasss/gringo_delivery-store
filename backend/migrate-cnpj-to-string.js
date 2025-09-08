@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 /**
- * Script Simples: CNPJ Number -> String
+ * Script Simples: Adicionar Roles às Ocorrências
  *
- * Converte todos os CNPJs que estão como Number para String
+ * Adiciona roles apropriados a todas as ocorrências baseado no tipo
  *
- * Uso: node scripts/migrate-cnpj-to-string.js
+ * Uso: node migrate-cnpj-to-string.js
  */
 
 require("dotenv").config({ path: ".env.production" });
@@ -15,7 +15,7 @@ const MONGODB_URI = process.env.MONGODB_URI;
 
 async function migrateCNPJToString() {
   try {
-    console.log("🚀 Convertendo CNPJs de Number para String...");
+    console.log("🚀 Adicionando roles às ocorrências baseado no tipo...");
 
     // Verificar se a URI foi carregada
     if (!MONGODB_URI) {
@@ -38,24 +38,46 @@ async function migrateCNPJToString() {
     await mongoose.connect(MONGODB_URI);
     console.log("✅ Conectado ao MongoDB");
 
-    // Buscar stores com CNPJ como Number
-    const stores = await mongoose.connection.db
-      .collection("stores")
+    // Buscar todas as occurrences
+    const occurrences = await mongoose.connection.db
+      .collection("occurrences")
       .find()
       .toArray();
 
-    console.log(`📊 Encontrados ${stores.length} stores com CNPJ como Number`);
+    console.log(
+      `📊 Encontradas ${occurrences.length} ocorrências para atualizar`
+    );
 
-    if (stores.length === 0) {
-      console.log("🎉 Todos os CNPJs já são String!");
+    if (occurrences.length === 0) {
+      console.log("🎉 Nenhuma ocorrência encontrada!");
       return;
     }
 
     // Mostrar quais serão convertidos
-    console.log("\n📋 Stores que serão convertidos:");
-    stores.forEach((store, i) => {
+    console.log("\n📋 Occurrences que serão atualizados:");
+    occurrences.forEach((occurrence, i) => {
+      // Preparar roles para mostrar preview
+      let previewRoles = ["admin"]; // sempre inclui admin
+
+      // Adicionar roles baseado no type
+      if (occurrence.type === "PAGAMENTO") {
+        previewRoles.push("finances");
+      } else if (
+        occurrence.type === "ENTREGA" ||
+        occurrence.type === "MOTOBOY" ||
+        occurrence.type === "ENTREGADOR"
+      ) {
+        previewRoles.push("logistics");
+        previewRoles.push("general");
+      } else {
+        // Todos os outros tipos: CLIENTE, APP, OUTRO, ESTABELECIMENTO, PRODUTO, PEDIDO, EVENTO
+        previewRoles.push("general");
+      }
+
       console.log(
-        `${i + 1}. ${store.businessName || store.email} - CNPJ: ${store.cnpj}`
+        `   ${i + 1}. Tipo: ${occurrence.type} -> Roles: [${previewRoles.join(
+          ", "
+        )}]`
       );
     });
 
@@ -64,24 +86,43 @@ async function migrateCNPJToString() {
     );
     await new Promise((resolve) => process.stdin.once("data", resolve));
 
-    // Converter cada um
+    // Atualizar cada occurrence
     let converted = 0;
-    for (const store of stores) {
+    for (const occurrence of occurrences) {
+      // Preparar os roles para esta occurrence
+      let roles = ["admin"]; // sempre inclui admin
+
+      if (occurrence.type === "PAGAMENTO") {
+        roles.push("finances");
+      } else if (
+        occurrence.type === "ENTREGA" ||
+        occurrence.type === "MOTOBOY" ||
+        occurrence.type === "ENTREGADOR"
+      ) {
+        roles.push("logistics");
+        roles.push("general");
+      } else {
+        // Todos os outros tipos: CLIENTE, APP, OUTRO, ESTABELECIMENTO, PRODUTO, PEDIDO, EVENTO
+        roles.push("general");
+      }
+
       const result = await mongoose.connection.db
-        .collection("stores")
-        .updateOne({ _id: store._id }, { $set: { freeToNavigate: true } });
+        .collection("occurrences")
+        .updateOne({ _id: occurrence._id }, { $set: { role: roles } });
 
       if (result.modifiedCount === 1) {
         converted++;
         console.log(
-          `✅ ${store.businessName || store.email}: ${store.cnpj} -> "${
-            store.cnpj
-          }"`
+          `✅ Occurrence ${occurrence._id}: Tipo ${
+            occurrence.type
+          } -> Roles: [${roles.join(", ")}]`
         );
       }
     }
 
-    console.log(`\n🎉 Migração concluída! ${converted} stores convertidos.`);
+    console.log(
+      `\n🎉 Migração concluída! ${converted} occurrences atualizados.`
+    );
   } catch (error) {
     console.error("❌ Erro:", error.message);
   } finally {

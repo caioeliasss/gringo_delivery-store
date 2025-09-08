@@ -6,6 +6,11 @@ const supportTeamSchema = new mongoose.Schema(
       type: String,
       required: false,
     },
+    role: {
+      type: [String],
+      enum: ["admin", "general", "finances", "logistics"],
+      required: false,
+    },
     active: {
       type: Boolean,
       default: false,

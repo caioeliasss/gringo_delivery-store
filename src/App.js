@@ -17,6 +17,7 @@ import Produtos from "./pages/Produtos/Produtos";
 import Pedidos from "./pages/Pedidos/pedidos";
 import SuporteLogin from "./pages/Suporte/login";
 import SuporteDashboard from "./pages/Suporte/dashboard";
+import FinanceiroSuporte from "./pages/Suporte/financeiro";
 import "./App.css";
 import RegisterSupport from "./pages/Suporte/register";
 import Occurrences from "./pages/Suporte/occurrences";
@@ -35,6 +36,7 @@ import LoginAdmin from "./pages/Admin/Login/login";
 import OrdersPage from "./pages/Orders/Orders";
 import MotoboysPage from "./pages/Motoboys";
 import EstabelecimentosPage from "./pages/Estabelecimentos";
+import EstabelecimentosSuporteWrapper from "./pages/Estabelecimentos/EstabelecimentosSupporte";
 import PrecificacaoPage from "./pages/Precificacao/Precificacao";
 import SupportPage from "./pages/Admin/SuportTeam/SupportPage";
 import SupportNotifications from "./pages/Suporte/SupportNotifications";
@@ -451,7 +453,7 @@ function SuporteApp() {
               element={
                 <SuporteAuthProvider>
                   <PrivateRoute>
-                    <EstabelecimentosPage />
+                    <EstabelecimentosSuporteWrapper />
                   </PrivateRoute>
                 </SuporteAuthProvider>
               }
@@ -462,6 +464,16 @@ function SuporteApp() {
                 <SuporteAuthProvider>
                   <PrivateRoute>
                     <PrecificacaoPage />
+                  </PrivateRoute>
+                </SuporteAuthProvider>
+              }
+            />
+            <Route
+              path="/financeiro"
+              element={
+                <SuporteAuthProvider>
+                  <PrivateRoute>
+                    <FinanceiroSuporte />
                   </PrivateRoute>
                 </SuporteAuthProvider>
               }

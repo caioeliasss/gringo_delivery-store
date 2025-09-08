@@ -68,6 +68,7 @@ import {
   Add as AddIcon,
 } from "@mui/icons-material";
 import { useAuth } from "../../contexts/AuthContext";
+import { useSuporteAuth } from "../../contexts/SuporteAuthContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import api from "../../services/api";
@@ -77,6 +78,7 @@ import SideDrawer from "../../components/SideDrawer/SideDrawer";
 import {
   SUPPORT_MENU_ITEMS,
   createSupportFooterItems,
+  getFilteredSupportMenuItems,
 } from "../../config/menuConfig";
 
 // Definições de cores baseadas no tipo de usuário

@@ -89,7 +89,6 @@ router.post("/cancelarIfood", async (req, res) => {
     const { orderId, reason } = req.body; // Corrigido: buscar via query string
     const IfoodService = require("../services/ifoodService");
     const ifoodService = new IfoodService();
-    console.log("essa é a reason", reason);
     const cancellationReasons = await ifoodService.cancelOrder(
       orderId,
       reason.description,

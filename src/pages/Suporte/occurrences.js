@@ -72,11 +72,13 @@ import api from "../../services/api";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "../../contexts/AuthContext";
+import { useSuporteAuth } from "../../contexts/SuporteAuthContext";
 import eventService from "../../services/eventService";
 import SideDrawer from "../../components/SideDrawer/SideDrawer";
 import {
   SUPPORT_MENU_ITEMS,
   createSupportFooterItems,
+  getFilteredSupportMenuItems,
 } from "../../config/menuConfig";
 
 const TIPOS_OCORRENCIA = {
@@ -89,6 +91,16 @@ const TIPOS_OCORRENCIA = {
     label: "Problema com Entrega",
     color: "#FFB74D",
     short: "Entrega",
+  },
+  MOTOBOY: {
+    label: "Problema com Motoboy",
+    color: "#FFB74D",
+    short: "Motoboy",
+  },
+  ENTREGADOR: {
+    label: "Problema com Entregador",
+    color: "#FFB74D",
+    short: "Entregador",
   },
   PAGAMENTO: {
     label: "Problema com Pagamento",
@@ -107,6 +119,11 @@ const TIPOS_OCORRENCIA = {
     label: "Problema com Produto",
     color: "#FF8A65",
     short: "Produto",
+  },
+  PEDIDO: {
+    label: "Problema com Pedido",
+    color: "#FF8A65",
+    short: "Pedido",
   },
   MOTOBOY: {
     label: "Problema de busca de Motoboy",
@@ -147,6 +164,7 @@ const Occurrences = () => {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [viewMode, setViewMode] = useState("table"); // Adicionar novo estado
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [supportTeamData, setSupportTeamData] = useState(null);
 
   // Fetch occurrences on component mount
 
@@ -160,13 +178,38 @@ const Occurrences = () => {
     }
   };
 
+  // Função para buscar dados do support team
+  const fetchSupportTeamData = async () => {
+    try {
+      if (currentUser && currentUser.uid) {
+        const response = await api.get(`/support/firebase/${currentUser.uid}`);
+        setSupportTeamData(response.data);
+        return response.data;
+      }
+    } catch (error) {
+      console.error("Erro ao buscar dados do support team:", error);
+      // Se não encontrar o usuário no support team, definir como null
+      setSupportTeamData(null);
+      return null;
+    }
+  };
+
   useEffect(() => {
-    fetchOccurrences();
+    const initializeData = async () => {
+      if (currentUser) {
+        // Primeiro buscar dados do support team
+        const supportData = await fetchSupportTeamData();
+        // Depois buscar ocorrências com os dados do support team
+        await fetchOccurrences(supportData);
+      }
+    };
+
+    initializeData();
 
     // Configurar polling apenas se o usuário estiver autenticado
     if (currentUser) {
       const pollInterval = setInterval(() => {
-        fetchOccurrences();
+        fetchOccurrences(supportTeamData);
       }, 60000); // A cada 60 segundos
 
       // Cleanup: limpar o interval quando o componente for desmontado ou currentUser mudar
@@ -190,7 +233,7 @@ const Occurrences = () => {
 
       // Configurar manipulador para atualizações de pedidos
       const handleOrderUpdate = (orderData) => {
-        fetchOccurrences();
+        fetchOccurrences(supportTeamData);
       };
 
       // Registrar o manipulador de eventos
@@ -277,10 +320,25 @@ const Occurrences = () => {
     }
   };
 
-  const fetchOccurrences = async () => {
+  const fetchOccurrences = async (supportData = null) => {
     try {
       setLoading(true);
-      const response = await api.get("/occurrences");
+
+      // Usar supportData passado como parâmetro ou o estado atual
+      const supportData = await fetchSupportTeamData();
+      const teamData = supportData || supportTeamData;
+
+      let response;
+      if (teamData && teamData.role && teamData.role.length > 0) {
+        // Se temos dados do support team, usar a rota filtrada
+        const rolesString = teamData.role.join(",");
+        response = await api.get(`/occurrences/filtered/${rolesString}`);
+      } else {
+        // Se não temos dados do support team, usar a rota padrão
+        response = await api.get("/occurrences");
+        console.warn("Fetched all occurrences without filtering");
+      }
+
       setOccurrences(response.data);
       setFilteredOccurrences(response.data);
     } catch (error) {
@@ -1666,6 +1724,52 @@ const Occurrences = () => {
     </Grid>
   );
 
+  // Função para renderizar o indicador de role
+  const renderRoleIndicator = () => {
+    if (
+      !supportTeamData ||
+      !supportTeamData.role ||
+      supportTeamData.role.length === 0
+    ) {
+      return null;
+    }
+
+    return (
+      <Box sx={{ mb: 2 }}>
+        <Paper
+          elevation={1}
+          sx={{
+            p: 2,
+            bgcolor: supportTeamData.role.includes("admin")
+              ? "success.light"
+              : "info.light",
+            borderLeft: 4,
+            borderColor: supportTeamData.role.includes("admin")
+              ? "success.main"
+              : "info.main",
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <PersonIcon
+              sx={{
+                color: supportTeamData.role.includes("admin")
+                  ? "success.dark"
+                  : "info.dark",
+              }}
+            />
+            <Typography variant="body2" sx={{ fontWeight: "medium" }}>
+              {supportTeamData.role.includes("admin")
+                ? "Acesso Administrativo - Visualizando todas as ocorrências"
+                : `Perfil: ${supportTeamData.role.join(
+                    ", "
+                  )} - Visualizando ocorrências filtradas por seu acesso`}
+            </Typography>
+          </Box>
+        </Paper>
+      </Box>
+    );
+  };
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       {/* Header */}
@@ -1681,6 +1785,9 @@ const Occurrences = () => {
           Gerencie as ocorrências reportadas pelos usuários
         </Typography>
       </Box>
+
+      {/* Role Indicator */}
+      {renderRoleIndicator()}
       {isMobile ? (
         <SideDrawer
           open={drawerOpen}

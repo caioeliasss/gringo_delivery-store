@@ -19,6 +19,51 @@ router.get("/", async (req, res) => {
   }
 });
 
+// GET - Buscar ocorrências filtradas por roles do support team
+router.get("/filtered/:roles", async (req, res) => {
+  try {
+    const { roles } = req.params;
+
+    // Converter a string de roles em array
+    let userRoles = [];
+    try {
+      userRoles = roles.split(",").map((role) => role.trim());
+    } catch (error) {
+      return res.status(400).json({
+        message: "Formato de roles inválido. Use roles separados por vírgula.",
+      });
+    }
+
+    let query = {};
+
+    // Se o usuário é admin, buscar todas as ocorrências
+    if (userRoles.includes("admin")) {
+      query = {};
+    } else {
+      // Se não é admin, filtrar por roles que o usuário tem acesso
+      query = {
+        $or: [
+          // Ocorrências que não têm role definido (acessível a todos)
+          { role: { $exists: false } },
+          { role: { $size: 0 } },
+          // Ocorrências que têm pelo menos um role que o usuário possui
+          { role: { $in: userRoles } },
+        ],
+      };
+    }
+
+    const occurrences = await Occurrence.find(query).sort({ createdAt: -1 });
+
+    res.status(200).json(occurrences);
+  } catch (error) {
+    console.error("Erro ao buscar ocorrências filtradas:", error);
+    res.status(500).json({
+      message: "Erro ao buscar ocorrências filtradas",
+      error: error.message,
+    });
+  }
+});
+
 // GET - Buscar ocorrências de um motoboy específico
 router.get("/motoboy/:id", async (req, res) => {
   try {
@@ -75,10 +120,54 @@ router.post("/", async (req, res) => {
       coordinates,
     } = req.body;
 
+    let role = ["admin"];
+    switch (type) {
+      case "ATENDIMENTO":
+        role.push("general");
+        break;
+      case "CLIENTE":
+        role.push("general");
+        break;
+      case "ENTREGA":
+        role.push("logistics");
+        break;
+      case "PAGAMENTO":
+        role.push("finances");
+        break;
+      case "EVENTO":
+        role.push("general");
+        break;
+      case "APP":
+        role.push("general");
+        break;
+      case "OUTRO":
+        role.push("general");
+        break;
+      case "ESTABELECIMENTO":
+        role.push("general");
+        break;
+      case "PRODUTO":
+        role.push("general");
+        break;
+      case "PEDIDO":
+        role.push("general");
+        break;
+      case "MOTOBOY":
+        role.push("logistics");
+        break;
+      case "ENTREGADOR":
+        role.push("logistics");
+        break;
+      default:
+        role.push("general");
+        break;
+    }
+
     // Criar nova ocorrência
     const newOccurrence = new Occurrence({
       description,
       type,
+      role,
       travelId: travelId || null,
       motoboyId: motoboyId || null,
       storeId: storeId || null,

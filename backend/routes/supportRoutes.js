@@ -4,7 +4,7 @@ const admin = require("firebase-admin");
 const SupportTeam = require("../models/SupportTeam");
 
 const createSupportTeam = async (req, res) => {
-  const { name, email, phone, whatsapp, firebaseUid, status, active } =
+  const { name, email, phone, whatsapp, firebaseUid, status, active, role } =
     req.body;
 
   try {
@@ -30,6 +30,20 @@ const createSupportTeam = async (req, res) => {
         success: false,
         message: "Formato de email inválido",
       });
+    }
+
+    // Validar roles se fornecidas
+    const validRoles = ["admin", "general", "finances", "logistics"];
+    if (role && Array.isArray(role)) {
+      const invalidRoles = role.filter((r) => !validRoles.includes(r));
+      if (invalidRoles.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Roles inválidas: ${invalidRoles.join(
+            ", "
+          )}. Roles válidas: ${validRoles.join(", ")}`,
+        });
+      }
     }
 
     // Verificar se email já está em uso
@@ -63,12 +77,15 @@ const createSupportTeam = async (req, res) => {
       firebaseUid: firebaseUid || "",
       status: status || "offline",
       active: false,
+      role: role || [],
     });
 
     await supportTeam.save();
 
     console.log(
-      `✅ Novo membro da equipe criado: ${supportTeam.name} (${supportTeam.email})`
+      `✅ Novo membro da equipe criado: ${supportTeam.name} (${
+        supportTeam.email
+      }) - Roles: ${supportTeam.role.join(", ")}`
     );
 
     res.status(201).json({
@@ -104,7 +121,7 @@ const createSupportTeam = async (req, res) => {
 };
 const updateSupportTeam = async (req, res) => {
   const { id } = req.params;
-  const { name, email, phone, whatsapp, status, active } = req.body;
+  const { name, email, phone, whatsapp, status, active, role } = req.body;
 
   try {
     // Validações básicas
@@ -112,6 +129,20 @@ const updateSupportTeam = async (req, res) => {
       return res.status(400).json({
         message: "Nome e email são obrigatórios",
       });
+    }
+
+    // Validar roles se fornecidas
+    const validRoles = ["admin", "general", "finances", "logistics"];
+    if (role && Array.isArray(role)) {
+      const invalidRoles = role.filter((r) => !validRoles.includes(r));
+      if (invalidRoles.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Roles inválidas: ${invalidRoles.join(
+            ", "
+          )}. Roles válidas: ${validRoles.join(", ")}`,
+        });
+      }
     }
 
     // Verificar se o email já está em uso por outro membro (se foi alterado)
@@ -145,13 +176,16 @@ const updateSupportTeam = async (req, res) => {
         whatsapp: whatsapp?.trim() || "",
         status: status || "offline",
         active: active !== undefined ? active : existingSupport.active,
+        role: role !== undefined ? role : existingSupport.role,
         updatedAt: new Date(),
       },
       { new: true, runValidators: true }
     );
 
     console.log(
-      `✅ Membro da equipe atualizado: ${supportTeam.name} (${supportTeam.email})`
+      `✅ Membro da equipe atualizado: ${supportTeam.name} (${
+        supportTeam.email
+      }) - Roles: ${supportTeam.role.join(", ")}`
     );
 
     res.json({
@@ -351,6 +385,32 @@ const editSupportTeam = async (req, res) => {
       fieldsToUpdate.active = Boolean(updateData.active);
     }
 
+    // Validar e atualizar roles
+    if (updateData.role !== undefined) {
+      const validRoles = ["admin", "general", "finances", "logistics"];
+
+      if (!Array.isArray(updateData.role)) {
+        return res.status(400).json({
+          success: false,
+          message: "Roles deve ser um array",
+        });
+      }
+
+      const invalidRoles = updateData.role.filter(
+        (r) => !validRoles.includes(r)
+      );
+      if (invalidRoles.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Roles inválidas: ${invalidRoles.join(
+            ", "
+          )}. Roles válidas: ${validRoles.join(", ")}`,
+        });
+      }
+
+      fieldsToUpdate.role = updateData.role;
+    }
+
     // Adicionar timestamp de atualização
     fieldsToUpdate.updatedAt = new Date();
 
@@ -366,7 +426,9 @@ const editSupportTeam = async (req, res) => {
     );
 
     console.log(
-      `✅ Membro da equipe editado com sucesso: ${updatedSupport.name}`
+      `✅ Membro da equipe editado com sucesso: ${
+        updatedSupport.name
+      } - Roles: ${updatedSupport.role.join(", ")}`
     );
 
     res.json({
@@ -446,9 +508,100 @@ const toggleSupportActive = async (req, res) => {
   }
 };
 
+// Rota para atualizar apenas as roles de um membro
+const updateSupportRoles = async (req, res) => {
+  const { id } = req.params;
+  const { role } = req.body;
+
+  try {
+    console.log(`🔧 Atualizando roles do membro ID: ${id}`, { role });
+
+    // Verificar se o membro existe
+    const existingSupport = await SupportTeam.findById(id);
+    if (!existingSupport) {
+      return res.status(404).json({
+        success: false,
+        message: "Membro da equipe não encontrado",
+      });
+    }
+
+    // Validar roles
+    const validRoles = ["admin", "general", "finances", "logistics"];
+
+    if (!Array.isArray(role)) {
+      return res.status(400).json({
+        success: false,
+        message: "Roles deve ser um array",
+      });
+    }
+
+    const invalidRoles = role.filter((r) => !validRoles.includes(r));
+    if (invalidRoles.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Roles inválidas: ${invalidRoles.join(
+          ", "
+        )}. Roles válidas: ${validRoles.join(", ")}`,
+      });
+    }
+
+    // Atualizar apenas as roles
+    const updatedSupport = await SupportTeam.findByIdAndUpdate(
+      id,
+      {
+        role: role,
+        updatedAt: new Date(),
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    console.log(
+      `✅ Roles atualizadas: ${
+        updatedSupport.name
+      } - Novas roles: ${updatedSupport.role.join(", ")}`
+    );
+
+    res.json({
+      success: true,
+      message: "Roles atualizadas com sucesso",
+      data: updatedSupport,
+      previousRoles: existingSupport.role,
+      newRoles: updatedSupport.role,
+    });
+  } catch (error) {
+    console.error("❌ Erro ao atualizar roles:", error);
+
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: "Dados inválidos",
+        details: Object.values(error.errors).map((e) => e.message),
+      });
+    }
+
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        success: false,
+        message: "ID inválido",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Erro interno do servidor",
+      error:
+        process.env.NODE_ENV === "development" ? error.message : "Erro interno",
+    });
+  }
+};
+
 router.post("/", createSupportTeam);
 router.put("/:id", updateSupportTeam);
 router.patch("/:id/edit", editSupportTeam); // Rota específica para edição
+router.patch("/:id/roles", updateSupportRoles); // Rota para atualizar roles
 router.patch("/:id/toggle-active", toggleSupportActive); // Rota para alternar status ativo
 router.get("/", getSupportTeam);
 router.get("/:id", getSupportTeamById);

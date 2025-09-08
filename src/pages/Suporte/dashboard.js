@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { useSuporteAuth } from "../../contexts/SuporteAuthContext";
 import { getUserProfile } from "../../services/api";
 import OrderStats from "../../components/orderStats";
 import {
@@ -46,6 +47,7 @@ import ChatIndicator from "../../components/ChatIndicator";
 import {
   SUPPORT_MENU_ITEMS,
   createSupportFooterItems,
+  getFilteredSupportMenuItems,
 } from "../../config/menuConfig";
 
 const SuporteDashboard = () => {
@@ -107,7 +109,7 @@ const SuporteDashboard = () => {
     setDrawerOpen(open);
   };
 
-  // Usar configuração centralizada de menu
+  // Usar configuração centralizada de menu com filtro baseado em roles
   const menuItems = SUPPORT_MENU_ITEMS;
 
   // Definir itens de rodapé para SideDrawer

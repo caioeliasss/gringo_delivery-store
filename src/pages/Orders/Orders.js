@@ -81,6 +81,7 @@ import SideDrawer from "../../components/SideDrawer/SideDrawer";
 import {
   SUPPORT_MENU_ITEMS,
   createSupportFooterItems,
+  getFilteredSupportMenuItems,
 } from "../../config/menuConfig";
 import { mockOrders } from "./mockData";
 import "./Orders.css";
@@ -91,6 +92,7 @@ import {
   useJsApiLoader,
 } from "@react-google-maps/api";
 import CreateOrderDialog from "./CreateOrderDialog";
+import { useSuporteAuth } from "../../contexts/SuporteAuthContext";
 
 const ORDER_STATUS = [
   {

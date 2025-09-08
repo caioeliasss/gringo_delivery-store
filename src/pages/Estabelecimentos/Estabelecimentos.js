@@ -94,8 +94,25 @@ import {
 import {
   SUPPORT_MENU_ITEMS,
   createSupportFooterItems,
+  getFilteredSupportMenuItems,
 } from "../../config/menuConfig";
 import "./Estabelecimentos.css";
+
+// Hook para detectar o contexto atual
+const useCurrentContext = () => {
+  const [context, setContext] = useState({ isAdmin: false, isSuporte: false });
+
+  useEffect(() => {
+    const hostname = window.location.hostname;
+    const subdomain = hostname.split(".")[0];
+    setContext({
+      isAdmin: subdomain === "admin",
+      isSuporte: subdomain === "suporte",
+    });
+  }, []);
+
+  return context;
+};
 
 const STORE_STATUS = [
   {
@@ -140,6 +157,24 @@ export default function EstabelecimentosPage() {
     libraries: ["places", "maps"],
   });
 
+  // Detectar o contexto atual
+  const { isAdmin, isSuporte } = useCurrentContext();
+
+  // Estados de suporte
+  const [supportUser, setSupportUser] = useState(null);
+  const [supportLoading, setSupportLoading] = useState(false);
+
+  // Verificar se estamos no contexto de suporte e carregar dados do suporte
+  useEffect(() => {
+    if (isSuporte) {
+      // Esta página será usada apenas no contexto onde o SuporteAuthProvider está disponível
+      // Por isso o erro não deveria acontecer se as rotas estiverem configuradas corretamente
+      console.log("Página carregada no contexto de suporte");
+    } else if (isAdmin) {
+      console.log("Página carregada no contexto de admin");
+    }
+  }, [isAdmin, isSuporte]);
+
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { user, logout } = useAuth();
@@ -164,6 +199,22 @@ export default function EstabelecimentosPage() {
     paymentMethods: [],
   });
   const [loadingBilling, setLoadingBilling] = useState(false);
+
+  // Verificar permissões do usuário - simplificado para admin sempre ter acesso
+  const hasAdminPermission = () => {
+    // No contexto admin, sempre tem permissão
+    return isAdmin;
+  };
+
+  const hasFinancePermission = () => {
+    // No contexto admin, sempre tem permissão
+    return isAdmin;
+  };
+
+  const hasGeneralPermission = () => {
+    // No contexto admin, sempre tem permissão
+    return isAdmin;
+  };
 
   useEffect(() => {
     fetchStores();
@@ -293,12 +344,16 @@ export default function EstabelecimentosPage() {
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase().trim();
       filtered = filtered.filter((store) => {
-        const name = (store.businessName || "").toLowerCase();
+        const name = (store.businessName || store.name || "").toLowerCase();
         const category = (store.category || "").toLowerCase();
-        // Busca por palavras parciais no nome ou categoria
+        const email = (store.email || "").toLowerCase();
+        // Busca por palavras parciais no nome, categoria ou email
         const searchWords = searchLower.split(/\s+/);
         return searchWords.every(
-          (word) => name.includes(word) || category.includes(word)
+          (word) =>
+            name.includes(word) ||
+            category.includes(word) ||
+            email.includes(word)
         );
       });
     }
@@ -1103,9 +1158,21 @@ export default function EstabelecimentosPage() {
               }}
             >
               <StoreIcon sx={{ mr: 2, color: "primary.main" }} />
-              <Typography variant="h4" fontWeight="bold" sx={{ flexGrow: 1 }}>
-                Estabelecimentos
-              </Typography>
+              <Box sx={{ flexGrow: 1 }}>
+                <Typography variant="h4" fontWeight="bold">
+                  Estabelecimentos
+                </Typography>
+                {isAdmin && (
+                  <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+                    <Chip
+                      label="Administrador do Sistema"
+                      size="small"
+                      color="error"
+                      variant="filled"
+                    />
+                  </Box>
+                )}
+              </Box>
             </Box>
 
             {/* Filtros */}
@@ -1495,11 +1562,15 @@ export default function EstabelecimentosPage() {
                         </TableCell>
                         <TableCell>
                           <Box sx={{ display: "flex", gap: 1 }}>
-                            <IconButton
-                              onClick={() => handleRemoveStore(store._id)}
-                            >
-                              <DeleteIcon />
-                            </IconButton>
+                            {hasAdminPermission() && (
+                              <IconButton
+                                onClick={() => handleRemoveStore(store._id)}
+                                title="Remover estabelecimento (apenas administradores)"
+                                color="error"
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            )}
                             <Button
                               size="small"
                               variant="outlined"
@@ -1587,52 +1658,66 @@ export default function EstabelecimentosPage() {
                                 businessName: e.target.value,
                               });
                             }}
-                            disabled={!editingName}
+                            disabled={!editingName || !hasAdminPermission()}
                             variant="standard"
                             size="medium"
                             sx={{ flexGrow: 1, mr: 1 }}
                             placeholder="Digite o nome da loja"
                           />
-                          {!editingName ? (
-                            <IconButton
-                              onClick={handleEditName}
-                              size="small"
-                              title="Editar nome"
-                            >
-                              <EditIcon />
-                            </IconButton>
+                          {hasAdminPermission() ? (
+                            !editingName ? (
+                              <IconButton
+                                onClick={handleEditName}
+                                size="small"
+                                title="Editar nome"
+                              >
+                                <EditIcon />
+                              </IconButton>
+                            ) : (
+                              <Box sx={{ display: "flex", gap: 0.5 }}>
+                                <IconButton
+                                  onClick={handleSaveName}
+                                  size="small"
+                                  disabled={savingName}
+                                  title="Salvar alterações"
+                                  sx={{
+                                    color: "success.main",
+                                    "&:hover": {
+                                      backgroundColor: "success.light",
+                                    },
+                                  }}
+                                >
+                                  {savingName ? (
+                                    <CircularProgress size={16} />
+                                  ) : (
+                                    <CheckIcon />
+                                  )}
+                                </IconButton>
+                                <IconButton
+                                  onClick={handleCancelEditName}
+                                  size="small"
+                                  title="Cancelar edição"
+                                  sx={{
+                                    color: "error.main",
+                                    "&:hover": {
+                                      backgroundColor: "error.light",
+                                    },
+                                  }}
+                                >
+                                  <CloseIcon />
+                                </IconButton>
+                              </Box>
+                            )
                           ) : (
-                            <Box sx={{ display: "flex", gap: 0.5 }}>
-                              <IconButton
-                                onClick={handleSaveName}
-                                size="small"
-                                disabled={savingName}
-                                title="Salvar alterações"
-                                sx={{
-                                  color: "success.main",
-                                  "&:hover": {
-                                    backgroundColor: "success.light",
-                                  },
-                                }}
-                              >
-                                {savingName ? (
-                                  <CircularProgress size={16} />
-                                ) : (
-                                  <CheckIcon />
-                                )}
-                              </IconButton>
-                              <IconButton
-                                onClick={handleCancelEditName}
-                                size="small"
-                                title="Cancelar edição"
-                                sx={{
-                                  color: "error.main",
-                                  "&:hover": { backgroundColor: "error.light" },
-                                }}
-                              >
-                                <CloseIcon />
-                              </IconButton>
-                            </Box>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{ ml: 1 }}
+                            >
+                              {isAdmin
+                                ? ""
+                                : "(Somente administradores podem editar)"}
+                            </Typography>
                           )}
 
                           <Box sx={{ mt: 1 }}>
@@ -1734,7 +1819,7 @@ export default function EstabelecimentosPage() {
                                         : formatCnpj(selectedStore?.cnpj || "")
                                     }
                                     onChange={(e) => {
-                                      if (editingCnpj) {
+                                      if (editingCnpj && hasAdminPermission()) {
                                         const value = e.target.value.replace(
                                           /\D/g,
                                           ""
@@ -1747,7 +1832,9 @@ export default function EstabelecimentosPage() {
                                         }
                                       }
                                     }}
-                                    disabled={!editingCnpj}
+                                    disabled={
+                                      !editingCnpj || !hasAdminPermission()
+                                    }
                                     variant="standard"
                                     size="small"
                                     sx={{ flexGrow: 1, mr: 1 }}
@@ -1756,48 +1843,58 @@ export default function EstabelecimentosPage() {
                                       maxLength: editingCnpj ? 14 : undefined,
                                     }}
                                   />
-                                  {!editingCnpj ? (
-                                    <IconButton
-                                      onClick={handleEditCnpj}
-                                      size="small"
-                                      title="Editar CNPJ"
-                                    >
-                                      <EditIcon fontSize="small" />
-                                    </IconButton>
+                                  {hasAdminPermission() ? (
+                                    !editingCnpj ? (
+                                      <IconButton
+                                        onClick={handleEditCnpj}
+                                        size="small"
+                                        title="Editar CNPJ"
+                                      >
+                                        <EditIcon fontSize="small" />
+                                      </IconButton>
+                                    ) : (
+                                      <Box sx={{ display: "flex", gap: 0.5 }}>
+                                        <IconButton
+                                          onClick={handleSaveCnpj}
+                                          size="small"
+                                          disabled={savingCnpj}
+                                          title="Salvar CNPJ"
+                                          sx={{
+                                            color: "success.main",
+                                            "&:hover": {
+                                              backgroundColor: "success.light",
+                                            },
+                                          }}
+                                        >
+                                          {savingCnpj ? (
+                                            <CircularProgress size={12} />
+                                          ) : (
+                                            <CheckIcon fontSize="small" />
+                                          )}
+                                        </IconButton>
+                                        <IconButton
+                                          onClick={handleCancelEditCnpj}
+                                          size="small"
+                                          title="Cancelar edição"
+                                          sx={{
+                                            color: "error.main",
+                                            "&:hover": {
+                                              backgroundColor: "error.light",
+                                            },
+                                          }}
+                                        >
+                                          <CloseIcon fontSize="small" />
+                                        </IconButton>
+                                      </Box>
+                                    )
                                   ) : (
-                                    <Box sx={{ display: "flex", gap: 0.5 }}>
-                                      <IconButton
-                                        onClick={handleSaveCnpj}
-                                        size="small"
-                                        disabled={savingCnpj}
-                                        title="Salvar CNPJ"
-                                        sx={{
-                                          color: "success.main",
-                                          "&:hover": {
-                                            backgroundColor: "success.light",
-                                          },
-                                        }}
-                                      >
-                                        {savingCnpj ? (
-                                          <CircularProgress size={12} />
-                                        ) : (
-                                          <CheckIcon fontSize="small" />
-                                        )}
-                                      </IconButton>
-                                      <IconButton
-                                        onClick={handleCancelEditCnpj}
-                                        size="small"
-                                        title="Cancelar edição"
-                                        sx={{
-                                          color: "error.main",
-                                          "&:hover": {
-                                            backgroundColor: "error.light",
-                                          },
-                                        }}
-                                      >
-                                        <CloseIcon fontSize="small" />
-                                      </IconButton>
-                                    </Box>
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                      sx={{ fontSize: "0.7rem" }}
+                                    >
+                                      {isAdmin ? "" : "(Admin)"}
+                                    </Typography>
                                   )}
                                 </Box>
                               </Box>
@@ -1846,6 +1943,13 @@ export default function EstabelecimentosPage() {
                                 Assinou o contrato:{" "}
                                 {selectedStore.termsAccepted ? "Sim" : "Não"}
                               </Typography>
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
+                                Data de assinatura:{" "}
+                                {formatDate(selectedStore.termsAcceptedAt)}
+                              </Typography>
                             </Stack>
                           </CardContent>
                         </Card>
@@ -1893,8 +1997,16 @@ export default function EstabelecimentosPage() {
                                   e.stopPropagation();
                                   openBillingModal(selectedStore);
                                 }}
+                                disabled={!hasFinancePermission()}
+                                title={
+                                  !hasFinancePermission()
+                                    ? "Você não tem permissão para alterar configurações financeiras"
+                                    : ""
+                                }
                               >
-                                Alterar
+                                {hasFinancePermission()
+                                  ? "Alterar"
+                                  : "Sem Acesso"}
                               </Button>
                             </Stack>
                           </CardContent>
@@ -2132,34 +2244,49 @@ export default function EstabelecimentosPage() {
                             >
                               Aprovar Estabelecimento (para pedidos)
                             </Typography>
-                            <Box>
-                              <Button
-                                variant="contained"
-                                color="error"
-                                disabled={selectedStore.cnpj_approved === false}
-                                onClick={() => {
-                                  handleReproveStore(selectedStore._id);
-                                }}
-                                sx={{ textTransform: "none", mr: 1 }}
+                            {hasAdminPermission() ? (
+                              <Box>
+                                <Button
+                                  variant="contained"
+                                  color="error"
+                                  disabled={
+                                    selectedStore.cnpj_approved === false
+                                  }
+                                  onClick={() => {
+                                    handleReproveStore(selectedStore._id);
+                                  }}
+                                  sx={{ textTransform: "none", mr: 1 }}
+                                >
+                                  <CloseIcon sx={{ mr: 1 }} />
+                                  Reprovar
+                                </Button>
+                                <Button
+                                  variant="contained"
+                                  color="success"
+                                  disabled={
+                                    selectedStore.cnpj_approved === true
+                                  }
+                                  onClick={() => {
+                                    handleApproveStore(selectedStore._id);
+                                  }}
+                                  sx={{ textTransform: "none" }}
+                                >
+                                  <CheckIcon sx={{ mr: 1 }} />
+                                  {selectedStore.cnpj_approved
+                                    ? "Aprovado"
+                                    : "Aprovar"}
+                                </Button>
+                              </Box>
+                            ) : (
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
                               >
-                                <CloseIcon sx={{ mr: 1 }} />
-                                Reprovar
-                              </Button>
-                              <Button
-                                variant="contained"
-                                color="success"
-                                disabled={selectedStore.cnpj_approved === true}
-                                onClick={() => {
-                                  handleApproveStore(selectedStore._id);
-                                }}
-                                sx={{ textTransform: "none" }}
-                              >
-                                <CheckIcon sx={{ mr: 1 }} />
-                                {selectedStore.cnpj_approved
-                                  ? "Aprovado"
-                                  : "Aprovar"}
-                              </Button>
-                            </Box>
+                                {isAdmin
+                                  ? ""
+                                  : "Apenas administradores podem aprovar estabelecimentos"}
+                              </Typography>
+                            )}
                           </Box>
                         </CardContent>
                         <CardContent>
@@ -2177,38 +2304,51 @@ export default function EstabelecimentosPage() {
                             >
                               Liberação de uso do sistema:
                             </Typography>
-                            <Box>
-                              <Button
-                                variant="contained"
-                                color="error"
-                                disabled={
-                                  selectedStore.freeToNavigate === false
-                                }
-                                onClick={() => {
-                                  handleReproveFreeToNavigate(
-                                    selectedStore._id
-                                  );
-                                }}
-                                sx={{ textTransform: "none", mr: 1 }}
+                            {hasAdminPermission() ? (
+                              <Box>
+                                <Button
+                                  variant="contained"
+                                  color="error"
+                                  disabled={
+                                    selectedStore.freeToNavigate === false
+                                  }
+                                  onClick={() => {
+                                    handleReproveFreeToNavigate(
+                                      selectedStore._id
+                                    );
+                                  }}
+                                  sx={{ textTransform: "none", mr: 1 }}
+                                >
+                                  <CloseIcon sx={{ mr: 1 }} />
+                                  Cancelar Acesso
+                                </Button>
+                                <Button
+                                  variant="contained"
+                                  color="success"
+                                  disabled={
+                                    selectedStore.freeToNavigate === true
+                                  }
+                                  onClick={() => {
+                                    handleFreeToNavigate(selectedStore._id);
+                                  }}
+                                  sx={{ textTransform: "none" }}
+                                >
+                                  <CheckIcon sx={{ mr: 1 }} />
+                                  {selectedStore.freeToNavigate
+                                    ? "Acesso Liberado"
+                                    : "Liberar acesso"}
+                                </Button>
+                              </Box>
+                            ) : (
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
                               >
-                                <CloseIcon sx={{ mr: 1 }} />
-                                Cancelar Acesso
-                              </Button>
-                              <Button
-                                variant="contained"
-                                color="success"
-                                disabled={selectedStore.freeToNavigate === true}
-                                onClick={() => {
-                                  handleFreeToNavigate(selectedStore._id);
-                                }}
-                                sx={{ textTransform: "none" }}
-                              >
-                                <CheckIcon sx={{ mr: 1 }} />
-                                {selectedStore.freeToNavigate
-                                  ? "Acesso Liberado"
-                                  : "Liberar acesso"}
-                              </Button>
-                            </Box>
+                                {isAdmin
+                                  ? ""
+                                  : "Apenas administradores podem liberar acesso ao sistema"}
+                              </Typography>
+                            )}
                           </Box>
                         </CardContent>
                       </Card>
@@ -2373,6 +2513,12 @@ export default function EstabelecimentosPage() {
                             )
                           }
                           variant="outlined"
+                          disabled={!hasFinancePermission()}
+                          helperText={
+                            !hasFinancePermission() && !isAdmin
+                              ? "Somente usuários com permissão financeira podem editar"
+                              : ""
+                          }
                         />
                       </Grid>
 
@@ -2391,6 +2537,12 @@ export default function EstabelecimentosPage() {
                             )
                           }
                           variant="outlined"
+                          disabled={!hasFinancePermission()}
+                          helperText={
+                            !hasFinancePermission() && !isAdmin
+                              ? "Somente usuários com permissão financeira podem editar"
+                              : ""
+                          }
                         />
                       </Grid>
 
@@ -2430,20 +2582,32 @@ export default function EstabelecimentosPage() {
                 <Button onClick={closeBillingModal} color="inherit">
                   Cancelar
                 </Button>
-                <Button
-                  onClick={saveBillingOptions}
-                  variant="contained"
-                  disabled={loadingBilling}
-                  startIcon={
-                    loadingBilling ? (
-                      <CircularProgress size={20} />
-                    ) : (
-                      <CheckIcon />
-                    )
-                  }
-                >
-                  {loadingBilling ? "Salvando..." : "Salvar"}
-                </Button>
+                {hasFinancePermission() && (
+                  <Button
+                    onClick={saveBillingOptions}
+                    variant="contained"
+                    disabled={loadingBilling}
+                    startIcon={
+                      loadingBilling ? (
+                        <CircularProgress size={20} />
+                      ) : (
+                        <CheckIcon />
+                      )
+                    }
+                  >
+                    {loadingBilling ? "Salvando..." : "Salvar"}
+                  </Button>
+                )}
+                {!hasFinancePermission() && !isAdmin && (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ ml: 2 }}
+                  >
+                    Apenas usuários com permissão financeira podem salvar
+                    alterações
+                  </Typography>
+                )}
               </DialogActions>
             </Dialog>
           </Container>

@@ -38,6 +38,12 @@ const occurrenceSchema = new mongoose.Schema({
     ],
     default: "OUTRO",
   },
+  role: {
+    type: [String],
+    required: false,
+    enum: ["admin", "general", "finances", "logistics"],
+    default: ["admin"],
+  },
   status: {
     type: String,
     required: true,

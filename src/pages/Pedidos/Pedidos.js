@@ -374,11 +374,33 @@ const Pedidos = () => {
   }, [openCancelDialog]);
 
   const handleCancelOrder = async () => {
-    if (selectedReason) {
-      console.log(
-        "seleectetetujdfbu8j0idsub80dfbuydfsbyufdgbyudgfbyu8fdgbyufdgbuyfdgbuf",
-        selectedReason
-      );
+    if (!currentPedido.ifoodId) {
+      try {
+        const response = await api.post("/orders/status", {
+          orderId: currentPedido._id,
+          status: "cancelado",
+        });
+        if (response.data.success) {
+          setSnackbar({
+            open: true,
+            message: `Pedido #${currentPedido._id} cancelado.`,
+            severity: "success",
+          });
+        }
+        setOpenCancelDialog(false);
+        setOpenDialog(false);
+        setPedidos((prev) =>
+          prev.map((pedido) =>
+            pedido._id === currentPedido._id
+              ? { ...pedido, status: "cancelado" }
+              : pedido
+          )
+        );
+      } catch (error) {
+        console.error("Erro ao cancelar pedido:", error);
+      }
+    }
+    if (selectedReason && currentPedido.ifoodId) {
       try {
         const response = await api.post("/orders/cancelarIfood", {
           orderId: currentPedido.ifoodId,
@@ -2654,15 +2676,24 @@ const Pedidos = () => {
               >
                 Voltar
               </Button>
-              <Button
-                onClick={() => handleCancelOrder(currentPedido?.ifoodId)}
-                color="error"
-                variant="contained"
-                disabled={!selectedReason}
-                sx={{ boxShadow: 2 }}
-              >
-                Confirmar Cancelamento
-              </Button>
+              {currentPedido && currentPedido.ifoodId ? (
+                <Button
+                  onClick={() => handleCancelOrder(currentPedido?.ifoodId)}
+                  color="error"
+                  variant="contained"
+                  disabled={!selectedReason}
+                >
+                  Confirmar Cancelamento
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => handleCancelOrder(currentPedido?._id)}
+                  color="error"
+                  variant="contained"
+                >
+                  Confirmar Cancelamento
+                </Button>
+              )}
             </DialogActions>
           </Dialog>
 

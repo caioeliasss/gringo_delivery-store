@@ -51,8 +51,10 @@ import { getDeliveryPrice, updateDeliveryPrice } from "../../services/api";
 import {
   SUPPORT_MENU_ITEMS,
   createSupportFooterItems,
+  getFilteredSupportMenuItems,
 } from "../../config/menuConfig";
 import "./Precificacao.css";
+import { useSuporteAuth } from "../../contexts/SuporteAuthContext";
 
 export default function PrecificacaoPage() {
   const theme = useTheme();

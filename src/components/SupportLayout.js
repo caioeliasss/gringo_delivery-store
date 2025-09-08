@@ -18,7 +18,9 @@ import { useAuth } from "../contexts/AuthContext";
 import {
   SUPPORT_MENU_ITEMS,
   createSupportFooterItems,
+  getFilteredSupportMenuItems,
 } from "../config/menuConfig";
+import { useSuporteAuth } from "../contexts/SuporteAuthContext";
 
 const SupportLayout = ({ children, title = "Gringo Delivery" }) => {
   const navigate = useNavigate();

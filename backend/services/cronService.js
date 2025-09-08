@@ -7,7 +7,10 @@ const enviromentUtils = require("../utils/environmentUtils");
 class CronService {
   constructor() {
     this.jobs = [];
-    this.isDevelopment = enviromentUtils.isDevelopment;
+    this.isDevelopment = enviromentUtils.isDevelopment();
+    console.log(
+      `🔧 CronService initialized - isDevelopment: ${this.isDevelopment}`
+    );
   }
 
   // Verificar se deve executar em ambiente de desenvolvimento
@@ -28,7 +31,7 @@ class CronService {
     }
 
     const job = new cron.CronJob(
-      "0 9 5 * *", // Executa todo dia 05 às 09:00
+      "0 9 8 * *", // Executa todo dia 08 às 09:00
       this.createMonthlyBillings.bind(this),
       null,
       true,
@@ -85,9 +88,9 @@ class CronService {
     const currentDate = new Date();
     const dueDate = new Date(
       currentDate.getFullYear(),
-      currentDate.getMonth() + 1,
+      currentDate.getMonth(),
       10
-    ); // Vencimento dia 10
+    ); // Vencimento dia 10 do mês
 
     // Calcular valor baseado no plano da loja
     let amount = this.calculateBillingAmount(store);
@@ -142,15 +145,16 @@ class CronService {
   calculateBillingAmount(store) {
     // Implementar lógica de preços baseada no plano
     const plans = store.billingOptions.monthlyFee;
+    const additionalFee = 1.89;
 
-    return plans || 0;
+    return plans + additionalFee || 0;
   }
 
   // Buscar lojas ativas (implementar conforme seu modelo)
   async getActiveStores() {
     try {
       const Store = require("../models/Store");
-      return await Store.find({ cnpj_approved: true });
+      return await Store.find({});
     } catch (error) {
       console.error("Erro ao buscar lojas ativas:", error);
       return [];
@@ -718,6 +722,10 @@ Total: R$ ${feePerDelivery.toFixed(2)}`;
 
   // ATUALIZAR: Método startAll para incluir taxa de motoboy
   startAll() {
+    console.log(`🚀 Iniciando CronService...`);
+    console.log(`🔧 NODE_ENV: "${process.env.NODE_ENV}"`);
+    console.log(`🔧 isDevelopment: ${this.isDevelopment}`);
+
     if (this.isDevelopment) {
       console.log(
         "🚫 [DEV MODE] Cron jobs desabilitados em ambiente de desenvolvimento"
@@ -726,6 +734,7 @@ Total: R$ ${feePerDelivery.toFixed(2)}`;
       return;
     }
 
+    console.log("✅ Ambiente de produção detectado - iniciando cron jobs...");
     this.scheduleMonthlyBilling();
     this.scheduleMotoboyFeeBilling(); // ADICIONAR esta linha
     this.scheduleOverdueCheck();

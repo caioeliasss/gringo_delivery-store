@@ -93,6 +93,33 @@ const SUPPORT_STATUS = [
   },
 ];
 
+const SUPPORT_ROLES = [
+  {
+    value: "admin",
+    label: "Administrador",
+    description: "Acesso total ao sistema",
+    color: "error",
+  },
+  {
+    value: "general",
+    label: "Suporte Geral",
+    description: "Atendimento geral e ocorrências",
+    color: "success",
+  },
+  {
+    value: "finances",
+    label: "Financeiro",
+    description: "Gestão financeira e cobranças",
+    color: "success",
+  },
+  {
+    value: "logistics",
+    label: "Logística",
+    description: "Gestão de entregas e motoboys",
+    color: "warning",
+  },
+];
+
 export default function SupportPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -102,6 +129,7 @@ export default function SupportPage() {
   const [supportTeam, setSupportTeam] = useState([]);
   const [filteredSupport, setFilteredSupport] = useState([]);
   const [selectedStatuses, setSelectedStatuses] = useState([]);
+  const [selectedRoles, setSelectedRoles] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [detailsModal, setDetailsModal] = useState(false);
@@ -115,6 +143,7 @@ export default function SupportPage() {
     whatsapp: "",
     status: "offline",
     active: false,
+    role: [],
   });
 
   useEffect(() => {
@@ -123,7 +152,7 @@ export default function SupportPage() {
 
   useEffect(() => {
     applyFilters();
-  }, [supportTeam, selectedStatuses, searchTerm]);
+  }, [supportTeam, selectedStatuses, selectedRoles, searchTerm]);
 
   const fetchSupportTeam = async () => {
     try {
@@ -149,6 +178,14 @@ export default function SupportPage() {
       );
     }
 
+    // Filtrar por roles
+    if (selectedRoles.length > 0) {
+      filtered = filtered.filter((support) => {
+        if (!support.role || support.role.length === 0) return false;
+        return selectedRoles.some((role) => support.role.includes(role));
+      });
+    }
+
     // Filtrar por nome (busca flexível)
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase().trim();
@@ -171,6 +208,11 @@ export default function SupportPage() {
     setSelectedStatuses(typeof value === "string" ? value.split(",") : value);
   };
 
+  const handleRoleChange = (event) => {
+    const value = event.target.value;
+    setSelectedRoles(typeof value === "string" ? value.split(",") : value);
+  };
+
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
   };
@@ -178,6 +220,7 @@ export default function SupportPage() {
   const clearAllFilters = () => {
     setSearchTerm("");
     setSelectedStatuses([]);
+    setSelectedRoles([]);
   };
 
   const handleLogout = async () => {
@@ -208,6 +251,7 @@ export default function SupportPage() {
         whatsapp: support.whatsapp || "",
         status: support.status || "offline",
         active: support.active || false,
+        role: support.role || [],
       });
       setSelectedSupport(support);
     } else {
@@ -218,6 +262,7 @@ export default function SupportPage() {
         whatsapp: "",
         status: "offline",
         active: false,
+        role: [],
       });
       setSelectedSupport(null);
     }
@@ -226,7 +271,6 @@ export default function SupportPage() {
 
   const closeEditModal = () => {
     setEditModal(false);
-    setSelectedSupport(null);
     setEditForm({
       name: "",
       email: "",
@@ -234,6 +278,7 @@ export default function SupportPage() {
       whatsapp: "",
       status: "offline",
       active: false,
+      role: [],
     });
   };
 
@@ -268,11 +313,29 @@ export default function SupportPage() {
             whatsapp: editForm.whatsapp,
             status: editForm.status,
             active: editForm.active,
+            role: editForm.role,
           }
         );
 
         if (response.data.success) {
           console.log("✅ Membro atualizado:", response.data.message);
+
+          // Criar objeto atualizado com os dados do formulário
+          const updatedSupport = {
+            ...selectedSupport,
+            ...editForm,
+            updatedAt: new Date().toISOString(), // Atualizar timestamp
+          };
+
+          // Atualizar o estado principal
+          setSupportTeam((prev) =>
+            prev.map((s) =>
+              s._id === selectedSupport._id ? updatedSupport : s
+            )
+          );
+
+          // Atualizar selectedSupport se o modal de detalhes estiver aberto
+          setSelectedSupport(updatedSupport);
         }
       } else {
         // Criar novo
@@ -283,10 +346,12 @@ export default function SupportPage() {
 
         if (response.data.success) {
           console.log("✅ Membro criado:", response.data.message);
+
+          // Recarregar a lista completa após criar novo membro
+          await fetchSupportTeam();
         }
       }
 
-      await fetchSupportTeam();
       closeEditModal();
     } catch (error) {
       console.error("Erro ao salvar membro da equipe:", error);
@@ -366,6 +431,36 @@ export default function SupportPage() {
         variant="outlined"
         size="small"
       />
+    );
+  };
+
+  const getRoleChips = (roles) => {
+    if (!roles || roles.length === 0) {
+      return (
+        <Chip
+          label="Sem permissão"
+          size="small"
+          variant="outlined"
+          color="default"
+        />
+      );
+    }
+
+    return (
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+        {roles.map((role) => {
+          const roleConfig = SUPPORT_ROLES.find((r) => r.value === role);
+          return (
+            <Chip
+              key={role}
+              label={roleConfig?.label || role}
+              size="small"
+              color={roleConfig?.color || "default"}
+              variant="outlined"
+            />
+          );
+        })}
+      </Box>
     );
   };
 
@@ -479,12 +574,11 @@ export default function SupportPage() {
               Adicionar Membro
             </Button>
           </Box>
-
           {/* Filtros */}
           <Paper className="filter-section" sx={{ mb: 3, p: 2 }}>
             <Grid container spacing={2}>
               {/* Barra de Pesquisa */}
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
                   label="Pesquisar por nome ou email"
@@ -510,7 +604,7 @@ export default function SupportPage() {
               </Grid>
 
               {/* Filtro por Status */}
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
                 <FormControl fullWidth>
                   <InputLabel id="status-filter-label">
                     Filtrar por Status
@@ -607,11 +701,94 @@ export default function SupportPage() {
                   </Select>
                 </FormControl>
               </Grid>
+
+              {/* Filtro por Roles */}
+              <Grid item xs={12} md={4}>
+                <FormControl fullWidth>
+                  <InputLabel id="role-filter-label">
+                    Filtrar por Permissão
+                  </InputLabel>
+                  <Select
+                    labelId="role-filter-label"
+                    multiple
+                    value={selectedRoles}
+                    onChange={handleRoleChange}
+                    input={<OutlinedInput label="Filtrar por Permissão" />}
+                    displayEmpty
+                    sx={{
+                      minHeight: "56px",
+                      "& .MuiSelect-select": {
+                        minHeight: "20px",
+                        display: "flex",
+                        alignItems: "center",
+                      },
+                    }}
+                    MenuProps={{
+                      PaperProps: {
+                        style: {
+                          maxHeight: 300,
+                        },
+                      },
+                    }}
+                    renderValue={(selected) => {
+                      if (selected.length === 0) {
+                        return (
+                          <Typography variant="body2" color="text.secondary">
+                            Selecione as permissões
+                          </Typography>
+                        );
+                      }
+                      return (
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 0.5,
+                            alignItems: "center",
+                            minHeight: "20px",
+                          }}
+                        >
+                          {selected.map((value) => {
+                            const role = SUPPORT_ROLES.find(
+                              (r) => r.value === value
+                            );
+                            return (
+                              <Chip
+                                key={value}
+                                label={role?.label || value}
+                                size="small"
+                                color={role?.color || "default"}
+                                sx={{
+                                  fontSize: "0.75rem",
+                                  height: "24px",
+                                }}
+                              />
+                            );
+                          })}
+                        </Box>
+                      );
+                    }}
+                  >
+                    {SUPPORT_ROLES.map((role) => (
+                      <MenuItem key={role.value} value={role.value}>
+                        <Checkbox
+                          checked={selectedRoles.indexOf(role.value) > -1}
+                        />
+                        <ListItemText
+                          primary={role.label}
+                          secondary={role.description}
+                        />
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
             </Grid>
           </Paper>
-
           {/* Status dos Filtros Ativos */}
-          {(searchTerm.trim() || selectedStatuses.length > 0) && (
+          {(searchTerm.trim() ||
+            selectedStatuses.length > 0 ||
+            selectedRoles.length > 0) && (
             <Box
               sx={{
                 mb: 2,
@@ -655,12 +832,27 @@ export default function SupportPage() {
                 );
               })}
 
+              {selectedRoles.map((role) => {
+                const roleConfig = SUPPORT_ROLES.find((r) => r.value === role);
+                return (
+                  <Chip
+                    key={role}
+                    label={`Permissão: ${roleConfig?.label || role}`}
+                    size="small"
+                    color={roleConfig?.color || "default"}
+                    variant="outlined"
+                    onDelete={() =>
+                      setSelectedRoles((prev) => prev.filter((r) => r !== role))
+                    }
+                  />
+                );
+              })}
+
               <Button size="small" onClick={clearAllFilters} sx={{ ml: 1 }}>
                 Limpar todos
               </Button>
             </Box>
           )}
-
           {/* Lista da Equipe de Suporte */}
           {loading ? (
             <Box
@@ -710,6 +902,7 @@ export default function SupportPage() {
                   <TableRow>
                     <TableCell>Membro</TableCell>
                     <TableCell>Status</TableCell>
+                    <TableCell>Permissões</TableCell>
                     <TableCell>Telefone</TableCell>
                     <TableCell>WhatsApp</TableCell>
                     <TableCell>Ativo</TableCell>
@@ -759,6 +952,7 @@ export default function SupportPage() {
                       <TableCell>
                         {getStatusChip(support.status || "offline")}
                       </TableCell>
+                      <TableCell>{getRoleChips(support.role)}</TableCell>
                       <TableCell>
                         <Typography variant="body2">
                           {support.phone || "Não informado"}
@@ -798,8 +992,7 @@ export default function SupportPage() {
                 </TableBody>
               </Table>
             </Paper>
-          )}
-
+          )}{" "}
           {/* Modal de Detalhes */}
           <Dialog
             open={detailsModal}
@@ -988,6 +1181,13 @@ export default function SupportPage() {
                             </Typography>
 
                             <Typography variant="body2">
+                              <strong>Permissões:</strong>
+                            </Typography>
+                            <Box sx={{ mt: 1 }}>
+                              {getRoleChips(selectedSupport.role)}
+                            </Box>
+
+                            <Typography variant="body2">
                               <strong>Última atualização:</strong>{" "}
                               {formatDate(selectedSupport.updatedAt)}
                             </Typography>
@@ -1021,7 +1221,6 @@ export default function SupportPage() {
               </Button>
             </DialogActions>
           </Dialog>
-
           {/* Modal de Edição/Criação */}
           <Dialog
             open={editModal}
@@ -1088,6 +1287,51 @@ export default function SupportPage() {
                       }
                       variant="outlined"
                     />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth>
+                      <InputLabel>Permissões</InputLabel>
+                      <Select
+                        multiple
+                        value={editForm.role}
+                        onChange={(e) =>
+                          handleEditFormChange("role", e.target.value)
+                        }
+                        input={<OutlinedInput label="Permissões" />}
+                        renderValue={(selected) => (
+                          <Box
+                            sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}
+                          >
+                            {selected.map((value) => {
+                              const role = SUPPORT_ROLES.find(
+                                (r) => r.value === value
+                              );
+                              return (
+                                <Chip
+                                  key={value}
+                                  label={role?.label || value}
+                                  size="small"
+                                  color={role?.color || "default"}
+                                />
+                              );
+                            })}
+                          </Box>
+                        )}
+                      >
+                        {SUPPORT_ROLES.map((role) => (
+                          <MenuItem key={role.value} value={role.value}>
+                            <Checkbox
+                              checked={editForm.role.indexOf(role.value) > -1}
+                            />
+                            <ListItemText
+                              primary={role.label}
+                              secondary={role.description}
+                            />
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
                   </Grid>
 
                   <Grid item xs={12} sm={6}>

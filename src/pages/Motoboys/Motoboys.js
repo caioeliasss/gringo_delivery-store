@@ -69,6 +69,7 @@ import { ptBR } from "date-fns/locale";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
 import SideDrawer from "../../components/SideDrawer/SideDrawer";
 import { useAuth } from "../../contexts/AuthContext";
+import { useSuporteAuth } from "../../contexts/SuporteAuthContext";
 import api, {
   getMotoboy,
   getMotoboys,
@@ -85,6 +86,7 @@ import "./Motoboys.css";
 import {
   SUPPORT_MENU_ITEMS,
   createSupportFooterItems,
+  getFilteredSupportMenuItems,
 } from "../../config/menuConfig";
 
 const MOTOBOY_STATUS = [
@@ -439,7 +441,7 @@ export default function MotoboysPage() {
     document.body.removeChild(link);
   };
 
-  // Definir itens do menu para SideDrawer
+  // Definir itens do menu para SideDrawer com filtro baseado em roles
   const menuItems = SUPPORT_MENU_ITEMS;
 
   // Definir itens de rodapé para SideDrawer

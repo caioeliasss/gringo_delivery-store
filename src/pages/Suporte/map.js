@@ -61,11 +61,13 @@ import {
 } from "@react-google-maps/api";
 import api from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
+import { useSuporteAuth } from "../../contexts/SuporteAuthContext";
 import { useNavigate } from "react-router-dom";
 import SideDrawer from "../../components/SideDrawer/SideDrawer";
 import {
   SUPPORT_MENU_ITEMS,
   createSupportFooterItems,
+  getFilteredSupportMenuItems,
 } from "../../config/menuConfig";
 
 const mapContainerStyle = {
