@@ -997,7 +997,7 @@ export default function OrdersPage() {
                   <TableHead>
                     <TableRow>
                       <TableCell>Pedido</TableCell>
-                      <TableCell>Cliente</TableCell>
+                      <TableCell>Loja</TableCell>
                       <TableCell>Status</TableCell>
                       <TableCell>Status Fila</TableCell>
                       <TableCell>Total</TableCell>
@@ -1037,11 +1037,7 @@ export default function OrdersPage() {
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2" fontWeight="medium">
-                            {Array.isArray(order.customer)
-                              ? order.customer
-                                  .map((customer) => customer.name)
-                                  .join(", ")
-                              : order.customer?.name || "Cliente não informado"}
+                            {order.store.name || "Loja Desconhecida"}
                           </Typography>
                         </TableCell>
                         <TableCell>{getStatusChip(order.status)}</TableCell>

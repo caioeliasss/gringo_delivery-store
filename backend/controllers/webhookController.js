@@ -139,8 +139,8 @@ class WebhookController {
       }
 
       if (fullCode === "DELIVERY_DROP_CODE_REQUESTED") {
-        const orderService = new (require("../services/orderService"))();
-        await orderService.updateOrderStatus(orderId, "codigo_pronto");
+        // const orderService = new (require("../services/orderService"))();
+        // await orderService.updateOrderStatus(orderId, "codigo_pronto");
 
         res.status(200).json({ message: "Aguardando entrega do pedido" });
       }
