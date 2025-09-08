@@ -1,5 +1,6 @@
 import axios from "axios";
 import { auth } from "../firebase";
+import { showRateLimitMessage } from "../utils/systemMessageNotifier";
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080/api";
 
 // Sistema de cache TTL para evitar sobrecarregamento
@@ -63,6 +64,7 @@ class ApiCache {
       "/motoboys": 2 * 60 * 1000, // 2 minutos
       "/stores": 5 * 60 * 1000, // 5 minutos
       "/delivery-price": 15 * 60 * 1000, // 15 minutos
+      "/admin/firebase": 10 * 60 * 1000, // 10 minutos
 
       // Dados que mudam com frequência - TTL curto
       "/orders": 30 * 1000, // 30 segundos
@@ -72,7 +74,7 @@ class ApiCache {
       // Chat endpoints - Cache agressivo para prevenir 429
       "/chat/message/has-unread": 120 * 1000, // 2 minutos (bem maior que intervalo)
       "/chat/message/unread": 90 * 1000, // 1.5 minutos
-      "/chat/message/unread-info": 90 * 1000, // 1.5 minutos (endpoint otimizado)
+      "/chat/message/unread-info": 300 * 1000, // 5 minutos (endpoint otimizado - aumentado para prevenir spam)
       "/chat/user": 180 * 1000, // 3 minutos para lista de chats
 
       // Dados em tempo real - TTL muito curto
@@ -296,6 +298,11 @@ class ApiQueue {
           `Rate limit atingido. Tentativa ${item.attempts}/${this.retryAttempts} em ${retryDelay}ms`
         );
 
+        // Mostrar mensagem amigável ao usuário na primeira tentativa
+        if (item.attempts === 1) {
+          showRateLimitMessage();
+        }
+
         setTimeout(() => {
           item.timestamp = Date.now();
           this.queue.unshift(item); // Adicionar no início da fila
@@ -432,6 +439,9 @@ api.interceptors.response.use(
     // Se é erro 429 e não foi marcado como retry
     if (error.response?.status === 429 && !config._isRetry) {
       config._isRetry = true;
+
+      // Mostrar mensagem amigável ao usuário
+      showRateLimitMessage();
 
       // Extrair tempo de retry do header se disponível
       const retryAfter = error.response.headers["retry-after"];

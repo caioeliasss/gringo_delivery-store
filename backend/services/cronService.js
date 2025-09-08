@@ -31,7 +31,7 @@ class CronService {
     }
 
     const job = new cron.CronJob(
-      "0 9 8 * *", // Executa todo dia 08 às 09:00
+      "0 9 5 * *", // Executa todo dia 05 às 09:00
       this.createMonthlyBillings.bind(this),
       null,
       true,

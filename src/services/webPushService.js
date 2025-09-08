@@ -1,4 +1,6 @@
 // src/services/webPushService.js
+import antiSpamHelper from "../utils/antiSpamHelper.js";
+
 class WebPushService {
   constructor() {
     // Não executar código que depende de APIs do browser no constructor
@@ -7,6 +9,39 @@ class WebPushService {
     this.subscriptions = new Set(); // Para gerenciar múltiplas inscrições
     this.isNotificationSupported = false;
     this.initialized = false;
+
+    // Sistema de throttling para evitar execuções repetidas
+    this.lastStatusCheck = 0;
+    this.lastDiagnostic = 0;
+    this.lastInitialization = 0;
+    this.statusCheckCooldown = 30000; // 30 segundos entre verificações
+    this.diagnosticCooldown = 60000; // 1 minuto entre diagnósticos
+    this.initializationCooldown = 10000; // 10 segundos entre inicializações
+
+    // Configurar anti-spam para este serviço
+    antiSpamHelper.configure({
+      defaultCooldown: 10000, // 10 segundos
+      maxCallsPerMinute: 5, // Máximo 5 chamadas por minuto
+    });
+
+    // Criar wrappers protegidos para métodos que podem causar spam
+    this.protectedCheckStatus = antiSpamHelper.wrap(
+      "webPush_checkStatus",
+      this._internalCheckStatus.bind(this),
+      30000 // 30 segundos entre verificações
+    );
+
+    this.protectedGetDiagnostics = antiSpamHelper.wrap(
+      "webPush_getDiagnostics",
+      this._internalGetDiagnostics.bind(this),
+      60000 // 1 minuto entre diagnósticos
+    );
+
+    this.protectedInitialize = antiSpamHelper.wrap(
+      "webPush_initialize",
+      this._internalInitialize.bind(this),
+      10000 // 10 segundos entre inicializações
+    );
   }
 
   // Inicialização lazy - só executa quando realmente for usar
@@ -422,9 +457,22 @@ class WebPushService {
     return this.permission === "granted";
   }
 
-  // Verificar status atual sem alterar nada
+  // Verificar status atual - método público protegido
   async checkCurrentStatus() {
-    console.log("🔍 Verificando status atual das notificações...");
+    return this.protectedCheckStatus();
+  }
+
+  // Método interno para verificação de status
+  async _internalCheckStatus() {
+    const now = Date.now();
+
+    // Verificar cache primeiro
+    if (this.cachedStatus && now < this.statusCacheExpiry) {
+      console.log("� Retornando status do cache");
+      return this.cachedStatus;
+    }
+
+    console.log("🔍 Verificando status das notificações...");
 
     // Atualizar permissão
     this.permission = Notification.permission;
@@ -441,12 +489,16 @@ class WebPushService {
         hasPermission: this.hasPermission(),
         serviceWorkerRegistered: hasServiceWorker,
         isFullyConfigured: this.hasPermission() && hasServiceWorker,
+        timestamp: now,
       };
+
+      // Cachear resultado por 30 segundos
+      this.cachedStatus = status;
+      this.statusCacheExpiry = now + 30000;
 
       console.log("📊 Status das notificações:", status);
 
       if (status.isFullyConfigured && !this.serviceWorkerRegistration) {
-        // Se tudo está configurado mas não temos a referência, reconectar
         console.log("🔄 Reconectando ao Service Worker...");
         this.serviceWorkerRegistration = existingRegistration;
         this.setupServiceWorkerListeners();
@@ -455,14 +507,20 @@ class WebPushService {
       return status;
     } catch (error) {
       console.warn("Erro ao verificar status:", error);
-      return {
+      const errorStatus = {
         supported: this.isSupported(),
         permission: this.permission,
         hasPermission: this.hasPermission(),
         serviceWorkerRegistered: false,
         isFullyConfigured: false,
         error: error.message,
+        timestamp: now,
       };
+
+      this.cachedStatus = errorStatus;
+      this.statusCacheExpiry = now + 10000;
+
+      return errorStatus;
     }
   }
 
@@ -517,8 +575,13 @@ class WebPushService {
     }
   }
 
-  // Inicializar o serviço
+  // Inicializar o serviço - método público protegido
   async initialize() {
+    return this.protectedInitialize();
+  }
+
+  // Método interno de inicialização
+  async _internalInitialize() {
     try {
       this.init(); // Garantir que está inicializado
       console.log("🔔 Inicializando WebPushService...");
@@ -534,10 +597,7 @@ class WebPushService {
         const existingRegistration =
           await navigator.serviceWorker.getRegistration("/");
         if (existingRegistration) {
-          console.log(
-            "🔍 Service Worker existente encontrado:",
-            existingRegistration
-          );
+          console.log("🔍 Service Worker existente encontrado");
           this.serviceWorkerRegistration = existingRegistration;
           this.setupServiceWorkerListeners();
 
@@ -550,11 +610,13 @@ class WebPushService {
             console.log(
               "✅ Reconectado ao Service Worker existente com permissão"
             );
+            this.initialized = true;
             return true;
           } else {
             console.log(
               "⚠️ Service Worker reconectado, mas sem permissão de notificação"
             );
+            this.initialized = true;
             return true;
           }
         }
@@ -569,6 +631,7 @@ class WebPushService {
         if (swRegistered) {
           this.setupServiceWorkerListeners();
           console.log("🎉 WebPushService inicializado com sucesso!");
+          this.initialized = true;
           return true;
         }
       }
@@ -576,7 +639,8 @@ class WebPushService {
       console.log(
         "⏳ WebPushService inicializado (aguardando permissão do usuário)"
       );
-      return true; // Retorna true mesmo sem permissão para permitir solicitação posterior
+      this.initialized = true;
+      return true;
     } catch (error) {
       console.error("❌ Erro durante inicialização do WebPushService:", error);
       return false;
@@ -606,8 +670,21 @@ class WebPushService {
     });
   }
 
-  // Diagnóstico do sistema
+  // Diagnóstico do sistema - método público protegido
   getDiagnostics() {
+    return this.protectedGetDiagnostics();
+  }
+
+  // Método interno para diagnóstico
+  _internalGetDiagnostics() {
+    const now = Date.now();
+
+    // Verificar cache primeiro
+    if (this.cachedDiagnostics && now < this.diagnosticsCacheExpiry) {
+      console.log("📋 Retornando diagnóstico do cache");
+      return this.cachedDiagnostics;
+    }
+
     const diagnostics = {
       supported: this.isSupported(),
       permission: this.permission,
@@ -618,10 +695,44 @@ class WebPushService {
       userAgent: navigator.userAgent,
       isSecureContext: window.isSecureContext,
       protocol: window.location.protocol,
+      timestamp: now,
     };
+
+    // Cachear diagnóstico por 1 minuto
+    this.cachedDiagnostics = diagnostics;
+    this.diagnosticsCacheExpiry = now + 60000;
 
     console.log("🔍 Diagnóstico WebPushService:", diagnostics);
     return diagnostics;
+  }
+
+  // Método para limpar cache e forçar nova verificação (se necessário)
+  clearCache() {
+    this.cachedStatus = null;
+    this.cachedDiagnostics = null;
+    this.statusCacheExpiry = 0;
+    this.diagnosticsCacheExpiry = 0;
+    antiSpamHelper.clear();
+    console.log("🗑️ Cache e proteção anti-spam do WebPushService limpos");
+  }
+
+  // Obter estatísticas anti-spam
+  getAntiSpamStats() {
+    return antiSpamHelper.getStats();
+  }
+
+  // Método para verificar se está em cooldown
+  isInCooldown(operation = "status") {
+    const functionMap = {
+      status: "webPush_checkStatus",
+      diagnostic: "webPush_getDiagnostics",
+      initialization: "webPush_initialize",
+    };
+
+    const functionName = functionMap[operation];
+    if (!functionName) return false;
+
+    return !antiSpamHelper.canExecute(functionName, 0);
   }
 }
 
