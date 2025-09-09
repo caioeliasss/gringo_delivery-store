@@ -120,10 +120,9 @@ const queueSchema = new mongoose.Schema({
       required: false,
     },
   ],
-  motoboy_status: {
-    type: [String],
-    enum: ["aguardando", "notificando", "aceito", "cancelado"],
-    default: [],
+  restartCount: {
+    type: Number,
+    default: 0,
   },
   status: {
     type: String,

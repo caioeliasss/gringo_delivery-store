@@ -1117,14 +1117,8 @@ class OrderService {
   // Atribuir motoboy a um pedido
   async assignMotoboyToOrder(orderId, motoboyId, firebaseUid) {
     try {
-      const user = await Store.findOne({ firebaseUid: firebaseUid });
-      if (!user) {
-        throw new Error("Usuário não encontrado");
-      }
-
       const order = await Order.findOne({
         _id: orderId,
-        "store.cnpj": user.cnpj,
       });
       if (!order) {
         throw new Error("Pedido não encontrado");
@@ -1139,16 +1133,20 @@ class OrderService {
         throw new Error("Motoboy não encontrado");
       }
 
-      // Verificar se motoboy está disponível
-      if (!motoboy.isAvailable) {
-        throw new Error("Motoboy não está disponível");
-      }
-
-      // Atribuir motoboy ao pedido
+      order.motoboy.queue.status = "confirmado";
+      // Motoboy accepted, assign to order
       order.motoboy = {
+        ...order.motoboy,
         motoboyId: motoboy._id,
         name: motoboy.name,
-        phone: motoboy.phone,
+        phone: motoboy.phoneNumber,
+        phoneNumber: motoboy.phoneNumber,
+        timer: Date.now(),
+        location: {
+          estimatedTime: motoboy.estimatedTimeMinutes,
+          distance: motoboy.distance,
+          startTime: new Date(),
+        },
       };
 
       // Atualizar status do pedido para "em entrega"

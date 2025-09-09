@@ -4,6 +4,7 @@ const Order = require("../models/Order");
 const Travel = require("../models/Travel");
 const NotificationService = require("./notificationService");
 const notificationService = require("./notificationService");
+const OrderService = require("./orderService");
 /**
  * Service for handling motoboy operations
  */
@@ -198,24 +199,8 @@ class MotoboyService {
       const accepted = await this.requestMotoboy(motoboy, order);
 
       if (accepted) {
-        order.motoboy.queue.status = "confirmado";
-        // Motoboy accepted, assign to order
-        order.motoboy = {
-          ...order.motoboy,
-          motoboyId: motoboy._id,
-          name: motoboy.name,
-          phone: motoboy.phoneNumber,
-          phoneNumber: motoboy.phoneNumber,
-          timer: Date.now(),
-          location: {
-            estimatedTime: motoboy.estimatedTimeMinutes,
-            distance: motoboy.distance,
-            startTime: new Date(),
-          },
-        };
-
-        // Save the updated order
-        await order.save();
+        const orderService = new OrderService();
+        await orderService.assignMotoboyToOrder(order._id, motoboy._id);
 
         console.log(
           `🔄 Motoboy ${motoboy.name} atribuído ao pedido ${order._id}, iniciando timer...`
@@ -250,6 +235,19 @@ class MotoboyService {
 
   async restartQueue(order) {
     try {
+      if (order.motoboy.queue.restartCount >= 3) {
+        console.log(
+          `❌ Número máximo de reinícios atingido para pedido ${order._id}`
+        );
+        order.motoboy.queue.status = "cancelado";
+        await order.save();
+        return;
+      } else {
+        order.motoboy.queue.restartCount =
+          (order.motoboy.queue.restartCount || 0) + 1;
+        3;
+        await order.save();
+      }
       if (order.motoboy.priceAdded < 5) {
         order.motoboy.price = order.motoboy.price + 3;
         order.motoboy.priceAdded = (order.motoboy.priceAdded || 0) + 3;
