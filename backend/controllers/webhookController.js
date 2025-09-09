@@ -13,6 +13,10 @@ class WebhookController {
     try {
       const { fullCode, orderId } = req.body;
 
+      console.log(
+        `[IFOOD WEBHOOK] Recebido: ${fullCode} para pedido ${orderId}`
+      );
+
       if (fullCode === "PLACED") {
         //só em modo desenvolvimento
 
@@ -63,16 +67,16 @@ class WebhookController {
             );
           }
         }
-        res.status(200).json({ message: "Pedido importado com sucesso" });
+        return res
+          .status(200)
+          .json({ message: "Pedido importado com sucesso" });
 
         // const confirmOrder = await ifoodService.confirmOrder(
         //   orderId,
         //   storeFirebaseUid
         // );
         // console.log("[IFOOD] Pedido confirmado:");
-      }
-
-      if (fullCode === "CONFIRMED") {
+      } else if (fullCode === "CONFIRMED") {
         // Importar o novo pedido
         // Primeiro tentar identificar o store do pedido
         const IfoodService = require("../services/ifoodService");
@@ -101,9 +105,10 @@ class WebhookController {
             await orderService.findDriverForOrder(orderIdSystem);
           }
         }
-        res.status(200).json({ message: "Pedido confirmado com sucesso" });
-      }
-      if (fullCode === "SEPARATION_ENDED") {
+        return res
+          .status(200)
+          .json({ message: "Pedido confirmado com sucesso" });
+      } else if (fullCode === "SEPARATION_ENDED") {
         const orderService = new (require("../services/orderService"))();
         let storeFirebaseUid = null;
         const verifyOrder = await Order.findOne({
@@ -124,35 +129,50 @@ class WebhookController {
         } else {
           await orderService.updateOrderStatus(verifyOrder._id, "pronto");
         }
-        res.status(200).json({ message: "Pedido pronto para entrega" });
-      }
-
-      if (fullCode === "CANCELLATION_REQUESTED") {
+        return res.status(200).json({ message: "Pedido pronto para entrega" });
+      } else if (fullCode === "CANCELLATION_REQUESTED") {
         const orderService = new (require("../services/orderService"))();
         await orderService.updateOrderStatus(orderId, "cancelado");
-        res.status(200).json({ message: "Pedido cancelado com sucesso" });
-      }
-      if (fullCode === "CANCELLED") {
+        return res
+          .status(200)
+          .json({ message: "Pedido cancelado com sucesso" });
+      } else if (fullCode === "CANCELLED") {
         const orderService = new (require("../services/orderService"))();
         await orderService.updateOrderStatus(orderId, "cancelado");
-        res.status(200).json({ message: "Pedido cancelado com sucesso" });
-      }
-
-      if (fullCode === "DELIVERY_DROP_CODE_REQUESTED") {
+        return res
+          .status(200)
+          .json({ message: "Pedido cancelado com sucesso" });
+      } else if (fullCode === "DELIVERY_DROP_CODE_REQUESTED") {
         // const orderService = new (require("../services/orderService"))();
         // await orderService.updateOrderStatus(orderId, "codigo_pronto");
 
-        res.status(200).json({ message: "Aguardando entrega do pedido" });
-      }
-      if (fullCode === "CONCLUDED") {
+        return res
+          .status(200)
+          .json({ message: "Aguardando entrega do pedido" });
+      } else if (fullCode === "CONCLUDED") {
         const orderService = new (require("../services/orderService"))();
         await orderService.updateOrderStatus(orderId, "entregue");
-        res.status(200).json({ message: "Pedido entregue com sucesso" });
+        return res.status(200).json({ message: "Pedido entregue com sucesso" });
+      } else {
+        // Se chegou aqui, é um fullCode não tratado
+        console.log(`[IFOOD WEBHOOK] Código não tratado: ${fullCode}`);
+        return res.status(200).json({
+          message: "Webhook processado com sucesso",
+          fullCode: fullCode,
+          note: "Código não tratado especificamente",
+        });
       }
-      res.status(200).json({ message: "Webhook processado com sucesso" });
     } catch (error) {
-      console.error("Erro no webhook:", error);
-      res.status(500).json({ error: "Erro interno do servidor" });
+      console.error("[IFOOD WEBHOOK] Erro no webhook:", {
+        error: error.message,
+        stack: error.stack,
+        fullCode: req.body?.fullCode,
+        orderId: req.body?.orderId,
+      });
+      return res.status(500).json({
+        error: "Erro interno do servidor",
+        message: error.message,
+      });
     }
   }
 

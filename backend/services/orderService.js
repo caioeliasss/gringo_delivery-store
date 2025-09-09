@@ -616,7 +616,7 @@ class OrderService {
             );
           }
         }
-        if (status === "cancelado") {
+        if (previousStatus !== "cancelado" && status === "cancelado") {
           try {
             await ifoodService.cancelOrder(order.ifoodId, firebaseUid);
           } catch (ifoodError) {

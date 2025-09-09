@@ -4,7 +4,6 @@ const Order = require("../models/Order");
 const Travel = require("../models/Travel");
 const NotificationService = require("./notificationService");
 const notificationService = require("./notificationService");
-const OrderService = require("./orderService");
 /**
  * Service for handling motoboy operations
  */
@@ -199,8 +198,45 @@ class MotoboyService {
       const accepted = await this.requestMotoboy(motoboy, order);
 
       if (accepted) {
-        const orderService = new OrderService();
-        await orderService.assignMotoboyToOrder(order._id, motoboy._id);
+        // Instead of calling OrderService, handle the assignment here directly
+        // Update the order with motoboy information
+        order.motoboy.queue.status = "confirmado";
+        order.motoboy = {
+          ...order.motoboy,
+          motoboyId: motoboy._id,
+          name: motoboy.name,
+          phone: motoboy.phoneNumber,
+          phoneNumber: motoboy.phoneNumber,
+          timer: Date.now(),
+          location: {
+            estimatedTime: motoboy.estimatedTimeMinutes,
+            distance: motoboy.distance,
+            startTime: new Date(),
+          },
+        };
+
+        // Update order status if needed
+        if (order.status === "em_preparo") {
+          order.status = "em_entrega";
+        }
+
+        if (order.ifoodId && order.deliveryMode === "entrega") {
+          const IfoodService = require("../services/ifoodService");
+          const ifoodService = new IfoodService();
+          try {
+            await ifoodService.assignMotoboyToOrder(order.ifoodId, motoboy._id);
+            console.log(
+              `[IFOOD] Motoboy ${motoboy.name} atribuído ao pedido iFood ${order.ifoodId}`
+            );
+          } catch (error) {
+            console.error(
+              `[IFOOD] Erro ao atribuir motoboy ao pedido iFood ${order.ifoodId}:`,
+              error.message
+            );
+          }
+        }
+
+        await order.save();
 
         console.log(
           `🔄 Motoboy ${motoboy.name} atribuído ao pedido ${order._id}, iniciando timer...`
