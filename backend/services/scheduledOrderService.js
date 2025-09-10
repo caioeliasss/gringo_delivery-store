@@ -162,9 +162,9 @@ class ScheduledOrderService {
       await this.checkMissedScheduledOrders();
     });
 
-    console.log(
-      "🔄 [SCHEDULED] Verificação periódica de pedidos agendados iniciada (a cada 5 minutos)"
-    );
+    // console.log(
+    //   "🔄 [SCHEDULED] Verificação periódica de pedidos agendados iniciada (a cada 5 minutos)"
+    // );
   }
 
   /**

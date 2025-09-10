@@ -691,7 +691,7 @@ const arrivedAtStore = async (req, res) => {
     if (order.ifoodId) {
       try {
         const ifoodService = new IfoodService();
-        await ifoodService.arrivedAtOrigin(order.id);
+        await ifoodService.arrivedAtOrigin(order.ifoodId);
       } catch (e) {
         console.error(
           "Erro ao atualizar status do pedido para 'arrived at origin':",
@@ -996,13 +996,10 @@ const getMotoboyDashboard = async (req, res) => {
 
     // 1. Verificar notificações não lidas de forma eficiente
     try {
-      let unreadCount = await Notification.countDocuments({
+      const unreadCount = await Notification.countDocuments({
         motoboyId: user._id,
+        status: { $ne: "READ" },
       });
-
-      unreadCount = unreadCount.filter(
-        (notification) => notification.status !== "READ"
-      );
 
       dashboardData.unreadNotifications = {
         hasUnread: unreadCount > 0,

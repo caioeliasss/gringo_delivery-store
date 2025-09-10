@@ -616,16 +616,6 @@ class OrderService {
             );
           }
         }
-        if (previousStatus !== "cancelado" && status === "cancelado") {
-          try {
-            await ifoodService.cancelOrder(order.ifoodId, firebaseUid);
-          } catch (ifoodError) {
-            console.error(
-              "Erro ao atualizar status no iFood (cancelOrder):",
-              ifoodError
-            );
-          }
-        }
       }
 
       if (global.sendSocketNotification) {

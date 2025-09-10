@@ -131,11 +131,11 @@ class WebhookController {
         }
         return res.status(200).json({ message: "Pedido pronto para entrega" });
       } else if (fullCode === "CANCELLATION_REQUESTED") {
-        const orderService = new (require("../services/orderService"))();
-        await orderService.updateOrderStatus(orderId, "cancelado");
-        return res
-          .status(200)
-          .json({ message: "Pedido cancelado com sucesso" });
+        // const orderService = new (require("../services/orderService"))();
+        // await orderService.updateOrderStatus(orderId, "cancelado");
+        // return res
+        //   .status(200)
+        //   .json({ message: "Pedido cancelado com sucesso" });
       } else if (fullCode === "CANCELLED") {
         const orderService = new (require("../services/orderService"))();
         await orderService.updateOrderStatus(orderId, "cancelado");

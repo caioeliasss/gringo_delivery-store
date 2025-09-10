@@ -208,6 +208,8 @@ class IfoodService {
         }
       );
 
+      console.log("[IFOOD] Motoboy atribuído com sucesso:", response.data);
+
       if (response.data.success) {
         try {
           await this.goingToOrigin(orderId, storeFirebaseUid);

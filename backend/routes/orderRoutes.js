@@ -3,6 +3,7 @@ const router = express.Router();
 const admin = require("firebase-admin");
 const OrderService = require("../services/orderService");
 const ScheduledOrderService = require("../services/scheduledOrderService");
+const IfoodService = require("../services/ifoodService");
 
 // Instanciar os services
 const orderService = new OrderService();
@@ -89,6 +90,7 @@ router.post("/cancelarIfood", async (req, res) => {
     const { orderId, reason } = req.body; // Corrigido: buscar via query string
     const IfoodService = require("../services/ifoodService");
     const ifoodService = new IfoodService();
+    console.log("[IFOOD] Razão recebida para cancelamento:", reason);
     const cancellationReasons = await ifoodService.cancelOrder(
       orderId,
       reason.description,
@@ -99,6 +101,23 @@ router.post("/cancelarIfood", async (req, res) => {
     console.error("Erro ao buscar motivos de cancelamento:", error);
     res.status(500).json({
       message: "Erro ao buscar motivos de cancelamento",
+      error: error.message,
+    });
+  }
+});
+
+router.post("/arrivedAtDestination", authenticateToken, async (req, res) => {
+  try {
+    const { orderId } = req.body;
+    const IfoodService = require("../services/ifoodService");
+    const ifoodService = new IfoodService();
+
+    const result = await ifoodService.arrivedAtDestination(orderId);
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Erro ao marcar chegada no destino:", error);
+    res.status(500).json({
+      message: "Erro ao marcar chegada no destino",
       error: error.message,
     });
   }

@@ -215,23 +215,23 @@ class MotoboyService {
           },
         };
 
-        // Update order status if needed
-        if (order.status === "em_preparo") {
-          order.status = "em_entrega";
-        }
-
         if (order.ifoodId && order.deliveryMode === "entrega") {
           const IfoodService = require("../services/ifoodService");
           const ifoodService = new IfoodService();
+          const driver = {
+            name: motoboy.name,
+            phone: motoboy.phoneNumber,
+            vehicleType: "MOTORCYCLE",
+          };
           try {
-            await ifoodService.assignMotoboyToOrder(order.ifoodId, motoboy._id);
+            await ifoodService.assignMotoboy(order.ifoodId, driver);
             console.log(
               `[IFOOD] Motoboy ${motoboy.name} atribuído ao pedido iFood ${order.ifoodId}`
             );
           } catch (error) {
             console.error(
               `[IFOOD] Erro ao atribuir motoboy ao pedido iFood ${order.ifoodId}:`,
-              error.message
+              error
             );
           }
         }

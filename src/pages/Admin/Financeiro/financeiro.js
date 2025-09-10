@@ -1528,6 +1528,14 @@ const AdminFinanceiro = () => {
                     {selectedBilling.description}
                   </Typography>
                 </Grid>
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" color="textSecondary">
+                    Método de Pagamento
+                  </Typography>
+                  <Typography variant="body1" gutterBottom>
+                    {selectedBilling.paymentMethod}
+                  </Typography>
+                </Grid>
               </Grid>
             </Box>
           )}
