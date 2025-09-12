@@ -96,7 +96,7 @@ export const GlobalNotificationsProvider = ({
 
         // const response = await getUnreadChatInfo(user.uid);
 
-        // // Só atualizar se ainda estiver montado
+        // // // Só atualizar se ainda estiver montado
         // if (mountedRef.current) {
         //   setHasUnreadChatMessages(response.data.hasUnreadMessages);
         //   setChatUnreadCount(response.data.totalUnreadCount || 0);

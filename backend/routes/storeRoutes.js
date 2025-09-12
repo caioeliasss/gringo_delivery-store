@@ -25,6 +25,28 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
+router.get("/phone/:id", async (req, res) => {
+  try {
+    const Order = require("../models/Order");
+    const order = await Order.findById(req.params.id).select("store");
+
+    console.log("Buscando telefone para loja ID:", order.store);
+
+    const user = await Store.findOne({ cnpj: order.store.cnpj }).select(
+      "phone"
+    );
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Erro ao buscar usuário", error: error.message });
+  }
+});
+
 // Rota para obter perfil do usuário atual
 router.get("/me", authenticateToken, async (req, res) => {
   try {
