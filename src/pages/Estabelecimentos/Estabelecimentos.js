@@ -807,6 +807,11 @@ export default function EstabelecimentosPage() {
   const [originalCnpj, setOriginalCnpj] = useState("");
   const [savingCnpj, setSavingCnpj] = useState(false);
 
+  // Estados para edição do telefone
+  const [editingPhone, setEditingPhone] = useState(false);
+  const [originalPhone, setOriginalPhone] = useState("");
+  const [savingPhone, setSavingPhone] = useState(false);
+
   const handleEditName = () => {
     setOriginalName(selectedStore?.businessName || "");
     setEditingName(true);
@@ -990,6 +995,100 @@ export default function EstabelecimentosPage() {
       cnpj: originalCnpj,
     });
     setEditingCnpj(false);
+  };
+
+  // Funções para edição do telefone
+  const handleEditPhone = () => {
+    setOriginalPhone(selectedStore?.phone || "");
+    setEditingPhone(true);
+  };
+
+  const formatPhone = (value) => {
+    if (!value) return "";
+    // Remove tudo que não é número
+    const phoneNumbers = value.replace(/\D/g, "");
+    // Formata o telefone (XX) XXXXX-XXXX
+    return phoneNumbers
+      .replace(/(\d{2})(\d)/, "($1) $2")
+      .replace(/(\d{5})(\d)/, "$1-$2")
+      .replace(/(-\d{4})\d+?$/, "$1");
+  };
+
+  const handleSavePhone = async () => {
+    if (!selectedStore || !selectedStore._id) {
+      console.error("Nenhuma loja selecionada para atualizar");
+      alert("Erro: Nenhuma loja selecionada");
+      return;
+    }
+
+    const newPhone = selectedStore.phone?.replace(/\D/g, "");
+    const originalPhoneNumbers = originalPhone?.replace(/\D/g, "");
+
+    if (!newPhone) {
+      alert("Telefone não pode estar vazio");
+      return;
+    }
+
+    if (newPhone.length < 10 || newPhone.length > 11) {
+      alert("Telefone deve ter 10 ou 11 dígitos");
+      return;
+    }
+
+    if (newPhone === originalPhoneNumbers) {
+      setEditingPhone(false);
+      return;
+    }
+
+    setSavingPhone(true);
+    try {
+      console.log("Atualizando telefone da loja:", {
+        storeId: selectedStore._id,
+        newPhone: newPhone,
+      });
+
+      const responseStore = await api.put(`/stores/phone`, {
+        phone: newPhone,
+        storeId: selectedStore._id,
+      });
+
+      // Atualizar a loja selecionada na lista
+      const updatedStore = responseStore.data;
+      if (updatedStore) {
+        setSelectedStore(updatedStore);
+      }
+      console.log("Updated store after phone change:", responseStore.data);
+      setEditingPhone(false);
+      console.log("Telefone atualizado com sucesso!");
+
+      // Mostrar feedback visual de sucesso
+      const originalTitle = document.title;
+      document.title = "✅ Telefone salvo!";
+      setTimeout(() => {
+        document.title = originalTitle;
+      }, 2000);
+    } catch (error) {
+      console.error("Erro ao atualizar telefone da loja:", error);
+
+      const errorMessage =
+        error.response?.data?.message || "Erro ao atualizar telefone da loja";
+      alert(errorMessage);
+
+      // Reverter o telefone para o original
+      setSelectedStore({
+        ...selectedStore,
+        phone: originalPhone,
+      });
+    } finally {
+      setSavingPhone(false);
+    }
+  };
+
+  const handleCancelEditPhone = () => {
+    setSelectedStore({
+      ...selectedStore,
+      phone: originalPhone,
+    });
+    setEditingPhone(false);
   };
 
   const handleRemoveStore = async (storeId) => {
@@ -1760,22 +1859,117 @@ export default function EstabelecimentosPage() {
                             </Box>
 
                             <Stack spacing={1}>
-                              {selectedStore.phoneNumber && (
+                              {/* Telefone editável */}
+                              <Box
+                                sx={{ display: "flex", alignItems: "center" }}
+                              >
+                                <PhoneIcon
+                                  sx={{
+                                    mr: 1,
+                                    fontSize: 16,
+                                    color: "text.secondary",
+                                  }}
+                                />
                                 <Box
-                                  sx={{ display: "flex", alignItems: "center" }}
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    flexGrow: 1,
+                                  }}
                                 >
-                                  <PhoneIcon
-                                    sx={{
-                                      mr: 1,
-                                      fontSize: 16,
-                                      color: "text.secondary",
+                                  <TextField
+                                    value={
+                                      editingPhone
+                                        ? selectedStore?.phone || ""
+                                        : formatPhone(
+                                            selectedStore?.phone ||
+                                              selectedStore?.phoneNumber ||
+                                              ""
+                                          )
+                                    }
+                                    onChange={(e) => {
+                                      if (
+                                        editingPhone &&
+                                        hasAdminPermission()
+                                      ) {
+                                        const value = e.target.value.replace(
+                                          /\D/g,
+                                          ""
+                                        );
+                                        if (value.length <= 11) {
+                                          setSelectedStore({
+                                            ...selectedStore,
+                                            phone: value,
+                                          });
+                                        }
+                                      }
+                                    }}
+                                    disabled={
+                                      !editingPhone || !hasAdminPermission()
+                                    }
+                                    variant="standard"
+                                    size="small"
+                                    sx={{ flexGrow: 1, mr: 1 }}
+                                    placeholder="Digite o telefone"
+                                    inputProps={{
+                                      maxLength: editingPhone ? 11 : undefined,
                                     }}
                                   />
-                                  <Typography variant="body2">
-                                    {selectedStore.phoneNumber}
-                                  </Typography>
+                                  {hasAdminPermission() ? (
+                                    !editingPhone ? (
+                                      <IconButton
+                                        onClick={handleEditPhone}
+                                        size="small"
+                                        title="Editar telefone"
+                                      >
+                                        <EditIcon fontSize="small" />
+                                      </IconButton>
+                                    ) : (
+                                      <Box sx={{ display: "flex", gap: 0.5 }}>
+                                        <IconButton
+                                          onClick={handleSavePhone}
+                                          size="small"
+                                          disabled={savingPhone}
+                                          title="Salvar telefone"
+                                          sx={{
+                                            color: "success.main",
+                                            "&:hover": {
+                                              backgroundColor: "success.light",
+                                            },
+                                          }}
+                                        >
+                                          {savingPhone ? (
+                                            <CircularProgress size={12} />
+                                          ) : (
+                                            <CheckIcon fontSize="small" />
+                                          )}
+                                        </IconButton>
+                                        <IconButton
+                                          onClick={handleCancelEditPhone}
+                                          size="small"
+                                          title="Cancelar edição"
+                                          sx={{
+                                            color: "error.main",
+                                            "&:hover": {
+                                              backgroundColor: "error.light",
+                                            },
+                                          }}
+                                        >
+                                          <CloseIcon fontSize="small" />
+                                        </IconButton>
+                                      </Box>
+                                    )
+                                  ) : (
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                      sx={{ fontSize: "0.7rem" }}
+                                    >
+                                      {isAdmin ? "" : "(Admin)"}
+                                    </Typography>
+                                  )}
                                 </Box>
-                              )}
+                              </Box>
 
                               {selectedStore.email && (
                                 <Box

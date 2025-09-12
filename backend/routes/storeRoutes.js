@@ -349,6 +349,31 @@ router.put("/cnpj", authenticateToken, async (req, res) => {
   }
 });
 
+router.put("/phone", authenticateToken, async (req, res) => {
+  try {
+    const { phone, storeId } = req.body;
+    if (!phone) {
+      return res.status(400).json({ message: "Telefone é obrigatório" });
+    }
+
+    const user = await Store.findById(storeId);
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    user.phone = phone;
+    await user.save();
+
+    res.status(200).json(user);
+  } catch (error) {
+    console.error("Erro ao atualizar telefone:", error);
+    res.status(500).json({
+      message: "Erro ao atualizar telefone",
+      error: error.message,
+    });
+  }
+});
+
 // Atualizar apenas a geolocalização do estabelecimento
 router.put("/location", authenticateToken, async (req, res) => {
   try {

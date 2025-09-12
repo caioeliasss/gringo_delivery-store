@@ -289,7 +289,7 @@ const getBillings = async (req, res) => {
     // Formatar dados para o frontend
     const billingsFormatted = billings.map((b) => ({
       ...b,
-      storeId: typeof b.storeId === "object" ? b.storeId._id : b.storeId,
+      storeId: typeof b.storeId === "object" ? b._id : b.storeId,
       storeName:
         b.storeId?.businessName ||
         b.storeId?.displayName ||
