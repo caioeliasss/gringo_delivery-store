@@ -85,7 +85,7 @@ router.get("/motoboy/:id", async (req, res) => {
 });
 
 // GET - Buscar uma ocorrência específica por ID
-router.get("/:id", async (req, res) => {
+router.get("/details/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -288,32 +288,123 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-// GET - Estatísticas de ocorrências
+// GET - Estatísticas de ocorrências para relatórios
 router.get("/stats/summary", async (req, res) => {
   try {
-    const totalOcorrencias = await Occurrence.countDocuments();
+    const { startDate, endDate, roles } = req.query;
+
+    console.log("Parâmetros recebidos:", { startDate, endDate, roles });
+
+    // Construir filtro de data
+    let dateFilter = {};
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      // Ajustar fim do dia para incluir todo o dia
+      end.setHours(23, 59, 59, 999);
+
+      dateFilter = {
+        createdAt: {
+          $gte: start,
+          $lte: end,
+        },
+      };
+    } else {
+      // Fallback para período padrão se não fornecido
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      dateFilter = { createdAt: { $gte: startOfMonth } };
+    }
+
+    // Filtrar por roles se fornecido
+    let roleFilter = {};
+    if (roles && roles !== "admin") {
+      const userRoles = roles.split(",").map((role) => role.trim());
+      if (!userRoles.includes("admin")) {
+        roleFilter = {
+          $or: [
+            { role: { $exists: false } },
+            { role: { $size: 0 } },
+            { role: { $in: userRoles } },
+          ],
+        };
+      }
+    }
+
+    // Combinar filtros
+    const baseFilter = { ...dateFilter, ...roleFilter };
+
+    // Estatísticas básicas
+    const totalOcorrencias = await Occurrence.countDocuments(baseFilter);
     const ocorrenciasAbertas = await Occurrence.countDocuments({
+      ...baseFilter,
       status: "ABERTO",
     });
     const ocorrenciasFechadas = await Occurrence.countDocuments({
+      ...baseFilter,
       status: "FECHADO",
     });
     const ocorrenciasPendentes = await Occurrence.countDocuments({
+      ...baseFilter,
       status: "PENDENTE",
     });
+    const ocorrenciasEmAndamento = await Occurrence.countDocuments({
+      ...baseFilter,
+      status: "EM_ANDAMENTO",
+    });
+
+    const ocorrencias = await Occurrence.find(baseFilter);
 
     // Contagem por tipo
     const tiposOcorrencia = await Occurrence.aggregate([
+      { $match: baseFilter },
       { $group: { _id: "$type", count: { $sum: 1 } } },
       { $sort: { count: -1 } },
     ]);
+
+    // Contagem por status
+    const statusOcorrencia = await Occurrence.aggregate([
+      { $match: baseFilter },
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+    ]);
+
+    // Contagem por prioridade (baseada no tipo)
+    const prioridadeMap = {
+      PAGAMENTO: "Alta",
+      ENTREGA: "Alta",
+      PRODUTO: "Alta",
+      CLIENTE: "Média",
+      ESTABELECIMENTO: "Média",
+      PEDIDO: "Média",
+      APP: "Baixa",
+      EVENTO: "Baixa",
+      ATENDIMENTO: "Média",
+      MOTOBOY: "Média",
+      ENTREGADOR: "Média",
+      OUTRO: "Baixa",
+    };
+
+    const prioridadeStats = tiposOcorrencia.reduce((acc, item) => {
+      const prioridade = prioridadeMap[item._id] || "Baixa";
+      acc[prioridade] = (acc[prioridade] || 0) + item.count;
+      return acc;
+    }, {});
+
+    // Tempo médio de resolução (simulado por enquanto)
+    // TODO: Implementar cálculo real baseado em timestamps de criação e fechamento
+    const tempoMedioResolucao = 2.4;
 
     res.status(200).json({
       total: totalOcorrencias,
       abertas: ocorrenciasAbertas,
       fechadas: ocorrenciasFechadas,
       pendentes: ocorrenciasPendentes,
+      emAndamento: ocorrenciasEmAndamento,
       porTipo: tiposOcorrencia,
+      porStatus: statusOcorrencia,
+      porPrioridade: prioridadeStats,
+      tempoMedioResolucao,
+      ocorrencias,
     });
   } catch (error) {
     console.error("Erro ao buscar estatísticas de ocorrências:", error);
@@ -323,6 +414,7 @@ router.get("/stats/summary", async (req, res) => {
   }
 });
 
+// GET - Buscar ocorrências por usuário Firebase
 router.get("/firebase/:firebaseUid", async (req, res) => {
   try {
     const { firebaseUid } = req.params;
@@ -337,6 +429,276 @@ router.get("/firebase/:firebaseUid", async (req, res) => {
     console.error("Erro ao buscar ocorrências do usuário Firebase:", error);
     res.status(500).json({
       message: "Erro ao buscar ocorrências do usuário Firebase",
+      error: error.message,
+    });
+  }
+});
+
+// GET - Buscar ocorrências recentes para relatórios
+router.get("/reports/recent", async (req, res) => {
+  try {
+    const { limit = 10, roles, startDate, endDate } = req.query;
+
+    // Construir filtro de data
+    let dateFilter = {};
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      // Ajustar fim do dia para incluir todo o dia
+      end.setHours(23, 59, 59, 999);
+
+      dateFilter = {
+        createdAt: {
+          $gte: start,
+          $lte: end,
+        },
+      };
+    } else {
+      // Fallback para último mês se não fornecido
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      dateFilter = { createdAt: { $gte: startOfMonth } };
+    }
+
+    // Filtrar por roles se fornecido
+    let roleFilter = {};
+    if (roles && roles !== "admin") {
+      const userRoles = roles.split(",").map((role) => role.trim());
+      if (!userRoles.includes("admin")) {
+        roleFilter = {
+          $or: [
+            { role: { $exists: false } },
+            { role: { $size: 0 } },
+            { role: { $in: userRoles } },
+          ],
+        };
+      }
+    }
+
+    const filter = { ...dateFilter, ...roleFilter };
+
+    const occurrences = await Occurrence.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit));
+
+    res.status(200).json(occurrences);
+  } catch (error) {
+    console.error("Erro ao buscar ocorrências recentes:", error);
+    res.status(500).json({
+      message: "Erro ao buscar ocorrências recentes",
+      error: error.message,
+    });
+  }
+});
+
+// GET - Análise temporal de ocorrências
+router.get("/reports/timeline", async (req, res) => {
+  try {
+    const { period = "month", groupBy = "day" } = req.query;
+
+    // Construir pipeline de agregação baseado no período
+    let matchStage = {};
+    let groupStage = {};
+
+    const now = new Date();
+    switch (period) {
+      case "week":
+        const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        matchStage = { createdAt: { $gte: startOfWeek } };
+        break;
+      case "month":
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        matchStage = { createdAt: { $gte: startOfMonth } };
+        break;
+      case "year":
+        const startOfYear = new Date(now.getFullYear(), 0, 1);
+        matchStage = { createdAt: { $gte: startOfYear } };
+        break;
+    }
+
+    // Definir agrupamento
+    switch (groupBy) {
+      case "hour":
+        groupStage = {
+          _id: {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" },
+            day: { $dayOfMonth: "$createdAt" },
+            hour: { $hour: "$createdAt" },
+          },
+        };
+        break;
+      case "day":
+        groupStage = {
+          _id: {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" },
+            day: { $dayOfMonth: "$createdAt" },
+          },
+        };
+        break;
+      case "month":
+        groupStage = {
+          _id: {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" },
+          },
+        };
+        break;
+    }
+
+    const timeline = await Occurrence.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          ...groupStage,
+          count: { $sum: 1 },
+          types: { $push: "$type" },
+          statuses: { $push: "$status" },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    res.status(200).json(timeline);
+  } catch (error) {
+    console.error("Erro ao buscar timeline de ocorrências:", error);
+    res.status(500).json({
+      message: "Erro ao buscar timeline",
+      error: error.message,
+    });
+  }
+});
+
+// GET - Top problemas mais frequentes
+router.get("/reports/top-issues", async (req, res) => {
+  try {
+    const { limit = 5, period = "month" } = req.query;
+
+    // Filtro de período
+    let dateFilter = {};
+    const now = new Date();
+
+    switch (period) {
+      case "week":
+        const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        dateFilter = { createdAt: { $gte: startOfWeek } };
+        break;
+      case "month":
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        dateFilter = { createdAt: { $gte: startOfMonth } };
+        break;
+      case "quarter":
+        const quarterStart = new Date(
+          now.getFullYear(),
+          Math.floor(now.getMonth() / 3) * 3,
+          1
+        );
+        dateFilter = { createdAt: { $gte: quarterStart } };
+        break;
+    }
+
+    const topIssues = await Occurrence.aggregate([
+      { $match: dateFilter },
+      {
+        $group: {
+          _id: "$type",
+          count: { $sum: 1 },
+          averageResolutionTime: { $avg: "$resolutionTime" }, // Assumindo que existe este campo
+          mostRecentCase: { $max: "$createdAt" },
+          statusDistribution: {
+            $push: "$status",
+          },
+        },
+      },
+      { $sort: { count: -1 } },
+      { $limit: parseInt(limit) },
+    ]);
+
+    res.status(200).json(topIssues);
+  } catch (error) {
+    console.error("Erro ao buscar top problemas:", error);
+    res.status(500).json({
+      message: "Erro ao buscar top problemas",
+      error: error.message,
+    });
+  }
+});
+
+// GET - Performance de resolução
+router.get("/reports/resolution-performance", async (req, res) => {
+  try {
+    const { period = "month" } = req.query;
+
+    // Filtro de período
+    let dateFilter = {};
+    const now = new Date();
+
+    switch (period) {
+      case "week":
+        const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        dateFilter = { createdAt: { $gte: startOfWeek } };
+        break;
+      case "month":
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        dateFilter = { createdAt: { $gte: startOfMonth } };
+        break;
+    }
+
+    const performance = await Occurrence.aggregate([
+      { $match: { ...dateFilter, status: "FECHADO" } },
+      {
+        $addFields: {
+          resolutionTimeHours: {
+            $divide: [
+              { $subtract: ["$updatedAt", "$createdAt"] },
+              1000 * 60 * 60, // Converter para horas
+            ],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: "$type",
+          avgResolutionTime: { $avg: "$resolutionTimeHours" },
+          minResolutionTime: { $min: "$resolutionTimeHours" },
+          maxResolutionTime: { $max: "$resolutionTimeHours" },
+          totalResolved: { $sum: 1 },
+        },
+      },
+      { $sort: { avgResolutionTime: 1 } },
+    ]);
+
+    // Calcular estatísticas gerais
+    const overallStats = await Occurrence.aggregate([
+      { $match: { ...dateFilter, status: "FECHADO" } },
+      {
+        $addFields: {
+          resolutionTimeHours: {
+            $divide: [
+              { $subtract: ["$updatedAt", "$createdAt"] },
+              1000 * 60 * 60,
+            ],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          avgOverall: { $avg: "$resolutionTimeHours" },
+          totalResolved: { $sum: 1 },
+        },
+      },
+    ]);
+
+    res.status(200).json({
+      byType: performance,
+      overall: overallStats[0] || { avgOverall: 0, totalResolved: 0 },
+    });
+  } catch (error) {
+    console.error("Erro ao buscar performance de resolução:", error);
+    res.status(500).json({
+      message: "Erro ao buscar performance",
       error: error.message,
     });
   }

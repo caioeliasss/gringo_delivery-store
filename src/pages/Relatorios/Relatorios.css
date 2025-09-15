@@ -1,0 +1,247 @@
+/* src/pages/Relatorios/Relatorios.css */
+
+/* Animações personalizadas */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Classe para cards com animação */
+.report-card-animated {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.report-card-animated:nth-child(1) {
+  animation-delay: 0.1s;
+}
+.report-card-animated:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.report-card-animated:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.report-card-animated:nth-child(4) {
+  animation-delay: 0.4s;
+}
+.report-card-animated:nth-child(5) {
+  animation-delay: 0.5s;
+}
+.report-card-animated:nth-child(6) {
+  animation-delay: 0.6s;
+}
+.report-card-animated:nth-child(7) {
+  animation-delay: 0.7s;
+}
+
+/* Hover effects para cards ativos */
+.report-card-active:hover {
+  animation: pulse 0.3s ease-in-out;
+}
+
+/* Background gradient para a página principal */
+.reports-main-background {
+  background: linear-gradient(
+    135deg,
+    rgba(25, 118, 210, 0.02) 0%,
+    rgba(156, 39, 176, 0.02) 50%,
+    rgba(255, 193, 7, 0.02) 100%
+  );
+  min-height: 100vh;
+}
+
+/* Estilo para loading states */
+.reports-loading {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.1) 25%,
+    rgba(0, 0, 0, 0.05) 50%,
+    rgba(0, 0, 0, 0.1) 75%
+  );
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Estilo para tabelas responsivas */
+.reports-table-container {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.reports-table-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.reports-table-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.reports-table-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.reports-table-container::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* Estilo para cards de métricas */
+.metric-card {
+  transition: all 0.3s ease;
+  border-left: 4px solid transparent;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.metric-card.success {
+  border-left-color: #4caf50;
+}
+
+.metric-card.error {
+  border-left-color: #f44336;
+}
+
+.metric-card.warning {
+  border-left-color: #ff9800;
+}
+
+.metric-card.info {
+  border-left-color: #2196f3;
+}
+
+/* Estilo para chips de status */
+.status-chip {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.5px;
+}
+
+/* Responsividade para mobile */
+@media (max-width: 768px) {
+  .reports-container {
+    padding: 1rem;
+  }
+
+  .report-card-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .reports-header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+
+  .reports-header h1 {
+    font-size: 2rem;
+  }
+
+  .reports-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .reports-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reports-table-container {
+    font-size: 0.8rem;
+  }
+}
+
+/* Estilo para breadcrumbs */
+.reports-breadcrumb {
+  padding: 1rem 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+/* Estilo para filtros */
+.reports-filters {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Estilo para estatísticas destacadas */
+.highlight-stat {
+  background: linear-gradient(45deg, #ff6b6b, #feca57);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: bold;
+}
+
+/* Estilo para ícones animados */
+.animated-icon {
+  transition: transform 0.3s ease;
+}
+
+.animated-icon:hover {
+  transform: rotate(10deg) scale(1.1);
+}
+
+/* Estilo para tooltips customizados */
+.custom-tooltip {
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  max-width: 250px;
+}
+
+/* Print styles */
+@media print {
+  .reports-no-print {
+    display: none !important;
+  }
+
+  .report-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .reports-table-container {
+    overflow: visible;
+  }
+}

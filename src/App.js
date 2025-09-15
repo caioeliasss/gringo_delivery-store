@@ -51,6 +51,7 @@ import StoreNotificationsPage from "./pages/Store/Notifications/StoreNotificatio
 import Configuracao from "./pages/Store/Configuracao/Configuracao";
 import HandshakeNegotiation from "./pages/Store/HandshakeNegotiation/HandshakeNegotiation";
 import StoreAccessControl from "./components/StoreAccessControl";
+import Relatorios from "./pages/Relatorios/Relatorios";
 // Definir tema personalizado com a paleta de cores da Gringo Delivery
 const theme = createTheme({
   typography: {
@@ -397,6 +398,16 @@ function SuporteApp() {
                 }
               />
               <Route
+                path="/relatorios"
+                element={
+                  <SuporteAuthProvider>
+                    <PrivateRoute>
+                      <Relatorios />
+                    </PrivateRoute>
+                  </SuporteAuthProvider>
+                }
+              />
+              <Route
                 path="/ocorrencias"
                 element={
                   <SuporteAuthProvider>
@@ -526,6 +537,7 @@ function AdminApp() {
                       <Route path="/settings" element={<PrecificacaoPage />} />
                       <Route path="/mapa" element={<SupportMapPage />} />
                       <Route path="/chat" element={<ChatPage />} />
+                      <Route path="/relatorios" element={<Relatorios />} />
                       <Route
                         path="/notifications"
                         element={<AdminNotifications />}

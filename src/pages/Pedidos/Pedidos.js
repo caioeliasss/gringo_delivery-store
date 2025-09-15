@@ -376,8 +376,8 @@ const Pedidos = () => {
   const handleCancelOrder = async () => {
     if (!currentPedido.ifoodId) {
       try {
-        const response = await api.post("/orders/status", {
-          orderId: currentPedido._id,
+        const response = await api.put("/orders/status", {
+          id: currentPedido._id,
           status: "cancelado",
         });
         if (response.data.success) {
@@ -396,8 +396,15 @@ const Pedidos = () => {
               : pedido
           )
         );
+        return;
       } catch (error) {
         console.error("Erro ao cancelar pedido:", error);
+        setSnackbar({
+          open: true,
+          message: `Erro ao cancelar pedido #${currentPedido._id}.`,
+          severity: "error",
+        });
+        return;
       }
     }
     if (selectedReason && currentPedido.ifoodId) {
@@ -425,7 +432,7 @@ const Pedidos = () => {
           prev ? { ...prev, status: "cancelado" } : null
         );
       } catch (error) {
-        console.error("Erro ao cancelar pedido:", error);
+        console.error("Erro ao cancelar pedido ifood:", error);
         setSnackbar({
           open: true,
           message: `Erro ao cancelar pedido #${currentPedido.ifoodId}.`,

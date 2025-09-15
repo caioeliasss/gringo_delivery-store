@@ -94,18 +94,18 @@ export const GlobalNotificationsProvider = ({
 
         console.log("🔍 Verificando mensagens de chat não lidas...");
 
-        // const response = await getUnreadChatInfo(user.uid);
+        const response = await getUnreadChatInfo(user.uid);
 
-        // // // Só atualizar se ainda estiver montado
-        // if (mountedRef.current) {
-        //   setHasUnreadChatMessages(response.data.hasUnreadMessages);
-        //   setChatUnreadCount(response.data.totalUnreadCount || 0);
+        // // Só atualizar se ainda estiver montado
+        if (mountedRef.current) {
+          setHasUnreadChatMessages(response.data.hasUnreadMessages);
+          setChatUnreadCount(response.data.totalUnreadCount || 0);
 
-        //   console.log("✅ Status do chat atualizado:", {
-        //     hasUnread: response.data.hasUnreadMessages,
-        //     count: response.data.totalUnreadCount || 0,
-        //   });
-        // }
+          console.log("✅ Status do chat atualizado:", {
+            hasUnread: response.data.hasUnreadMessages,
+            count: response.data.totalUnreadCount || 0,
+          });
+        }
       } catch (error) {
         console.error(
           "❌ Erro ao verificar mensagens de chat não lidas:",
@@ -236,9 +236,9 @@ export const GlobalNotificationsProvider = ({
     if (user?.uid) {
       console.log("🚀 Inicializando GlobalNotifications para:", user.uid);
       initializePushNotifications();
-      checkUnreadChatMessages(true); // Forçar primeira verificação
+      // checkUnreadChatMessages(true); // Forçar primeira verificação
     }
-  }, [user?.uid, checkUnreadChatMessages]);
+  }, [user?.uid]);
 
   // Verificação periódica de mensagens de chat não lidas
   useEffect(() => {

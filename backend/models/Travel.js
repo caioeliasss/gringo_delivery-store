@@ -33,8 +33,8 @@ const travelSchema = mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ["em_entrega", "entregue", "cancelado"],
-    default: "em_entrega",
+    enum: ["pendente", "em_entrega", "entregue", "cancelado"],
+    default: "pendente",
   },
   distance: {
     type: Number,
@@ -119,6 +119,18 @@ const travelSchema = mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now,
+  },
+  deliveryAt: {
+    type: Date,
+    required: false,
+  },
+  dispatchAt: {
+    type: Date,
+    required: false,
+  },
+  customerCount: {
+    type: Number,
+    default: 1,
   },
 });
 

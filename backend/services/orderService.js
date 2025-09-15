@@ -564,19 +564,26 @@ class OrderService {
         `Pedido ${order._id} atualizado: ${previousStatus} -> ${status}`
       );
 
+      if (status === "em_entrega") {
+        const motoboy = await Motoboy.findById(order.motoboy.motoboyId);
+        const travelService = require("./travelServices");
+        travelService.updateTravelStatus(motoboy.race.travelId, "em_entrega");
+      }
+
       // Notificar motoboy sobre mudança de status (se houver motoboy atribuído)
       if (previousStatus !== status && order.motoboy?.motoboyId) {
-        // try {
-        //   await NotificationService.createGenericNotification({
-        //     orderId: order._id,
-        //     newStatus: status,
-        //     previousStatus: previousStatus,
-        //     motoboyId: order.motoboy.motoboyId,
-        //     storeName: order.store.name,
-        //   });
-        // } catch (notifyError) {
-        //   console.error("Erro ao notificar motoboy:", notifyError);
-        // }
+        try {
+          await NotificationService.notifyOrderStatusChange({
+            orderId: order._id,
+            orderNumber: order.orderNumber,
+            newStatus: status,
+            previousStatus: previousStatus,
+            motoboyId: order.motoboy.motoboyId,
+            storeName: order.store.name,
+          });
+        } catch (notifyError) {
+          console.error("Erro ao notificar motoboy:", notifyError);
+        }
       }
 
       if (order.ifoodId) {
