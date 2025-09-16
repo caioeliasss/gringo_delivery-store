@@ -567,7 +567,12 @@ class OrderService {
       if (status === "em_entrega") {
         const motoboy = await Motoboy.findById(order.motoboy.motoboyId);
         const travelService = require("./travelServices");
-        travelService.updateTravelStatus(motoboy.race.travelId, "em_entrega");
+        await travelService.updateTravelStatus(
+          motoboy.race.travelId,
+          "em_entrega"
+        );
+        order.motoboy.hasArrived = true;
+        await order.save();
       }
 
       // Notificar motoboy sobre mudança de status (se houver motoboy atribuído)

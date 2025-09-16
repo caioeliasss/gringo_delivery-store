@@ -189,7 +189,7 @@ class SocketService {
     });
 
     // Pedido aceito pelo motoboy
-    this.socket.on("orderAcceptedByMotoboy", (data) => {
+    this.socket.on("orderAccepted", (data) => {
       console.log("✅ Pedido aceito pelo motoboy:", data);
       this.emit("orderAcceptedByMotoboy", data);
     });

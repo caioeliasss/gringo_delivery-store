@@ -477,13 +477,18 @@ const Pedidos = () => {
       const handleOrderAcceptedByMotoboy = (data) => {
         console.log("✅ Pedido aceito pelo motoboy via socket:", data);
 
+        const motoboy = {
+          name: data.motoboy.name,
+          phone: data.motoboy.phoneNumber,
+          motoboyId: data.motoboy._id,
+        };
         setPedidos((prevPedidos) =>
           prevPedidos.map((pedido) =>
             pedido._id === data.orderId
               ? {
                   ...pedido,
                   status: "em_preparo",
-                  motoboy: data.motoboy || pedido.motoboy,
+                  motoboy: motoboy,
                 }
               : pedido
           )
@@ -711,11 +716,8 @@ const Pedidos = () => {
         );
         socketService.off("orderDelivered", handleOrderDelivered);
         socketService.off("orderUpdate", handleOrderUpdateSocket);
-        socketService.off("newOrder", (data) => {
-          if (!pedidos.includes(data._doc)) {
-            setPedidos((prevPedidos) => [data._doc, ...prevPedidos]);
-          }
-        });
+        // Remover apenas a referência do listener 'newOrder', sem adicionar um novo
+        socketService.off("newOrder");
 
         setSocketConnected(false);
         // Não desconectar completamente pois outros componentes podem usar
@@ -1518,8 +1520,9 @@ const Pedidos = () => {
         customerName: response.data.order.customer.name,
         createdAt: response.data.order.createdAt,
       });
-      // Adicionar novo pedido à lista
-      setPedidos((prev) => [response.data.order, ...prev]);
+      // Adicionar novo pedido à lista - REMOVIDO para evitar duplicação
+      // O pedido já é adicionado via CreateOrderDialog callback
+      // setPedidos((prev) => [response.data.order, ...prev]);
       setBuscandoMotoboy(true);
       setSnackbar({
         open: true,
@@ -1780,7 +1783,7 @@ const Pedidos = () => {
       return;
     }
 
-    if (!pedido.motoboy || !pedido.motoboy.phone || !pedido.motoboy.motoboyId) {
+    if (!pedido.motoboy || !pedido.motoboy.name) {
       setSnackbar({
         open: true,
         message: "Nenhum motoboy atribuído a este pedido.",
@@ -3319,7 +3322,8 @@ const Pedidos = () => {
                                       sx={{ mb: 0.5 }}
                                     >
                                       <strong>Telefone:</strong>{" "}
-                                      {currentPedido.motoboy?.phone}
+                                      {currentPedido.motoboy?.phone ||
+                                        currentPedido.motoboy?.phoneNumber}
                                     </Typography>
                                     {currentPedido.pickupCode && (
                                       <Typography
@@ -3332,7 +3336,8 @@ const Pedidos = () => {
                                     )}
                                     <Typography variant="body2">
                                       <strong>ID:</strong>{" "}
-                                      {currentPedido.motoboy?.motoboyId}
+                                      {currentPedido.motoboy?.motoboyId ||
+                                        currentPedido.motoboy?._id}
                                     </Typography>
                                   </Box>
                                 ) : (
@@ -3656,7 +3661,7 @@ const Pedidos = () => {
             onClose={() => setCreateDialogOpen(false)}
             onOrderCreated={(newOrder) => {
               // Adicionar o novo pedido à lista
-              setPedidos((prevOrders) => [newOrder, ...prevOrders]);
+              // setPedidos((prevOrders) => [newOrder, ...prevOrders]);
               setSnackbar({
                 open: true,
                 message: "Pedido criado com sucesso!",

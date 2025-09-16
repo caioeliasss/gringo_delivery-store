@@ -1,4 +1,5 @@
 const Travel = require("../models/Travel");
+const Motoboy = require("../models/Motoboy");
 
 class TravelService {
   // Métodos do serviço de viagens
@@ -43,11 +44,9 @@ class TravelService {
         );
 
         // Validações para evitar NaN
-        if (!travel.dispatchAt || !travel.deliveryTime) {
+        if (!travel.dispatchAt) {
           console.error("Erro: dispatchAt ou deliveryTime não definidos");
-          return res.status(400).json({
-            message: "Dados de tempo da viagem incompletos",
-          });
+          throw new Error("Dados de tempo da viagem incompletos");
         }
 
         const dispatchAt = new Date(travel.dispatchAt);
@@ -85,13 +84,13 @@ class TravelService {
           const velocidade = (distance / minutesDiff) * customerCount;
 
           // Fórmula dinâmica de avaliação baseada na velocidade
-          const velocidadeReferencia = 0.25; // km/min considerada como padrão
-          const fatorEscala = 1.2; // Ajusta a sensibilidade da curva
+          const velocidadeReferencia = 0.15; // km/min considerada como padrão (9 km/h)
+          const fatorEscala = 3.0; // Ajusta a sensibilidade da curva
 
           // Validar se velocidade é um número válido
           if (!isFinite(velocidade) || isNaN(velocidade)) {
             console.error(`Velocidade inválida: ${velocidade}`);
-            return { message: "Erro no cálculo da velocidade" };
+            throw new Error("Erro no cálculo da velocidade");
           }
 
           const rating =
@@ -103,12 +102,17 @@ class TravelService {
 
           const finalRating = Math.max(-0.3, Math.min(0.3, rating));
           const currentScore = parseFloat(motoboyScore?.score) || 0;
-          const newScore = finalRating + currentScore;
+          let newScore;
+          if (currentScore + finalRating >= 5) {
+            newScore = 5;
+          } else {
+            newScore = finalRating + currentScore;
+          }
 
           // Validar score final antes de salvar
           if (!isFinite(newScore) || isNaN(newScore)) {
             console.error(`Score final inválido: ${newScore}`);
-            return { message: "Erro no cálculo do score final" };
+            throw new Error("Erro no cálculo do score final");
           }
 
           const updatedMotoboy = await Motoboy.findByIdAndUpdate(
@@ -128,7 +132,11 @@ class TravelService {
               3
             )}, finalRating da viagem: ${finalRating.toFixed(
               3
-            )}, velocidade: ${velocidade.toFixed(3)} km/min`
+            )}, velocidade: ${velocidade.toFixed(
+              3
+            )} km/min, distance: ${distance} km, tempo: ${minutesDiff.toFixed(
+              2
+            )} min, clientes: ${customerCount}`
           );
         }
       }

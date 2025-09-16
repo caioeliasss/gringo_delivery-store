@@ -25,22 +25,50 @@ const createAvaliate = async (req, res) => {
     });
     await avaliate.save();
 
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const motoboy = await Motoboy.findById(motoboyId);
+    if (!motoboy) {
+      return res.status(404).json({ message: "Motoboy não encontrado" });
+    }
 
-    const ratings = await Avaliate.find({
-      motoboyId: motoboyId,
-      createdAt: { $gte: sevenDaysAgo },
-    });
+    let newRating;
+    switch (rating) {
+      case 1:
+        newRating = -0.3;
+        break;
+      case 2:
+        newRating = -0.1;
+        break;
+      case 3:
+        newRating = 0;
+        break;
+      case 4:
+        newRating = 0.1;
+        break;
+      case 5:
+        newRating = 0.3;
+        break;
+      default:
+        newRating = 0;
+    }
 
-    const averageRating =
-      ratings.length > 0
-        ? ratings.reduce((acc, curr) => acc + curr.rating, 0) / ratings.length
-        : 0;
+    newRating = parseFloat(motoboy.score) + newRating;
+
+    // const sevenDaysAgo = new Date();
+    // sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    // const ratings = await Avaliate.find({
+    //   motoboyId: motoboyId,
+    //   createdAt: { $gte: sevenDaysAgo },
+    // });
+
+    // const averageRating =
+    //   ratings.length > 0
+    //     ? ratings.reduce((acc, curr) => acc + curr.rating, 0) / ratings.length
+    //     : 0;
 
     const updatedMotoboy = await Motoboy.findByIdAndUpdate(
       motoboyId,
-      { score: averageRating },
+      { score: newRating },
       { new: true }
     );
 

@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gráfico de Pontuação - Sistema de Avaliação de Motoboys</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .controls {
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 5px;
+      }
+      .control-group {
+        margin-bottom: 10px;
+      }
+      label {
+        display: inline-block;
+        width: 200px;
+        font-weight: bold;
+      }
+      input[type="number"],
+      input[type="range"] {
+        margin-left: 10px;
+        padding: 5px;
+      }
+      .info-box {
+        background: #e3f2fd;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+        border-left: 4px solid #2196f3;
+      }
+      .chart-container {
+        position: relative;
+        height: 500px;
+        width: 100%;
+      }
+      .examples {
+        margin-top: 20px;
+        background: #f1f8e9;
+        padding: 15px;
+        border-radius: 5px;
+        border-left: 4px solid #4caf50;
+      }
+      .example-item {
+        margin-bottom: 8px;
+      }
+      .highlight {
+        background: #fff3e0;
+        padding: 2px 5px;
+        border-radius: 3px;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>📊 Gráfico de Pontuação - Sistema de Avaliação</h1>
+
+      <div class="info-box">
+        <h3>ℹ️ Como funciona o sistema:</h3>
+        <p>
+          O gráfico mostra a pontuação (de -0.3 a +0.3) baseada no tempo para
+          completar uma entrega de distância fixa.
+        </p>
+        <p>
+          <strong>Fórmula:</strong> rating = 0.3 × tanh((fatorEscala ×
+          (velocidade - velocidadeRef)) / velocidadeRef)
+        </p>
+      </div>
+
+      <div class="controls">
+        <h3>🔧 Parâmetros da Simulação</h3>
+
+        <div class="control-group">
+          <label>Distância da entrega (km):</label>
+          <input
+            type="number"
+            id="distance"
+            value="3"
+            min="0.1"
+            max="20"
+            step="0.1"
+          />
+        </div>
+
+        <div class="control-group">
+          <label>Velocidade de referência (km/h):</label>
+          <input
+            type="number"
+            id="velocidadeRef"
+            value="9"
+            min="1"
+            max="30"
+            step="0.5"
+          />
+          <span id="velocidadeRefDisplay">= 0.15 km/min</span>
+        </div>
+
+        <div class="control-group">
+          <label>Fator de escala:</label>
+          <input
+            type="range"
+            id="fatorEscala"
+            value="1.0"
+            min="0.5"
+            max="3.0"
+            step="0.1"
+          />
+          <span id="fatorEscalaDisplay">1.0</span>
+        </div>
+
+        <div class="control-group">
+          <label>Número de clientes:</label>
+          <input
+            type="number"
+            id="customerCount"
+            value="1"
+            min="1"
+            max="5"
+            step="1"
+          />
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <canvas id="chart"></canvas>
+      </div>
+
+      <div class="examples">
+        <h3>📋 Exemplos Práticos:</h3>
+        <div id="examples"></div>
+      </div>
+    </div>
+
+    <script>
+      let chart;
+
+      // Função para calcular a pontuação
+      function calculateRating(
+        minutes,
+        distance,
+        velocidadeRefKmH,
+        fatorEscala,
+        customerCount
+      ) {
+        if (minutes <= 0) return 0;
+
+        const velocidade = (distance / minutes) * customerCount; // km/min
+        const velocidadeReferencia = velocidadeRefKmH / 60; // converter km/h para km/min
+
+        const rating =
+          0.3 *
+          Math.tanh(
+            (fatorEscala * (velocidade - velocidadeReferencia)) /
+              velocidadeReferencia
+          );
+
+        return Math.max(-0.3, Math.min(0.3, rating));
+      }
+
+      // Função para gerar dados do gráfico
+      function generateChartData() {
+        const distance = parseFloat(document.getElementById("distance").value);
+        const velocidadeRef = parseFloat(
+          document.getElementById("velocidadeRef").value
+        );
+        const fatorEscala = parseFloat(
+          document.getElementById("fatorEscala").value
+        );
+        const customerCount = parseInt(
+          document.getElementById("customerCount").value
+        );
+
+        const data = [];
+        const labels = [];
+
+        // Gerar pontos de 1 a 60 minutos
+        for (let minutes = 1; minutes <= 60; minutes++) {
+          const rating = calculateRating(
+            minutes,
+            distance,
+            velocidadeRef,
+            fatorEscala,
+            customerCount
+          );
+          data.push(rating);
+          labels.push(minutes);
+        }
+
+        return { data, labels };
+      }
+
+      // Função para atualizar exemplos
+      function updateExamples() {
+        const distance = parseFloat(document.getElementById("distance").value);
+        const velocidadeRef = parseFloat(
+          document.getElementById("velocidadeRef").value
+        );
+        const fatorEscala = parseFloat(
+          document.getElementById("fatorEscala").value
+        );
+        const customerCount = parseInt(
+          document.getElementById("customerCount").value
+        );
+
+        const examples = [
+          { time: 10, desc: "Entrega muito rápida" },
+          { time: 15, desc: "Entrega rápida" },
+          { time: 20, desc: "Entrega normal" },
+          { time: 30, desc: "Entrega lenta" },
+          { time: 45, desc: "Entrega muito lenta" },
+        ];
+
+        const examplesDiv = document.getElementById("examples");
+        examplesDiv.innerHTML = "";
+
+        examples.forEach((example) => {
+          const rating = calculateRating(
+            example.time,
+            distance,
+            velocidadeRef,
+            fatorEscala,
+            customerCount
+          );
+          const speed = (distance / example.time) * 60; // km/h
+          const color =
+            rating > 0.1 ? "#4caf50" : rating < -0.1 ? "#f44336" : "#ff9800";
+
+          examplesDiv.innerHTML += `
+                    <div class="example-item">
+                        <span class="highlight" style="background-color: ${color}20; color: ${color};">
+                            ${example.time} min (${speed.toFixed(
+            1
+          )} km/h): ${rating.toFixed(3)} pontos
+                        </span> - ${example.desc}
+                    </div>
+                `;
+        });
+      }
+
+      // Função para atualizar o gráfico
+      function updateChart() {
+        const { data, labels } = generateChartData();
+
+        if (chart) {
+          chart.destroy();
+        }
+
+        const ctx = document.getElementById("chart").getContext("2d");
+        chart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: "Pontuação",
+                data: data,
+                borderColor: "#2196f3",
+                backgroundColor: "rgba(33, 150, 243, 0.1)",
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: {
+                title: {
+                  display: true,
+                  text: "Tempo (minutos)",
+                },
+                grid: {
+                  color: "rgba(0,0,0,0.1)",
+                },
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: "Pontuação",
+                },
+                min: -0.3,
+                max: 0.3,
+                grid: {
+                  color: "rgba(0,0,0,0.1)",
+                },
+                ticks: {
+                  callback: function (value) {
+                    return value.toFixed(1);
+                  },
+                },
+              },
+            },
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    const minutes = context.parsed.x;
+                    const rating = context.parsed.y;
+                    const distance = parseFloat(
+                      document.getElementById("distance").value
+                    );
+                    const speed = (distance / minutes) * 60; // km/h
+                    return [
+                      `Tempo: ${minutes} min`,
+                      `Velocidade: ${speed.toFixed(1)} km/h`,
+                      `Pontuação: ${rating.toFixed(3)}`,
+                    ];
+                  },
+                },
+              },
+              legend: {
+                display: true,
+              },
+            },
+            elements: {
+              point: {
+                radius: 2,
+                hoverRadius: 5,
+              },
+            },
+          },
+        });
+
+        updateExamples();
+      }
+
+      // Event listeners
+      document
+        .getElementById("distance")
+        .addEventListener("input", updateChart);
+      document
+        .getElementById("velocidadeRef")
+        .addEventListener("input", function () {
+          const kmh = this.value;
+          const kmmin = (kmh / 60).toFixed(3);
+          document.getElementById(
+            "velocidadeRefDisplay"
+          ).textContent = `= ${kmmin} km/min`;
+          updateChart();
+        });
+      document
+        .getElementById("fatorEscala")
+        .addEventListener("input", function () {
+          document.getElementById("fatorEscalaDisplay").textContent =
+            this.value;
+          updateChart();
+        });
+      document
+        .getElementById("customerCount")
+        .addEventListener("input", updateChart);
+
+      // Inicializar
+      updateChart();
+    </script>
+  </body>
+</html>

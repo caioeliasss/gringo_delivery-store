@@ -91,6 +91,12 @@ router.post("/cancelarIfood", async (req, res) => {
     const IfoodService = require("../services/ifoodService");
     const ifoodService = new IfoodService();
     console.log("[IFOOD] Razão recebida para cancelamento:", reason);
+    const order = await orderService.findById(orderId);
+    if (!order.ifoodId) {
+      return res
+        .status(404)
+        .json({ message: "Pedido não é ifood", id: orderId });
+    }
     const cancellationReasons = await ifoodService.cancelOrder(
       orderId,
       reason.description,

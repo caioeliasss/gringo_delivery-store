@@ -157,6 +157,7 @@ module.exports = (io, socketManager) => {
         // Notificar loja sobre aceite
         io.emit("orderAccepted", {
           orderId,
+          motoboy,
           motoboyId,
           travelId,
           timestamp: new Date().toISOString(),
