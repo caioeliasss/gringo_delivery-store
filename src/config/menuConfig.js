@@ -17,6 +17,7 @@ import {
   Notifications as NotificationsIcon,
   DirectionsCar as CorridasIcon,
   Gavel as NegotiationsIcon,
+  Assessment as ReportsIcon,
 } from "@mui/icons-material";
 
 // Configuração centralizada dos itens de menu para o sistema de suporte
@@ -104,6 +105,18 @@ export const ADMIN_MENU_ITEMS = [
     path: "/occurrences",
     text: "Ocorrências",
     icon: <ReportProblemIcon />,
+  },
+  {
+    text: "Relatórios",
+    icon: <ReportsIcon />,
+    expandable: true,
+    submenu: [
+      {
+        path: "/relatorios/ocorrencias",
+        text: "Relatório de Ocorrências",
+        icon: <ReportProblemIcon />,
+      },
+    ],
   },
   {
     path: "/chat",

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Drawer,
@@ -9,6 +9,8 @@ import {
   ListItemText,
   Divider,
   Typography,
+  Collapse,
+  IconButton,
 } from "@mui/material";
 import {
   Receipt as OrdersIcon,
@@ -17,6 +19,8 @@ import {
   Logout as LogoutIcon,
   ReportProblem as OcorrenciasIcon,
   Chat as ChatIcon,
+  ExpandLess,
+  ExpandMore,
 } from "@mui/icons-material";
 import { useAuth } from "../../contexts/AuthContext";
 import NotificationIndicator from "../NotificationIndicator";
@@ -44,6 +48,7 @@ const SideDrawer = ({
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [expandedMenus, setExpandedMenus] = useState({});
 
   // Define a função de logout
   const handleLogout = async () => {
@@ -72,47 +77,110 @@ const SideDrawer = ({
     return location.pathname === path;
   };
 
+  const handleExpandMenu = (index) => {
+    setExpandedMenus((prev) => ({
+      ...prev,
+      [index]: !prev[index],
+    }));
+  };
+
+  const renderMenuItem = (item, index) => {
+    // Se é um item expansível
+    if (item.expandable && item.submenu) {
+      return (
+        <React.Fragment key={`expandable-menu-${index}`}>
+          <ListItem
+            button
+            onClick={() => handleExpandMenu(index)}
+            sx={{
+              color: "text.primary",
+              "&:hover": { bgcolor: "primary.light", color: "white" },
+            }}
+          >
+            {item.icon && (
+              <ListItemIcon sx={{ color: "inherit" }}>{item.icon}</ListItemIcon>
+            )}
+            <ListItemText primary={item.text} />
+            {expandedMenus[index] ? <ExpandLess /> : <ExpandMore />}
+          </ListItem>
+          <Collapse in={expandedMenus[index]} timeout="auto" unmountOnExit>
+            <List component="div" disablePadding>
+              {item.submenu.map((subItem, subIndex) => (
+                <ListItem
+                  key={`submenu-item-${index}-${subIndex}`}
+                  button
+                  component={Link}
+                  to={subItem.path}
+                  selected={isSelected(subItem.path)}
+                  onClick={variant === "temporary" ? onClose : undefined}
+                  sx={{
+                    pl: 4,
+                    color: "text.primary",
+                    "&.Mui-selected": {
+                      bgcolor: "primary.main",
+                      color: "white",
+                      "&:hover": { bgcolor: "primary.dark" },
+                    },
+                    "&:hover": { bgcolor: "primary.light", color: "white" },
+                  }}
+                >
+                  {subItem.icon && (
+                    <ListItemIcon sx={{ color: "inherit" }}>
+                      {subItem.icon}
+                    </ListItemIcon>
+                  )}
+                  <ListItemText primary={subItem.text} />
+                </ListItem>
+              ))}
+            </List>
+          </Collapse>
+        </React.Fragment>
+      );
+    }
+
+    // Item de menu normal
+    return (
+      <ListItem
+        key={`menu-item-${index}`}
+        button
+        component={Link}
+        to={item.path}
+        selected={isSelected(item.path)}
+        onClick={variant === "temporary" ? onClose : undefined}
+        sx={{
+          color: "text.primary",
+          "&.Mui-selected": {
+            bgcolor: "primary.main",
+            color: "white",
+            "&:hover": { bgcolor: "primary.dark" },
+          },
+          "&:hover": { bgcolor: "primary.light", color: "white" },
+        }}
+      >
+        {item.icon && (
+          <ListItemIcon sx={{ color: "inherit" }}>
+            {/* Adicionar indicador de notificação se for o item de notificações */}
+            {item.path === "/notificacoes" ? (
+              <NotificationIndicator>{item.icon}</NotificationIndicator>
+            ) : item.path === "/chat" ? (
+              <ChatIndicator>{item.icon}</ChatIndicator>
+            ) : (
+              item.icon
+            )}
+          </ListItemIcon>
+        )}
+        <ListItemText primary={item.text} />
+      </ListItem>
+    );
+  };
+
   const drawerItems = (
     <Box sx={{ width }}>
       <Box sx={{ p: 2, textAlign: "center" }}>
         <img src={logoUrl} style={{ height: logoHeight, marginBottom: 16 }} />
       </Box>
       <Divider />
-      <List>
-        {menuItems.map((item, index) => (
-          <ListItem
-            key={`menu-item-${index}`}
-            button
-            component={Link}
-            to={item.path}
-            selected={isSelected(item.path)}
-            onClick={variant === "temporary" ? onClose : undefined}
-            sx={{
-              color: "text.primary",
-              "&.Mui-selected": {
-                bgcolor: "primary.main",
-                color: "white",
-                "&:hover": { bgcolor: "primary.dark" },
-              },
-              "&:hover": { bgcolor: "primary.light", color: "white" },
-            }}
-          >
-            {item.icon && (
-              <ListItemIcon sx={{ color: "inherit" }}>
-                {/* Adicionar indicador de notificação se for o item de notificações */}
-                {item.path === "/notificacoes" ? (
-                  <NotificationIndicator>{item.icon}</NotificationIndicator>
-                ) : item.path === "/chat" ? (
-                  <ChatIndicator>{item.icon}</ChatIndicator>
-                ) : (
-                  item.icon
-                )}
-              </ListItemIcon>
-            )}
-            <ListItemText primary={item.text} />
-          </ListItem>
-        ))}
-      </List>
+      <List>{menuItems.map((item, index) => renderMenuItem(item, index))}</List>
 
       {finalFooterItems.length > 0 && (
         <>
