@@ -8,7 +8,7 @@ class WebhookController {
     this.orderImportService = new OrderImportService(orderService);
     this.scheduledOrderService = new ScheduledOrderService();
   }
-
+  //TODO add function to schedule order processing
   async handleIfoodWebhook(req, res) {
     try {
       const { fullCode, orderId } = req.body;
@@ -98,11 +98,18 @@ class WebhookController {
           );
           await orderService.updateOrderStatus(orderIdSystem._id, "agendado");
         } else {
+          const Store = require("../models/Store");
+          const store = await Store.findOne({ cnpj: orderIdSystem.store.cnpj });
           // Pedido normal - seguir fluxo padrão
           if (orderIdSystem.deliveryMode !== "entrega") {
             orderService.updateOrderStatus(orderIdSystem._id, "ready_takeout");
           } else {
-            await orderService.findDriverForOrder(orderIdSystem);
+            setTimeout(async () => {
+              console.log(
+                `[IFOOD] Buscando motorista para pedido ${orderIdSystem._id} após ${store.ifoodConfig.scheduleTime} minutos`
+              );
+              await orderService.findDriverForOrder(orderIdSystem);
+            }, (store.ifoodConfig.scheduleTime || 5) * 60000); // Aguardar 5 min utos antes de buscar entregador
           }
         }
         return res
@@ -177,8 +184,21 @@ class WebhookController {
   }
 
   // Novo método para agendar processamento de pedidos
-  async scheduleOrderProcessing(order, scheduledDateTime) {
-    const scheduledTime = new Date(scheduledDateTime);
+  async scheduleOrderProcessing(order) {
+    // Buscar o store real do banco para acessar ifoodConfig
+    const Store = require("../models/Store");
+    const storeFromDB = await Store.findOne({ cnpj: order.store.cnpj });
+
+    if (!storeFromDB) {
+      console.log(
+        `[IFOOD] Store não encontrado para CNPJ: ${order.store.cnpj}`
+      );
+      return;
+    }
+
+    // Usar scheduleTime do ifoodConfig ou valor padrão
+    const scheduleTimeMinutes = storeFromDB.ifoodConfig?.scheduleTime || 5;
+    const scheduledTime = new Date(Date.now() + scheduleTimeMinutes * 60000);
     const now = new Date();
     const delay = scheduledTime.getTime() - now.getTime();
 

@@ -89,9 +89,10 @@ router.post("/cancelarIfood", async (req, res) => {
   try {
     const { orderId, reason } = req.body; // Corrigido: buscar via query string
     const IfoodService = require("../services/ifoodService");
+    const Order = require("../models/Order");
     const ifoodService = new IfoodService();
     console.log("[IFOOD] Razão recebida para cancelamento:", reason);
-    const order = await orderService.findById(orderId);
+    const order = await Order.findOne({ ifoodId: orderId });
     if (!order.ifoodId) {
       return res
         .status(404)

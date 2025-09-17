@@ -48,6 +48,8 @@ const Configuracao = () => {
   } = UseStoreAuth();
   const navigate = useNavigate();
   const menuItems = STORE_MENU_ITEMS;
+  const [scheduleTime, setScheduleTime] = useState(5); // Novo estado para tempo de preparo
+
   useEffect(() => {
     if (!authLoading && !isStoreMember) {
       console.log("Usuário não é membro da loja, redirecionando para login");
@@ -65,6 +67,9 @@ const Configuracao = () => {
         // Se já tem merchantId configurado, exibir no campo
         if (response.data.ifoodConfig?.merchantId) {
           setMerchantId(response.data.ifoodConfig.merchantId);
+        }
+        if (response.data.ifoodConfig?.scheduleTime) {
+          setScheduleTime(response.data.ifoodConfig.scheduleTime);
         }
       } catch (error) {
         console.error("Erro ao carregar dados da loja:", error);
@@ -109,6 +114,7 @@ const Configuracao = () => {
       await api.post("/stores/sendMerchant", {
         storeId: storeData._id,
         merchantId: merchantId.trim(),
+        scheduleTime: scheduleTime,
       });
 
       // Atualizar dados locais
@@ -117,6 +123,7 @@ const Configuracao = () => {
         ifoodConfig: {
           ...prev.ifoodConfig,
           merchantId: merchantId.trim(),
+          scheduleTime: scheduleTime,
         },
       }));
 
@@ -252,7 +259,7 @@ const Configuracao = () => {
           sx={{ display: "flex", alignItems: "center", gap: 2 }}
         >
           <StoreIcon color="primary" sx={{ fontSize: 40 }} />
-          Configurações da Loja
+          Configurações da Loja IFood
         </Typography>
 
         <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
@@ -341,18 +348,22 @@ const Configuracao = () => {
                   ),
                 }}
               />
+              <TextField
+                fullWidth
+                label="Tempo de preparo padrão (minutos)"
+                value={scheduleTime}
+                onChange={(e) => {
+                  setScheduleTime(parseInt(e.target.value, 10));
+                }}
+                variant="outlined"
+                type="number"
+                disabled={loading}
+                sx={{ mt: 2 }}
+                helperText="Após esse tempo, pedidos buscarão automaticamente um entregador"
+              />
             </Box>
 
             <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>
-              <Button
-                variant="outlined"
-                onClick={() =>
-                  setMerchantId(storeData?.ifoodConfig?.merchantId || "")
-                }
-                disabled={loading || !storeData?.ifoodConfig?.merchantId}
-              >
-                Resetar
-              </Button>
               <Button
                 variant="contained"
                 startIcon={
@@ -365,7 +376,7 @@ const Configuracao = () => {
                 onClick={handleSaveMerchantId}
                 disabled={loading || !merchantId.trim()}
               >
-                {loading ? "Salvando..." : "Salvar Merchant ID"}
+                {loading ? "Salvando..." : "Salvar"}
               </Button>
             </Box>
 

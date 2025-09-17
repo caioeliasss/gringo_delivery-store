@@ -91,6 +91,10 @@ const travelSchema = mongoose.Schema({
         return getNextWeekThursday(); // 7 dias a partir de agora
       },
     },
+    bonus: {
+      type: Number,
+      default: 0,
+    },
     value: {
       type: Number,
       default: function () {

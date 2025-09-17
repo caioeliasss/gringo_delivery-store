@@ -58,6 +58,11 @@ const ifoodConfigSchema = new mongoose.Schema({
     type: String,
     required: false,
   },
+  scheduleTime: {
+    type: Number,
+    required: false,
+    default: 5, // Tempo em minutos para agendamento padrão
+  },
 });
 
 const storeSchema = new mongoose.Schema({

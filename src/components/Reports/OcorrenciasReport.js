@@ -26,7 +26,21 @@ import {
   IconButton,
   AppBar,
   Toolbar,
+  Divider,
 } from "@mui/material";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  ComposedChart,
+} from "recharts";
 import { DateRangePicker } from "@mui/x-date-pickers-pro/DateRangePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
@@ -76,6 +90,7 @@ const OcorrenciasReport = () => {
     tempoMedioResolucao: 0,
     ocorrencias: [],
     ocorrenciasPorTipo: [],
+    dadosPareto: [],
   });
 
   // Configuração do menu e footer
@@ -122,12 +137,27 @@ const OcorrenciasReport = () => {
         ][index % 7],
       }));
 
+      // Preparar dados para o gráfico de Pareto
+      const dadosPareto = [...ocorrenciasPorTipo]
+        .sort((a, b) => b.quantidade - a.quantidade)
+        .map((item, index, array) => {
+          const porcentagemAcumulada = array
+            .slice(0, index + 1)
+            .reduce((acc, curr) => acc + parseFloat(curr.porcentagem), 0);
+
+          return {
+            ...item,
+            porcentagemAcumulada: porcentagemAcumulada.toFixed(1),
+          };
+        });
+
       setData({
         totalOcorrencias: stats.total,
         ocorrenciasResolvidas: stats.fechadas,
         ocorrenciasPendentes: stats.pendentes + stats.abertas,
         tempoMedioResolucao: 0, // Calcular com base em dados reais
         ocorrenciasPorTipo,
+        dadosPareto,
         ocorrencias: stats.ocorrencias, // Buscar ocorrências recentes em endpoint separado
       });
       console.log(stats.ocorrencias[0]);
@@ -221,6 +251,39 @@ const OcorrenciasReport = () => {
   const handleCloseAnswerDialog = () => {
     setOpenAnswerDialog(false);
     setSelectedAnswer("");
+  };
+
+  // Componente customizado do tooltip para o gráfico de Pareto
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      const barData = payload.find((p) => p.dataKey === "quantidade");
+      const lineData = payload.find(
+        (p) => p.dataKey === "porcentagemAcumulada"
+      );
+      const itemData = data.dadosPareto.find((item) => item.nome === label);
+
+      return (
+        <Paper sx={{ p: 2, border: "1px solid #ccc" }}>
+          <Typography variant="subtitle2">{`Tipo: ${label}`}</Typography>
+          {barData && (
+            <Typography variant="body2" color="primary">
+              {`Quantidade: ${barData.value}`}
+            </Typography>
+          )}
+          {itemData && (
+            <Typography variant="body2" color="secondary">
+              {`% Individual: ${itemData.porcentagem}%`}
+            </Typography>
+          )}
+          {lineData && (
+            <Typography variant="body2" color="info.main">
+              {`% Acumulado: ${lineData.value}%`}
+            </Typography>
+          )}
+        </Paper>
+      );
+    }
+    return null;
   };
 
   if (loading) {
@@ -441,6 +504,87 @@ const OcorrenciasReport = () => {
                 <Box sx={{ p: 3 }}>
                   <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
                     Distribuição por Tipo de Ocorrência
+                  </Typography>
+
+                  {/* Gráfico de Pareto */}
+                  <Box sx={{ mb: 4 }}>
+                    <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
+                      📊 Análise de Pareto - Princípio 80/20
+                    </Typography>
+                    <Paper sx={{ p: 2, bgcolor: "background.default" }}>
+                      <ResponsiveContainer width="100%" height={400}>
+                        <ComposedChart
+                          data={data.dadosPareto}
+                          margin={{
+                            top: 20,
+                            right: 30,
+                            bottom: 100,
+                            left: 20,
+                          }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis
+                            dataKey="nome"
+                            angle={-45}
+                            textAnchor="end"
+                            height={80}
+                            fontSize={12}
+                            interval={0}
+                          />
+                          <YAxis yAxisId="left" />
+                          <YAxis
+                            yAxisId="right"
+                            orientation="right"
+                            domain={[0, 100]}
+                          />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Legend />
+
+                          {/* Barras das quantidades */}
+                          <Bar
+                            yAxisId="left"
+                            dataKey="quantidade"
+                            fill="#8884d8"
+                            name="Quantidade de Ocorrências"
+                          />
+
+                          {/* Linha do percentual acumulado */}
+                          <Line
+                            yAxisId="right"
+                            type="monotone"
+                            dataKey="porcentagemAcumulada"
+                            stroke="#ff7300"
+                            strokeWidth={3}
+                            name="% Acumulado"
+                            dot={{ fill: "#ff7300", strokeWidth: 2, r: 6 }}
+                          />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+
+                      <Box
+                        sx={{
+                          mt: 2,
+                          p: 2,
+                          bgcolor: "info.light",
+                          borderRadius: 1,
+                        }}
+                      >
+                        <Typography variant="body2" color="info.contrastText">
+                          💡 <strong>Análise de Pareto:</strong> Este gráfico
+                          ajuda a identificar os tipos de ocorrências mais
+                          críticos. Aproximadamente 80% dos problemas geralmente
+                          vêm de 20% das causas. Foque nos tipos à esquerda do
+                          gráfico para maior impacto na redução de ocorrências.
+                        </Typography>
+                      </Box>
+                    </Paper>
+                  </Box>
+
+                  <Divider sx={{ my: 3 }} />
+
+                  {/* Cards de distribuição existentes */}
+                  <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
+                    📋 Detalhamento por Categoria
                   </Typography>
                   <Grid container spacing={2}>
                     {data.ocorrenciasPorTipo.map((tipoData) => (

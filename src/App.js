@@ -53,6 +53,7 @@ import HandshakeNegotiation from "./pages/Store/HandshakeNegotiation/HandshakeNe
 import StoreAccessControl from "./components/StoreAccessControl";
 import Relatorios from "./pages/Relatorios/Relatorios";
 import OcorrenciasReport from "./components/Reports/OcorrenciasReport";
+import Perfil from "./pages/Store/Perfil/Perfil";
 // Definir tema personalizado com a paleta de cores da Gringo Delivery
 const theme = createTheme({
   typography: {
@@ -349,6 +350,30 @@ function CustomerApp() {
                     <StoreAuthProvider>
                       <StoreAccessControl>
                         <Configuracao />
+                      </StoreAccessControl>
+                    </StoreAuthProvider>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/settings/ifood"
+                element={
+                  <PrivateRoute>
+                    <StoreAuthProvider>
+                      <StoreAccessControl>
+                        <Configuracao />
+                      </StoreAccessControl>
+                    </StoreAuthProvider>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/settings/perfil"
+                element={
+                  <PrivateRoute>
+                    <StoreAuthProvider>
+                      <StoreAccessControl>
+                        <Perfil />
                       </StoreAccessControl>
                     </StoreAuthProvider>
                   </PrivateRoute>

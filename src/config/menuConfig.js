@@ -18,6 +18,7 @@ import {
   DirectionsCar as CorridasIcon,
   Gavel as NegotiationsIcon,
   Assessment as ReportsIcon,
+  Fastfood as IfoodIcon,
 } from "@mui/icons-material";
 
 // Configuração centralizada dos itens de menu para o sistema de suporte
@@ -177,11 +178,6 @@ export const STORE_MENU_ITEMS = [
     icon: <FinanceiroIcon />,
   },
   {
-    path: "/notifications",
-    text: "Notificações",
-    icon: <NotificationsIcon />,
-  },
-  {
     path: "/ocorrencias",
     text: "Ocorrências",
     icon: <ReportProblemIcon />,
@@ -192,14 +188,31 @@ export const STORE_MENU_ITEMS = [
     icon: <ChatIcon />,
   },
   {
-    path: "/settings",
     text: "Configurações",
     icon: <SettingsIcon />,
-  },
-  {
-    path: "/negociacoes-ifood",
-    text: "Negociações iFood",
-    icon: <NegotiationsIcon />,
+    expandable: true,
+    submenu: [
+      {
+        path: "/settings/perfil",
+        text: "Perfil",
+        icon: <PersonIcon />,
+      },
+      {
+        path: "/notifications",
+        text: "Notificações",
+        icon: <NotificationsIcon />,
+      },
+      {
+        path: "/settings/ifood",
+        text: "iFood",
+        icon: <IfoodIcon />,
+      },
+      {
+        path: "/negociacoes-ifood",
+        text: "Negociações iFood",
+        icon: <NegotiationsIcon />,
+      },
+    ],
   },
 ];
 

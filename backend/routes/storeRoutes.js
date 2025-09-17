@@ -831,11 +831,11 @@ const removeStore = async (req, res) => {
 };
 
 const sendMerchant = async (req, res) => {
-  const { storeId, merchantId } = req.body;
+  const { storeId, merchantId, scheduleTime } = req.body;
 
-  if (!storeId || !merchantId) {
+  if (!storeId || !merchantId || !scheduleTime) {
     return res.status(400).json({
-      message: "storeId e merchantId são obrigatórios",
+      message: "storeId, merchantId e scheduleTime são obrigatórios",
     });
   }
 
@@ -846,11 +846,14 @@ const sendMerchant = async (req, res) => {
     }
 
     await Store.findByIdAndUpdate(storeId, {
-      $set: { "ifoodConfig.merchantId": merchantId },
+      $set: {
+        "ifoodConfig.merchantId": merchantId,
+        "ifoodConfig.scheduleTime": scheduleTime,
+      },
     });
 
     res.status(200).json({
-      message: "merchantId enviada com sucesso",
+      message: "merchantId e scheduleTime enviados com sucesso",
     });
   } catch (error) {
     console.error("Erro ao enviar merchantId:", error);
