@@ -232,6 +232,90 @@ class CronService {
     }
   }
 
+  // Verificar e atualizar status financeiro das viagens
+  async checkTravelFinanceStatus() {
+    if (
+      this.shouldSkipInDevelopment(
+        "verificação de status financeiro das viagens"
+      )
+    ) {
+      return;
+    }
+
+    try {
+      console.log("🚚 Verificando status financeiro das viagens...");
+
+      const Travel = require("../models/Travel");
+      const now = new Date();
+
+      // Buscar viagens com status "entregue" e finance.status "pendente"
+      // que já passaram da data de vencimento (dueDate)
+      const travelsPendingRelease = await Travel.find({
+        status: "entregue",
+        "finance.status": "pendente",
+        "finance.dueDate": { $lte: now },
+      });
+
+      let updated = 0;
+      for (const travel of travelsPendingRelease) {
+        // Atualizar status financeiro para "liberado"
+        travel.finance.status = "liberado";
+        await travel.save();
+        updated++;
+      }
+
+      console.log(`✅ ${updated} viagens liberadas para pagamento`);
+
+      // Também verificar viagens canceladas para cancelar o financeiro
+      const cancelledTravels = await Travel.find({
+        status: "cancelado",
+        "finance.status": { $ne: "cancelado" },
+      });
+
+      let cancelled = 0;
+      for (const travel of cancelledTravels) {
+        travel.finance.status = "cancelado";
+        await travel.save();
+        cancelled++;
+      }
+
+      if (cancelled > 0) {
+        console.log(
+          `✅ ${cancelled} viagens canceladas tiveram o financeiro cancelado`
+        );
+      }
+    } catch (error) {
+      console.error(
+        "❌ Erro ao verificar status financeiro das viagens:",
+        error
+      );
+    }
+  }
+
+  // Agendar verificação de status financeiro das viagens
+  scheduleTravelFinanceCheck() {
+    if (
+      this.shouldSkipInDevelopment(
+        "agendamento de verificação financeira das viagens"
+      )
+    ) {
+      return null;
+    }
+
+    // Executa todos os dias às 04:00 e 18:00
+    const job = new cron.CronJob(
+      "0 4,18 * * *",
+      this.checkTravelFinanceStatus.bind(this),
+      null,
+      true,
+      "America/Sao_Paulo"
+    );
+
+    this.jobs.push(job);
+    console.log("✅ Verificação de status financeiro das viagens ativada");
+    return job;
+  }
+
   // ADICIONAR: Criar cobrança de taxa de motoboy
   async createMotoboyFeeBillings() {
     if (
@@ -741,6 +825,7 @@ Total: R$ ${feePerDelivery.toFixed(2)}`;
     this.scheduleMonthlyBilling();
     this.scheduleMotoboyFeeBilling(); // ADICIONAR esta linha
     this.scheduleOverdueCheck();
+    this.scheduleTravelFinanceCheck(); // NOVO: Verificação de status financeiro das viagens
     console.log("🚀 Todos os agendamentos iniciados");
   }
 
