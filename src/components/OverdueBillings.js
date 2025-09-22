@@ -272,6 +272,36 @@ const OverdueBillings = () => {
     setQrCodeData(null);
   };
 
+  // Função para abrir página de corridas com filtros
+  const openCorridasWithFilters = (billing) => {
+    if (!billing.metadata?.periodStart || !billing.metadata?.periodEnd) {
+      // Fallback para abrir sem filtros se não houver período
+      window.open("/corridas", "_blank");
+      return;
+    }
+
+    // Extrair valor se é objeto MongoDB com $date
+    const startDateValue =
+      billing.metadata.periodStart?.$date || billing.metadata.periodStart;
+    const endDateValue =
+      billing.metadata.periodEnd?.$date || billing.metadata.periodEnd;
+
+    // Criar objetos Date e extrair apenas a parte da data em UTC
+    const startDate = new Date(startDateValue);
+    const endDate = new Date(endDateValue);
+
+    // Usar getUTCFullYear, getUTCMonth, getUTCDate para manter UTC
+    const startDateString = `${startDate.getUTCFullYear()}-${String(
+      startDate.getUTCMonth() + 1
+    ).padStart(2, "0")}-${String(startDate.getUTCDate()).padStart(2, "0")}`;
+    const endDateString = `${endDate.getUTCFullYear()}-${String(
+      endDate.getUTCMonth() + 1
+    ).padStart(2, "0")}-${String(endDate.getUTCDate()).padStart(2, "0")}`;
+
+    const url = `/corridas?status=entregue&startDate=${startDateString}&endDate=${endDateString}&useCustomDateRange=true`;
+    window.open(url, "_blank");
+  };
+
   // ✅ NOVO: Componente para renderizar cada billing
   const BillingCard = ({ billing, isOverdue = false }) => {
     const statusInfo = getStatusInfo(billing);
@@ -383,6 +413,16 @@ const OverdueBillings = () => {
                   color={isOverdue ? "error" : "primary"}
                 >
                   Acessar Boleto
+                </Button>
+              )}
+              {billing.metadata?.periodStart && billing.metadata?.periodEnd && (
+                <Button
+                  variant="text"
+                  onClick={() => openCorridasWithFilters(billing)}
+                  size="small"
+                  color="primary"
+                >
+                  Ver corridas
                 </Button>
               )}
             </Box>

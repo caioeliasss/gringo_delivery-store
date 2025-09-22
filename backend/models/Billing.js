@@ -64,6 +64,18 @@ const billingSchema = new mongoose.Schema(
       type: Date,
       required: false,
     },
+    metadata: {
+      type: Object,
+      required: false, // Informações adicionais, como número de corridas, taxa por corrida, etc.
+    },
+    // startDate: {
+    //   type: Date,
+    //   required: false, // Data de início do período faturado
+    // },
+    // endDate: {
+    //   type: Date,
+    //   required: false, // Data de término do período faturado
+    // },
     asaasData: {
       type: Object,
       required: false, // Dados completos do webhook

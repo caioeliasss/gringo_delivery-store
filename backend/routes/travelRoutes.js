@@ -273,6 +273,8 @@ const getAllTravelsForAdmin = async (req, res) => {
       limit = 10,
       status,
       dateFilter,
+      startDate,
+      endDate,
       motoboyId,
       financeStatus,
     } = req.query;
@@ -282,6 +284,8 @@ const getAllTravelsForAdmin = async (req, res) => {
       limit,
       status,
       dateFilter,
+      startDate,
+      endDate,
       motoboyId,
       financeStatus,
     });
@@ -307,28 +311,41 @@ const getAllTravelsForAdmin = async (req, res) => {
       filters["finance.status"] = financeStatus;
     }
 
-    if (dateFilter && dateFilter !== "all") {
+    // Filtro por data customizada ou predefinida
+    if (startDate && endDate) {
+      // Usar datas customizadas do datepicker
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      // Definir fim do dia para a data final
+      end.setHours(23, 59, 59, 999);
+
+      filters.createdAt = {
+        $gte: start,
+        $lte: end,
+      };
+    } else if (dateFilter && dateFilter !== "all") {
+      // Manter compatibilidade com filtros predefinidos
       const now = new Date();
-      let startDate;
+      let startDateFilter;
 
       switch (dateFilter) {
         case "today":
-          startDate = new Date(
+          startDateFilter = new Date(
             now.getFullYear(),
             now.getMonth(),
             now.getDate()
           );
           break;
         case "week":
-          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          startDateFilter = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           break;
         case "month":
-          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          startDateFilter = new Date(now.getFullYear(), now.getMonth(), 1);
           break;
       }
 
-      if (startDate) {
-        filters.createdAt = { $gte: startDate };
+      if (startDateFilter) {
+        filters.createdAt = { $gte: startDateFilter };
       }
     }
 
@@ -563,6 +580,8 @@ const getAllTravelsForStore = async (req, res) => {
       limit = 10,
       status,
       dateFilter,
+      startDate,
+      endDate,
       financeStatus,
       firebaseUid,
       cnpj, // ✅ Adicionar CNPJ como alternativa
@@ -601,28 +620,41 @@ const getAllTravelsForStore = async (req, res) => {
       filters.status = status;
     }
 
-    if (dateFilter && dateFilter !== "all") {
+    // Filtro por data customizada ou predefinida
+    if (startDate && endDate) {
+      // Usar datas customizadas do datepicker
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      // Definir fim do dia para a data final
+      end.setHours(23, 59, 59, 999);
+
+      filters.createdAt = {
+        $gte: start,
+        $lte: end,
+      };
+    } else if (dateFilter && dateFilter !== "all") {
+      // Manter compatibilidade com filtros predefinidos
       const now = new Date();
-      let startDate;
+      let startDateFilter;
 
       switch (dateFilter) {
         case "today":
-          startDate = new Date(
+          startDateFilter = new Date(
             now.getFullYear(),
             now.getMonth(),
             now.getDate()
           );
           break;
         case "week":
-          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          startDateFilter = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           break;
         case "month":
-          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          startDateFilter = new Date(now.getFullYear(), now.getMonth(), 1);
           break;
       }
 
-      if (startDate) {
-        filters.createdAt = { $gte: startDate };
+      if (startDateFilter) {
+        filters.createdAt = { $gte: startDateFilter };
       }
     }
 

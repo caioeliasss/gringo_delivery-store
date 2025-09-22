@@ -135,6 +135,7 @@ class CronService {
 
       // Atualizar com ID do Asaas
       billing.asaasInvoiceId = asaasInvoice.id;
+      billing.asaasData = asaasInvoice;
       await billing.save();
     }
 
@@ -416,6 +417,7 @@ class CronService {
 
           // Salvar ID do Asaas
           billing.asaasInvoiceId = asaasInvoice.id;
+          billing.asaasData = asaasInvoice;
           await billing.save();
 
           console.log(
@@ -626,6 +628,7 @@ class CronService {
 
           // Salvar ID do Asaas
           billing.asaasInvoiceId = asaasInvoice.id;
+          billing.asaasData = asaasInvoice;
           await billing.save();
 
           console.log(
