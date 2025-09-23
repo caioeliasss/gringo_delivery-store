@@ -112,6 +112,10 @@ const storeSchema = new mongoose.Schema({
     type: String,
     required: false,
   },
+  perfil_url: {
+    type: String,
+    required: false,
+  },
   // Novos campos adicionados
   businessName: {
     type: String,

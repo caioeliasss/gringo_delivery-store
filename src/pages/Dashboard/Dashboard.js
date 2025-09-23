@@ -243,9 +243,9 @@ const Dashboard = () => {
 
           <Paper elevation={3} sx={{ p: 4, mb: 4, borderRadius: 3 }}>
             <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
-              {userProfile?.photoURL ? (
+              {userProfile?.perfil_url ? (
                 <Avatar
-                  src={userProfile.photoURL}
+                  src={userProfile.perfil_url}
                   alt={userProfile.displayName || currentUser?.email}
                   sx={{ width: 80, height: 80, mr: 3 }}
                 />
@@ -266,9 +266,9 @@ const Dashboard = () => {
                 >
                   Bem-vindo,{" "}
                   {/* {userProfile?.displayName || currentUser?.email.split("@")[0]} */}
-                  {cnpjInfo.nome_fantasia
-                    ? cnpjInfo.nome_fantasia
-                    : cnpjInfo.razao_social}
+                  {userProfile.businessName
+                    ? userProfile.businessName
+                    : userProfile.displayName}
                   !
                 </Typography>
               </Box>

@@ -154,10 +154,85 @@ export const getFileMetadata = async (path) => {
   }
 };
 
+/**
+ * Faz upload da imagem de perfil do estabelecimento
+ * @param {File} file - Arquivo da imagem
+ * @param {string} storeId - ID do estabelecimento
+ * @returns {Promise<string>} URL da imagem
+ */
+export const uploadStoreProfileImage = async (file, storeId) => {
+  try {
+    // Verificar se o usuário está autenticado
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error("Usuário não autenticado");
+    }
+
+    // Validar tipo de arquivo
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      throw new Error("Tipo de arquivo não permitido. Use JPG, PNG ou WebP.");
+    }
+
+    // Validar tamanho do arquivo (máximo 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      throw new Error("Arquivo muito grande. Máximo 5MB.");
+    }
+
+    // Criar nome único para o arquivo
+    const timestamp = Date.now();
+    const fileExtension = file.name.split(".").pop();
+    const fileName = `${timestamp}_profile.${fileExtension}`;
+
+    // Definir caminho no storage
+    const filePath = `store/perfil/${storeId}/${fileName}`;
+    const fileRef = ref(storage, filePath);
+
+    // Fazer upload
+    const snapshot = await uploadBytes(fileRef, file);
+
+    // Obter URL de download
+    const downloadURL = await getDownloadURL(snapshot.ref);
+
+    return downloadURL;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Exclui a imagem de perfil anterior do estabelecimento
+ * @param {string} imageUrl - URL da imagem a ser excluída
+ * @returns {Promise<boolean>}
+ */
+export const deleteStoreProfileImage = async (imageUrl) => {
+  try {
+    if (!imageUrl) return true;
+
+    // Extrair o caminho da URL do Firebase Storage
+    const url = new URL(imageUrl);
+    const pathMatch = url.pathname.match(/\/o\/(.+?)\?/);
+
+    if (pathMatch) {
+      const path = decodeURIComponent(pathMatch[1]);
+      const fileRef = ref(storage, path);
+      await deleteObject(fileRef);
+    }
+
+    return true;
+  } catch (error) {
+    console.warn("Erro ao excluir imagem anterior:", error);
+    return false; // Não bloquear o processo se não conseguir excluir
+  }
+};
+
 export default {
   getFileURL,
   getUserDocuments,
   deleteFileFromStorage,
   fileExists,
   getFileMetadata,
+  uploadStoreProfileImage,
+  deleteStoreProfileImage,
 };

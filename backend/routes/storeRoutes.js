@@ -729,6 +729,33 @@ router.post("/accept-terms", authenticateToken, async (req, res) => {
   }
 });
 
+// Rota para atualizar imagem de perfil
+router.put("/profile-image", authenticateToken, async (req, res) => {
+  try {
+    const { perfil_url } = req.body;
+
+    const store = await Store.findOne({ firebaseUid: req.user.uid });
+    if (!store) {
+      return res.status(404).json({ message: "Loja não encontrada" });
+    }
+
+    // Atualizar URL da imagem de perfil
+    store.perfil_url = perfil_url || "";
+    await store.save();
+
+    res.status(200).json({
+      message: "Imagem de perfil atualizada com sucesso",
+      perfil_url: store.perfil_url,
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar imagem de perfil:", error);
+    res.status(500).json({
+      message: "Erro ao atualizar imagem de perfil",
+      error: error.message,
+    });
+  }
+});
+
 // Endpoint para criar índices de busca (usar apenas uma vez para setup)
 router.post("/setup-search-indexes", async (req, res) => {
   try {

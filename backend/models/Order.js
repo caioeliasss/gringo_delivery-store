@@ -95,6 +95,10 @@ const storeSchema = new mongoose.Schema({
     type: customerAddress,
     required: false,
   },
+  perfil_url: {
+    type: String,
+    required: false,
+  },
 });
 
 const customerSchema = new mongoose.Schema({

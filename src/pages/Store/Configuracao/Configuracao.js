@@ -15,6 +15,7 @@ import {
   Grid,
   Chip,
   CircularProgress,
+  ButtonGroup,
 } from "@mui/material";
 import {
   Store as StoreIcon,
@@ -22,6 +23,7 @@ import {
   Info as InfoIcon,
   CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
+  Schedule as ScheduleIcon,
 } from "@mui/icons-material";
 import api from "../../../services/api";
 import { STORE_MENU_ITEMS } from "../../../config/menuConfig";
@@ -49,6 +51,21 @@ const Configuracao = () => {
   const navigate = useNavigate();
   const menuItems = STORE_MENU_ITEMS;
   const [scheduleTime, setScheduleTime] = useState(5); // Novo estado para tempo de preparo
+
+  // Função para definir tempos predefinidos
+  const setPresetTime = (minutes) => {
+    setScheduleTime(minutes);
+  };
+
+  // Opções de tempo predefinidas
+  const timePresets = [
+    { label: "30s", value: 0.5 },
+    { label: "1min", value: 1 },
+    { label: "2min", value: 2 },
+    { label: "5min", value: 5 },
+    { label: "10min", value: 10 },
+    { label: "15min", value: 15 },
+  ];
 
   useEffect(() => {
     if (!authLoading && !isStoreMember) {
@@ -348,19 +365,90 @@ const Configuracao = () => {
                   ),
                 }}
               />
-              <TextField
-                fullWidth
-                label="Tempo de preparo padrão (minutos)"
-                value={scheduleTime}
-                onChange={(e) => {
-                  setScheduleTime(parseInt(e.target.value, 10));
-                }}
-                variant="outlined"
-                type="number"
-                disabled={loading}
-                sx={{ mt: 2 }}
-                helperText="Após esse tempo, pedidos buscarão automaticamente um entregador"
-              />
+
+              {/* Seção de tempo de preparo com botões predefinidos */}
+              <Box sx={{ mt: 3 }}>
+                <Typography
+                  variant="subtitle1"
+                  gutterBottom
+                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                >
+                  <ScheduleIcon color="primary" />
+                  Tempo de preparo padrão
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mb: 2 }}
+                >
+                  Escolha um tempo predefinido ou digite um valor personalizado:
+                </Typography>
+
+                {/* Botões de tempo predefinido */}
+                <Box sx={{ mb: 2 }}>
+                  <ButtonGroup
+                    variant="outlined"
+                    size="small"
+                    sx={{ flexWrap: "wrap", gap: 1 }}
+                  >
+                    {timePresets.map((preset) => (
+                      <Button
+                        key={preset.value}
+                        variant={
+                          scheduleTime === preset.value
+                            ? "contained"
+                            : "outlined"
+                        }
+                        onClick={() => setPresetTime(preset.value)}
+                        disabled={loading}
+                        sx={{ mb: 1 }}
+                      >
+                        {preset.label}
+                      </Button>
+                    ))}
+                  </ButtonGroup>
+                </Box>
+
+                <TextField
+                  fullWidth
+                  label="Tempo personalizado (minutos)"
+                  value={scheduleTime}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value);
+                    setScheduleTime(isNaN(value) ? 0 : value);
+                  }}
+                  variant="outlined"
+                  type="number"
+                  inputProps={{
+                    min: 0.1,
+                    step: 0.1,
+                  }}
+                  disabled={loading}
+                  helperText={`${scheduleTime} ${
+                    scheduleTime === 1 ? "minuto" : "minutos"
+                  } = ${Math.floor(
+                    scheduleTime * 60
+                  )} segundos • Use decimais para menos de 1 minuto (ex: 0.5 = 30s)`}
+                />
+
+                {/* Indicador visual do tempo selecionado */}
+                <Alert severity="info" sx={{ mt: 2 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <ScheduleIcon />
+                    <Typography variant="body2">
+                      <strong>Tempo configurado:</strong> {scheduleTime}{" "}
+                      {scheduleTime === 1 ? "minuto" : "minutos"}(
+                      {Math.floor(scheduleTime * 60)} segundos)
+                      <br />
+                      <em>
+                        Após esse tempo, o sistema buscará automaticamente um
+                        entregador para o pedido.
+                      </em>
+                    </Typography>
+                  </Box>
+                </Alert>
+              </Box>
             </Box>
 
             <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>

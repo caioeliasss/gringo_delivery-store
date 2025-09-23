@@ -263,7 +263,7 @@ class OrderService {
         distance = result.preview.totalDistance;
         priceList = result.preview.priceList;
       }
-
+      console.log("Perfil_Url", cnpj_approved.perfil_url);
       // Criar novo pedido
       const newOrder = new Order({
         store: {
@@ -271,6 +271,7 @@ class OrderService {
           name: store.name || store.businessName || "Estabelecimento",
           coordinates: store.coordinates,
           address: store.address,
+          perfil_url: cnpj_approved ? cnpj_approved.perfil_url : null,
         },
         orderNumber,
         customer: customer,

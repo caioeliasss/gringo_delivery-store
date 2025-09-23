@@ -11,6 +11,10 @@ import {
   createSupportFooterItems,
 } from "../../../config/menuConfig";
 import { useAuth } from "../../../contexts/AuthContext";
+import {
+  uploadStoreProfileImage,
+  deleteStoreProfileImage,
+} from "../../../services/storageService";
 
 const Perfil = () => {
   const [loading, setLoading] = useState(true);
@@ -26,6 +30,7 @@ const Perfil = () => {
     cnpj: "",
     phone: "",
     email: "",
+    perfil_url: "",
     address: {
       address: "",
       bairro: "",
@@ -44,6 +49,7 @@ const Perfil = () => {
     longitude: "",
     latitude: "",
   });
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -313,6 +319,77 @@ const Perfil = () => {
     }
   };
 
+  const handleProfileImageUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+
+    try {
+      // Fazer upload da nova imagem
+      const imageUrl = await uploadStoreProfileImage(
+        file,
+        profileData.firebaseUid
+      );
+
+      // Excluir imagem anterior se existir
+      if (profileData.perfil_url) {
+        await deleteStoreProfileImage(profileData.perfil_url);
+      }
+
+      // Atualizar perfil no backend
+      const response = await api.put("/stores/profile-image", {
+        perfil_url: imageUrl,
+      });
+
+      if (response.status === 200) {
+        setProfileData((prev) => ({
+          ...prev,
+          perfil_url: imageUrl,
+        }));
+        alert("Imagem de perfil atualizada com sucesso!");
+      } else {
+        alert("Erro ao salvar URL da imagem no perfil");
+      }
+    } catch (error) {
+      console.error("Erro ao fazer upload da imagem:", error);
+      alert(error.message || "Erro ao fazer upload da imagem");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const removeProfileImage = async () => {
+    if (!profileData.perfil_url) return;
+
+    setUploadingImage(true);
+
+    try {
+      // Excluir imagem do storage
+      await deleteStoreProfileImage(profileData.perfil_url);
+
+      // Atualizar perfil no backend
+      const response = await api.put("/stores/profile-image", {
+        perfil_url: "",
+      });
+
+      if (response.status === 200) {
+        setProfileData((prev) => ({
+          ...prev,
+          perfil_url: "",
+        }));
+        alert("Imagem de perfil removida com sucesso!");
+      } else {
+        alert("Erro ao remover imagem do perfil");
+      }
+    } catch (error) {
+      console.error("Erro ao remover imagem:", error);
+      alert("Erro ao remover imagem de perfil");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="perfil-container">
@@ -383,6 +460,106 @@ const Perfil = () => {
         </div>
 
         <form onSubmit={updateProfile} className="perfil-form">
+          <div className="form-section">
+            <h2>Imagem de Perfil</h2>
+
+            <div className="profile-image-section">
+              {profileData.perfil_url ? (
+                <div className="current-image">
+                  <img
+                    src={profileData.perfil_url}
+                    alt="Perfil do estabelecimento"
+                    style={{
+                      width: "150px",
+                      height: "150px",
+                      objectFit: "cover",
+                      borderRadius: "8px",
+                      border: "2px solid #ddd",
+                    }}
+                  />
+                  <div className="image-actions">
+                    <button
+                      type="button"
+                      onClick={removeProfileImage}
+                      disabled={uploadingImage}
+                      className="btn-remove"
+                      style={{
+                        backgroundColor: "#dc3545",
+                        color: "white",
+                        border: "none",
+                        padding: "8px 16px",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        marginTop: "10px",
+                      }}
+                    >
+                      {uploadingImage ? "Removendo..." : "Remover Imagem"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="no-image">
+                  <div
+                    style={{
+                      width: "150px",
+                      height: "150px",
+                      backgroundColor: "#f8f9fa",
+                      border: "2px dashed #ddd",
+                      borderRadius: "8px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#6c757d",
+                    }}
+                  >
+                    Sem imagem
+                  </div>
+                </div>
+              )}
+
+              <div className="upload-section">
+                <input
+                  type="file"
+                  id="profile-image"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handleProfileImageUpload}
+                  disabled={uploadingImage}
+                  style={{ display: "none" }}
+                />
+                <label
+                  htmlFor="profile-image"
+                  className="btn-upload"
+                  style={{
+                    backgroundColor: "#007bff",
+                    color: "white",
+                    border: "none",
+                    padding: "10px 20px",
+                    borderRadius: "4px",
+                    cursor: uploadingImage ? "not-allowed" : "pointer",
+                    display: "inline-block",
+                    marginTop: "10px",
+                    opacity: uploadingImage ? 0.6 : 1,
+                  }}
+                >
+                  {uploadingImage
+                    ? "Enviando..."
+                    : profileData.perfil_url
+                    ? "Alterar Imagem"
+                    : "Adicionar Imagem"}
+                </label>
+                <p
+                  style={{
+                    fontSize: "12px",
+                    color: "#6c757d",
+                    marginTop: "5px",
+                  }}
+                >
+                  Formatos aceitos: JPG, PNG, WebP (máx. 5MB)
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="form-section">
             <h2>Informações Básicas</h2>
 
