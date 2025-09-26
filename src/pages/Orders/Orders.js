@@ -93,6 +93,10 @@ import {
 } from "@react-google-maps/api";
 import CreateOrderDialog from "./CreateOrderDialog";
 import { useSuporteAuth } from "../../contexts/SuporteAuthContext";
+import {
+  uploadStoreProfileImage,
+  deleteStoreProfileImage,
+} from "../../services/storageService";
 
 const ORDER_STATUS = [
   {
@@ -192,6 +196,9 @@ export default function OrdersPage() {
   const [statusModal, setStatusModal] = useState(false);
   const [newStatus, setNewStatus] = useState("");
   const [loadingStatusUpdate, setLoadingStatusUpdate] = useState(false);
+  const [profileImageModal, setProfileImageModal] = useState(false);
+  const [selectedStore, setSelectedStore] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     fetchOrders();
@@ -750,6 +757,139 @@ export default function OrdersPage() {
     }
 
     return "Endereço não informado";
+  };
+
+  const openProfileImageModal = (store) => {
+    setSelectedStore(store);
+    setProfileImageModal(true);
+  };
+
+  const closeProfileImageModal = () => {
+    setSelectedStore(null);
+    setProfileImageModal(false);
+  };
+
+  const handleProfileImageUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+
+    try {
+      // Fazer upload da nova imagem
+      const imageUrl = await uploadStoreProfileImage(
+        file,
+        selectedStore.firebaseUid || selectedStore._id
+      );
+
+      // Excluir imagem anterior se existir
+      if (selectedStore.perfil_url) {
+        await deleteStoreProfileImage(selectedStore.perfil_url);
+      }
+
+      // Atualizar perfil no backend
+      const response = await api.put(
+        `/stores/${selectedStore._id}/profile-image`,
+        {
+          perfil_url: imageUrl,
+        }
+      );
+
+      if (response.status === 200) {
+        // Atualizar o estado local dos pedidos
+        setOrders((prevOrders) =>
+          prevOrders.map((order) =>
+            order.store._id === selectedStore._id
+              ? {
+                  ...order,
+                  store: {
+                    ...order.store,
+                    perfil_url: imageUrl,
+                  },
+                }
+              : order
+          )
+        );
+
+        // Atualizar pedido selecionado se necessário
+        if (selectedOrder && selectedOrder.store._id === selectedStore._id) {
+          setSelectedOrder((prevOrder) => ({
+            ...prevOrder,
+            store: {
+              ...prevOrder.store,
+              perfil_url: imageUrl,
+            },
+          }));
+        }
+
+        alert("Imagem de perfil atualizada com sucesso!");
+        closeProfileImageModal();
+      } else {
+        alert("Erro ao salvar URL da imagem no perfil");
+      }
+    } catch (error) {
+      console.error("Erro ao fazer upload da imagem:", error);
+      alert(error.message || "Erro ao fazer upload da imagem");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const removeProfileImage = async () => {
+    if (!selectedStore.perfil_url) return;
+
+    setUploadingImage(true);
+
+    try {
+      // Excluir imagem do storage
+      await deleteStoreProfileImage(selectedStore.perfil_url);
+
+      // Atualizar perfil no backend
+      const response = await api.put(
+        `/stores/${selectedStore._id}/profile-image`,
+        {
+          perfil_url: "",
+        }
+      );
+
+      if (response.status === 200) {
+        // Atualizar o estado local dos pedidos
+        setOrders((prevOrders) =>
+          prevOrders.map((order) =>
+            order.store._id === selectedStore._id
+              ? {
+                  ...order,
+                  store: {
+                    ...order.store,
+                    perfil_url: "",
+                  },
+                }
+              : order
+          )
+        );
+
+        // Atualizar pedido selecionado se necessário
+        if (selectedOrder && selectedOrder.store._id === selectedStore._id) {
+          setSelectedOrder((prevOrder) => ({
+            ...prevOrder,
+            store: {
+              ...prevOrder.store,
+              perfil_url: "",
+            },
+          }));
+        }
+
+        alert("Imagem de perfil removida com sucesso!");
+        closeProfileImageModal();
+      } else {
+        alert("Erro ao remover imagem do perfil");
+      }
+    } catch (error) {
+      console.error("Erro ao remover imagem:", error);
+      alert("Erro ao remover imagem de perfil");
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   // Usar configuração centralizada de menu
@@ -1448,10 +1588,45 @@ export default function OrdersPage() {
                             </Box>
 
                             <Stack spacing={1}>
-                              <Typography variant="body1" fontWeight="medium">
-                                {selectedOrder.store?.name ||
-                                  "Estabelecimento não informado"}
-                              </Typography>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                }}
+                              >
+                                <Typography variant="body1" fontWeight="medium">
+                                  {selectedOrder.store?.name ||
+                                    "Estabelecimento não informado"}
+                                </Typography>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  onClick={() =>
+                                    openProfileImageModal(selectedOrder.store)
+                                  }
+                                  sx={{ ml: 1 }}
+                                >
+                                  Gerenciar Imagem
+                                </Button>
+                              </Box>
+
+                              {/* Exibir imagem de perfil da loja se existir */}
+                              {selectedOrder.store?.perfil_url && (
+                                <Box sx={{ mt: 1 }}>
+                                  <img
+                                    src={selectedOrder.store.perfil_url}
+                                    alt="Perfil do estabelecimento"
+                                    style={{
+                                      width: "80px",
+                                      height: "80px",
+                                      objectFit: "cover",
+                                      borderRadius: "8px",
+                                      border: "1px solid #ddd",
+                                    }}
+                                  />
+                                </Box>
+                              )}
 
                               {selectedOrder.store?.phone && (
                                 <Box
@@ -2053,6 +2228,162 @@ export default function OrdersPage() {
                   }
                 >
                   {loadingStatusUpdate ? "Alterando..." : "Confirmar Alteração"}
+                </Button>
+              </DialogActions>
+            </Dialog>
+
+            {/* Modal para Gerenciar Imagem de Perfil */}
+            <Dialog
+              open={profileImageModal}
+              onClose={closeProfileImageModal}
+              maxWidth="sm"
+              fullWidth
+              className="profile-image-modal"
+              PaperProps={{
+                sx: { borderRadius: 2 },
+              }}
+            >
+              <DialogTitle
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  pb: 1,
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <Avatar sx={{ mr: 1, bgcolor: "primary.main" }}>
+                    <StoreIcon />
+                  </Avatar>
+                  <Typography variant="h6" fontWeight="bold">
+                    Imagem de Perfil da Loja
+                  </Typography>
+                </Box>
+                <IconButton onClick={closeProfileImageModal} size="small">
+                  <CloseIcon />
+                </IconButton>
+              </DialogTitle>
+
+              <DialogContent>
+                {selectedStore && (
+                  <Box sx={{ textAlign: "center" }}>
+                    <Typography variant="body1" fontWeight="medium" mb={2}>
+                      {selectedStore.name || "Estabelecimento"}
+                    </Typography>
+
+                    {/* Imagem atual ou placeholder */}
+                    <Box sx={{ mb: 3 }}>
+                      {selectedStore.perfil_url ? (
+                        <Box>
+                          <img
+                            src={selectedStore.perfil_url}
+                            alt="Perfil do estabelecimento"
+                            style={{
+                              width: "200px",
+                              height: "200px",
+                              objectFit: "cover",
+                              borderRadius: "12px",
+                              border: "2px solid #ddd",
+                              boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
+                            }}
+                          />
+                          <Box sx={{ mt: 2 }}>
+                            <Button
+                              variant="outlined"
+                              color="error"
+                              onClick={removeProfileImage}
+                              disabled={uploadingImage}
+                              sx={{ borderRadius: 2 }}
+                            >
+                              {uploadingImage
+                                ? "Removendo..."
+                                : "Remover Imagem"}
+                            </Button>
+                          </Box>
+                        </Box>
+                      ) : (
+                        <Box
+                          sx={{
+                            width: "200px",
+                            height: "200px",
+                            margin: "0 auto",
+                            backgroundColor: "#f8f9fa",
+                            border: "2px dashed #ddd",
+                            borderRadius: "12px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "#6c757d",
+                          }}
+                        >
+                          <Box sx={{ textAlign: "center" }}>
+                            <Avatar
+                              sx={{
+                                width: 60,
+                                height: 60,
+                                bgcolor: "grey.300",
+                                margin: "0 auto 8px",
+                              }}
+                            >
+                              <StoreIcon sx={{ fontSize: 30 }} />
+                            </Avatar>
+                            <Typography variant="body2">
+                              Nenhuma imagem
+                            </Typography>
+                          </Box>
+                        </Box>
+                      )}
+                    </Box>
+
+                    {/* Upload de nova imagem */}
+                    <Box>
+                      <input
+                        type="file"
+                        id="store-profile-image"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        onChange={handleProfileImageUpload}
+                        disabled={uploadingImage}
+                        style={{ display: "none" }}
+                      />
+                      <label htmlFor="store-profile-image">
+                        <Button
+                          variant="contained"
+                          component="span"
+                          disabled={uploadingImage}
+                          sx={{
+                            borderRadius: 2,
+                            px: 4,
+                            py: 1.5,
+                            fontWeight: "bold",
+                          }}
+                        >
+                          {uploadingImage
+                            ? "Enviando..."
+                            : selectedStore.perfil_url
+                            ? "Alterar Imagem"
+                            : "Adicionar Imagem"}
+                        </Button>
+                      </label>
+
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ display: "block", mt: 1 }}
+                      >
+                        Formatos aceitos: JPG, PNG, WebP (máx. 5MB)
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+              </DialogContent>
+
+              <DialogActions sx={{ p: 3, pt: 1 }}>
+                <Button
+                  onClick={closeProfileImageModal}
+                  color="inherit"
+                  sx={{ borderRadius: 2 }}
+                >
+                  Fechar
                 </Button>
               </DialogActions>
             </Dialog>

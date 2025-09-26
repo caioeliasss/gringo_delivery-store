@@ -245,7 +245,10 @@ const Dashboard = () => {
             <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
               {userProfile?.perfil_url ? (
                 <Avatar
-                  src={userProfile.perfil_url}
+                  src={
+                    userProfile.perfil_url ||
+                    "https://firebasestorage.googleapis.com/v0/b/gringo-delivery.firebasestorage.app/o/location.png?alt=media&token=30f96692-ca61-410f-940f-604af7b6be16"
+                  }
                   alt={userProfile.displayName || currentUser?.email}
                   sx={{ width: 80, height: 80, mr: 3 }}
                 />

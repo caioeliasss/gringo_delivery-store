@@ -1017,4 +1017,37 @@ router.put("/restringir-acesso/:storeId", async (req, res) => {
   }
 });
 
+// Rota administrativa para atualizar imagem de perfil de qualquer loja
+router.put("/:storeId/profile-image", authenticateToken, async (req, res) => {
+  try {
+    const { storeId } = req.params;
+    const { perfil_url } = req.body;
+
+    const store = await Store.findById(storeId);
+    if (!store) {
+      return res.status(404).json({ message: "Loja não encontrada" });
+    }
+
+    // Atualizar URL da imagem de perfil
+    store.perfil_url = perfil_url || "";
+    await store.save();
+
+    res.status(200).json({
+      message: "Imagem de perfil atualizada com sucesso",
+      perfil_url: store.perfil_url,
+      store: {
+        _id: store._id,
+        businessName: store.businessName,
+        perfil_url: store.perfil_url,
+      },
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar imagem de perfil:", error);
+    res.status(500).json({
+      message: "Erro ao atualizar imagem de perfil",
+      error: error.message,
+    });
+  }
+});
+
 module.exports = router;

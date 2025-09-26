@@ -86,6 +86,10 @@ import api, {
 } from "../../services/api";
 import { getFileURL, getUserDocuments } from "../../services/storageService";
 import {
+  uploadStoreProfileImage,
+  deleteStoreProfileImage,
+} from "../../services/storageService";
+import {
   GoogleMap,
   Marker,
   InfoWindow,
@@ -199,6 +203,8 @@ export default function EstabelecimentosPage() {
     paymentMethods: [],
   });
   const [loadingBilling, setLoadingBilling] = useState(false);
+  const [profileImageModal, setProfileImageModal] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Verificar permissões do usuário - simplificado para admin sempre ter acesso
   const hasAdminPermission = () => {
@@ -1113,6 +1119,121 @@ export default function EstabelecimentosPage() {
     }
   };
 
+  const openProfileImageModal = () => {
+    setProfileImageModal(true);
+  };
+
+  const closeProfileImageModal = () => {
+    setProfileImageModal(false);
+  };
+
+  const handleProfileImageUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+
+    try {
+      // Fazer upload da nova imagem
+      const imageUrl = await uploadStoreProfileImage(
+        file,
+        selectedStore.firebaseUid || selectedStore._id
+      );
+
+      // Excluir imagem anterior se existir
+      if (selectedStore.perfil_url) {
+        await deleteStoreProfileImage(selectedStore.perfil_url);
+      }
+
+      // Atualizar perfil no backend
+      const response = await api.put(
+        `/stores/${selectedStore._id}/profile-image`,
+        {
+          perfil_url: imageUrl,
+        }
+      );
+
+      if (response.status === 200) {
+        // Atualizar o estado local das lojas
+        setStores((prevStores) =>
+          prevStores.map((store) =>
+            store._id === selectedStore._id
+              ? {
+                  ...store,
+                  perfil_url: imageUrl,
+                }
+              : store
+          )
+        );
+
+        // Atualizar loja selecionada
+        setSelectedStore((prevStore) => ({
+          ...prevStore,
+          perfil_url: imageUrl,
+        }));
+
+        alert("Imagem de perfil atualizada com sucesso!");
+        closeProfileImageModal();
+      } else {
+        alert("Erro ao salvar URL da imagem no perfil");
+      }
+    } catch (error) {
+      console.error("Erro ao fazer upload da imagem:", error);
+      alert(error.message || "Erro ao fazer upload da imagem");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const removeProfileImage = async () => {
+    if (!selectedStore.perfil_url) return;
+
+    setUploadingImage(true);
+
+    try {
+      // Excluir imagem do storage
+      await deleteStoreProfileImage(selectedStore.perfil_url);
+
+      // Atualizar perfil no backend
+      const response = await api.put(
+        `/stores/${selectedStore._id}/profile-image`,
+        {
+          perfil_url: "",
+        }
+      );
+
+      if (response.status === 200) {
+        // Atualizar o estado local das lojas
+        setStores((prevStores) =>
+          prevStores.map((store) =>
+            store._id === selectedStore._id
+              ? {
+                  ...store,
+                  perfil_url: "",
+                }
+              : store
+          )
+        );
+
+        // Atualizar loja selecionada
+        setSelectedStore((prevStore) => ({
+          ...prevStore,
+          perfil_url: "",
+        }));
+
+        alert("Imagem de perfil removida com sucesso!");
+        closeProfileImageModal();
+      } else {
+        alert("Erro ao remover imagem do perfil");
+      }
+    } catch (error) {
+      console.error("Erro ao remover imagem:", error);
+      alert("Erro ao remover imagem de perfil");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   return (
     <>
       {/* Tela de carregamento da API do Google Maps */}
@@ -1589,7 +1710,7 @@ export default function EstabelecimentosPage() {
                         <TableCell>
                           <Box sx={{ display: "flex", alignItems: "center" }}>
                             <Avatar
-                              src={store.avatar || ""}
+                              src={store.perfil_url || store.avatar || ""}
                               sx={{
                                 bgcolor: "primary.light",
                                 color: "primary.contrastText",
@@ -1733,19 +1854,46 @@ export default function EstabelecimentosPage() {
                       }}
                     >
                       <Box sx={{ display: "flex", alignItems: "center" }}>
-                        <Avatar
-                          src={selectedStore.avatar || ""}
-                          sx={{
-                            width: 64,
-                            height: 64,
-                            mr: 2,
-                            bgcolor: "primary.light",
-                          }}
-                        >
-                          {selectedStore.businessName
-                            ?.charAt(0)
-                            ?.toUpperCase() || "E"}
-                        </Avatar>
+                        <Box sx={{ position: "relative" }}>
+                          <Avatar
+                            src={
+                              selectedStore.perfil_url ||
+                              selectedStore.avatar ||
+                              ""
+                            }
+                            sx={{
+                              width: 64,
+                              height: 64,
+                              mr: 2,
+                              bgcolor: "primary.light",
+                            }}
+                          >
+                            {selectedStore.businessName
+                              ?.charAt(0)
+                              ?.toUpperCase() || "E"}
+                          </Avatar>
+                          {hasAdminPermission() && (
+                            <IconButton
+                              onClick={openProfileImageModal}
+                              size="small"
+                              sx={{
+                                position: "absolute",
+                                bottom: -4,
+                                right: 4,
+                                bgcolor: "primary.main",
+                                color: "white",
+                                width: 24,
+                                height: 24,
+                                "&:hover": {
+                                  bgcolor: "primary.dark",
+                                },
+                              }}
+                              title="Gerenciar imagem de perfil"
+                            >
+                              <EditIcon sx={{ fontSize: 14 }} />
+                            </IconButton>
+                          )}
+                        </Box>
                         <Box sx={{ display: "flex", alignItems: "center" }}>
                           <TextField
                             value={
@@ -2802,6 +2950,162 @@ export default function EstabelecimentosPage() {
                     alterações
                   </Typography>
                 )}
+              </DialogActions>
+            </Dialog>
+
+            {/* Modal para Gerenciar Imagem de Perfil */}
+            <Dialog
+              open={profileImageModal}
+              onClose={closeProfileImageModal}
+              maxWidth="sm"
+              fullWidth
+              className="profile-image-modal"
+              PaperProps={{
+                sx: { borderRadius: 2 },
+              }}
+            >
+              <DialogTitle
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  pb: 1,
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <Avatar sx={{ mr: 1, bgcolor: "primary.main" }}>
+                    <StoreIcon />
+                  </Avatar>
+                  <Typography variant="h6" fontWeight="bold">
+                    Imagem de Perfil da Loja
+                  </Typography>
+                </Box>
+                <IconButton onClick={closeProfileImageModal} size="small">
+                  <CloseIcon />
+                </IconButton>
+              </DialogTitle>
+
+              <DialogContent>
+                {selectedStore && (
+                  <Box sx={{ textAlign: "center" }}>
+                    <Typography variant="body1" fontWeight="medium" mb={2}>
+                      {selectedStore.businessName || "Estabelecimento"}
+                    </Typography>
+
+                    {/* Imagem atual ou placeholder */}
+                    <Box sx={{ mb: 3 }}>
+                      {selectedStore.perfil_url ? (
+                        <Box>
+                          <img
+                            src={selectedStore.perfil_url}
+                            alt="Perfil do estabelecimento"
+                            style={{
+                              width: "200px",
+                              height: "200px",
+                              objectFit: "cover",
+                              borderRadius: "12px",
+                              border: "2px solid #ddd",
+                              boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
+                            }}
+                          />
+                          <Box sx={{ mt: 2 }}>
+                            <Button
+                              variant="outlined"
+                              color="error"
+                              onClick={removeProfileImage}
+                              disabled={uploadingImage}
+                              sx={{ borderRadius: 2 }}
+                            >
+                              {uploadingImage
+                                ? "Removendo..."
+                                : "Remover Imagem"}
+                            </Button>
+                          </Box>
+                        </Box>
+                      ) : (
+                        <Box
+                          sx={{
+                            width: "200px",
+                            height: "200px",
+                            margin: "0 auto",
+                            backgroundColor: "#f8f9fa",
+                            border: "2px dashed #ddd",
+                            borderRadius: "12px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "#6c757d",
+                          }}
+                        >
+                          <Box sx={{ textAlign: "center" }}>
+                            <Avatar
+                              sx={{
+                                width: 60,
+                                height: 60,
+                                bgcolor: "grey.300",
+                                margin: "0 auto 8px",
+                              }}
+                            >
+                              <StoreIcon sx={{ fontSize: 30 }} />
+                            </Avatar>
+                            <Typography variant="body2">
+                              Nenhuma imagem
+                            </Typography>
+                          </Box>
+                        </Box>
+                      )}
+                    </Box>
+
+                    {/* Upload de nova imagem */}
+                    <Box>
+                      <input
+                        type="file"
+                        id="store-profile-image"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        onChange={handleProfileImageUpload}
+                        disabled={uploadingImage}
+                        style={{ display: "none" }}
+                      />
+                      <label htmlFor="store-profile-image">
+                        <Button
+                          variant="contained"
+                          component="span"
+                          disabled={uploadingImage}
+                          sx={{
+                            borderRadius: 2,
+                            px: 4,
+                            py: 1.5,
+                            fontWeight: "bold",
+                          }}
+                        >
+                          {uploadingImage
+                            ? "Enviando..."
+                            : selectedStore.perfil_url
+                            ? "Alterar Imagem"
+                            : "Adicionar Imagem"}
+                        </Button>
+                      </label>
+
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ display: "block", mt: 1 }}
+                      >
+                        Formatos aceitos: JPG, PNG, WebP (máx. 5MB)
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+              </DialogContent>
+
+              <DialogActions sx={{ p: 3, pt: 1 }}>
+                <Button
+                  onClick={closeProfileImageModal}
+                  color="inherit"
+                  sx={{ borderRadius: 2 }}
+                >
+                  Fechar
+                </Button>
               </DialogActions>
             </Dialog>
           </Container>
