@@ -1030,7 +1030,8 @@ const Pedidos = () => {
       setLoading(false);
       return;
     }
-    const driverCode = pedido.motoboy.phone.slice(-4);
+    const driverCode =
+      pedido.motoboy.phone.slice(-4) || pedido.motoboy.phoneNumber.slice(-4);
     if (code === driverCode) {
       handleUpdateStatus(pedido._id, "em_entrega");
       setSnackbar({
