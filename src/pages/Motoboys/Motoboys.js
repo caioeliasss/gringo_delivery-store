@@ -892,7 +892,7 @@ export default function MotoboysPage() {
                                 variant="caption"
                                 color="text.secondary"
                               >
-                                ID: {motoboy._id?.slice(-6) || "Não informado"}
+                                ID: {motoboy._id || "Não informado"}
                               </Typography>
                             </Box>
                           </Box>

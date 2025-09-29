@@ -766,7 +766,7 @@ class NotificationService {
             title,
             body: message,
             icon: "/logo192.png",
-            badge: "/favicon_trim.png",
+            badge: "/icone-512-gringo.png",
             tag: `admin-${type.toLowerCase()}`,
             data: {
               type,
