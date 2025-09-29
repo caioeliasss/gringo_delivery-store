@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Exclusão de Conta - Gringo Delivery</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+          sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .container {
+        background: white;
+        border-radius: 15px;
+        padding: 40px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+        max-width: 600px;
+        width: 90%;
+      }
+
+      .logo {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      .logo img {
+        width: 120px;
+        height: auto;
+      }
+
+      h1 {
+        color: #333;
+        text-align: center;
+        margin-bottom: 30px;
+        font-size: 28px;
+      }
+
+      .warning {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+        color: #856404;
+      }
+
+      .warning-icon {
+        font-size: 24px;
+        margin-right: 10px;
+      }
+
+      .info-section {
+        margin: 30px 0;
+      }
+
+      .info-section h3 {
+        color: #444;
+        margin-bottom: 15px;
+      }
+
+      .info-section ul {
+        padding-left: 20px;
+      }
+
+      .info-section li {
+        margin: 8px 0;
+        color: #666;
+      }
+
+      .form-group {
+        margin: 25px 0;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #333;
+      }
+
+      input[type="email"],
+      input[type="password"] {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        font-size: 16px;
+        box-sizing: border-box;
+        transition: border-color 0.3s;
+      }
+
+      input[type="email"]:focus,
+      input[type="password"]:focus {
+        outline: none;
+        border-color: #667eea;
+      }
+
+      .checkbox-group {
+        display: flex;
+        align-items: flex-start;
+        margin: 25px 0;
+      }
+
+      .checkbox-group input[type="checkbox"] {
+        margin-right: 12px;
+        margin-top: 4px;
+        transform: scale(1.2);
+      }
+
+      .checkbox-group label {
+        flex: 1;
+        margin-bottom: 0;
+        font-weight: normal;
+        line-height: 1.4;
+      }
+
+      .btn {
+        width: 100%;
+        padding: 15px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .btn-danger {
+        background: #e74c3c;
+        color: white;
+      }
+
+      .btn-danger:hover {
+        background: #c0392b;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+      }
+
+      .btn-danger:disabled {
+        background: #bdc3c7;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .btn-secondary {
+        background: #95a5a6;
+        color: white;
+        margin-bottom: 15px;
+      }
+
+      .btn-secondary:hover {
+        background: #7f8c8d;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(149, 165, 166, 0.4);
+      }
+
+      .status-message {
+        padding: 15px;
+        border-radius: 8px;
+        margin: 20px 0;
+        text-align: center;
+        font-weight: 600;
+        display: none;
+      }
+
+      .status-message.success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+
+      .status-message.error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+
+      .footer {
+        text-align: center;
+        margin-top: 30px;
+        color: #666;
+        font-size: 14px;
+      }
+
+      .footer a {
+        color: #667eea;
+        text-decoration: none;
+      }
+
+      .footer a:hover {
+        text-decoration: underline;
+      }
+
+      @media (max-width: 768px) {
+        .container {
+          padding: 20px;
+          margin: 10px;
+        }
+
+        h1 {
+          font-size: 24px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="logo">
+        <img
+          src="logo-sem-fundo.png"
+          alt="Gringo Delivery"
+          onerror="this.style.display='none'"
+        />
+      </div>
+
+      <h1>Exclusão de Conta</h1>
+
+      <div class="warning">
+        <span class="warning-icon">⚠️</span>
+        <strong>Atenção:</strong> Esta ação é irreversível e excluirá
+        permanentemente todos os seus dados.
+      </div>
+
+      <div class="info-section">
+        <h3>O que será excluído:</h3>
+        <ul>
+          <li>Informações pessoais (nome, e-mail, telefone, CPF)</li>
+          <li>Documentos enviados (CNH, RG)</li>
+          <li>Histórico de entregas</li>
+          <li>Avaliações e pontuação</li>
+          <li>Notificações e mensagens</li>
+          <li>Configurações da conta</li>
+        </ul>
+      </div>
+
+      <div class="info-section">
+        <h3>Requisitos para exclusão:</h3>
+        <ul>
+          <li>Não deve haver entregas ativas ou pendentes</li>
+          <li>Confirmação de identidade necessária</li>
+          <li>Processo não pode ser desfeito</li>
+        </ul>
+      </div>
+
+      <form id="deleteAccountForm">
+        <div class="form-group">
+          <label for="email">Confirme seu e-mail:</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            required
+            placeholder="seu-email@exemplo.com"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="password">Digite sua senha atual:</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            required
+            placeholder="Sua senha"
+          />
+        </div>
+
+        <div class="checkbox-group">
+          <input
+            type="checkbox"
+            id="confirmDeletion"
+            name="confirmDeletion"
+            required
+          />
+          <label for="confirmDeletion">
+            Eu entendo que esta ação é irreversível e concordo em excluir
+            permanentemente minha conta e todos os dados associados.
+          </label>
+        </div>
+
+        <div class="checkbox-group">
+          <input
+            type="checkbox"
+            id="confirmNoActiveDeliveries"
+            name="confirmNoActiveDeliveries"
+            required
+          />
+          <label for="confirmNoActiveDeliveries">
+            Confirmo que não tenho entregas ativas ou pendentes no momento.
+          </label>
+        </div>
+
+        <div class="status-message" id="statusMessage"></div>
+
+        <button
+          type="button"
+          class="btn btn-secondary"
+          onclick="window.history.back()"
+        >
+          ← Voltar
+        </button>
+
+        <button type="submit" class="btn btn-danger" id="deleteButton" disabled>
+          Excluir Minha Conta Permanentemente
+        </button>
+      </form>
+
+      <div class="footer">
+        <p>
+          Precisa de ajuda?
+          <a href="mailto:suporte@gringodelivery.com"
+            >Entre em contato conosco</a
+          >
+        </p>
+        <p>© 2024 Gringo Delivery. Todos os direitos reservados.</p>
+      </div>
+    </div>
+
+    <script>
+      // Habilitar botão apenas quando todos os campos estão preenchidos
+      function checkFormValidity() {
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
+        const confirmDeletion =
+          document.getElementById("confirmDeletion").checked;
+        const confirmNoActiveDeliveries = document.getElementById(
+          "confirmNoActiveDeliveries"
+        ).checked;
+
+        const deleteButton = document.getElementById("deleteButton");
+        deleteButton.disabled = !(
+          email &&
+          password &&
+          confirmDeletion &&
+          confirmNoActiveDeliveries
+        );
+      }
+
+      // Adicionar event listeners
+      document
+        .getElementById("email")
+        .addEventListener("input", checkFormValidity);
+      document
+        .getElementById("password")
+        .addEventListener("input", checkFormValidity);
+      document
+        .getElementById("confirmDeletion")
+        .addEventListener("change", checkFormValidity);
+      document
+        .getElementById("confirmNoActiveDeliveries")
+        .addEventListener("change", checkFormValidity);
+
+      // Função para mostrar mensagem de status
+      function showMessage(message, type) {
+        const statusMessage = document.getElementById("statusMessage");
+        statusMessage.textContent = message;
+        statusMessage.className = `status-message ${type}`;
+        statusMessage.style.display = "block";
+      }
+
+      // Função para fazer login no Firebase e obter token
+      async function authenticateAndGetToken(email, password) {
+        try {
+          // Esta função precisará ser implementada com Firebase Authentication
+          // Por enquanto, simularemos o processo
+          console.log("Autenticando usuário...", { email });
+
+          // Aqui você integraria com Firebase Auth
+          // const userCredential = await signInWithEmailAndPassword(auth, email, password);
+          // const token = await userCredential.user.getIdToken();
+          // return token;
+
+          // Simulação - em produção, remover e usar Firebase Auth real
+          return "mock-jwt-token";
+        } catch (error) {
+          throw new Error("Falha na autenticação: " + error.message);
+        }
+      }
+
+      // Processar submissão do formulário
+      document
+        .getElementById("deleteAccountForm")
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
+
+          const deleteButton = document.getElementById("deleteButton");
+          const originalText = deleteButton.textContent;
+
+          try {
+            deleteButton.disabled = true;
+            deleteButton.textContent = "Processando...";
+
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
+
+            // Autenticar e obter token
+            showMessage("Verificando credenciais...", "success");
+            const token = await authenticateAndGetToken(email, password);
+
+            // Fazer requisição para excluir conta
+            showMessage("Excluindo conta...", "success");
+            const response = await fetch("/api/motoboys/delete-account", {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+              showMessage(result.message, "success");
+
+              // Redirecionar após 3 segundos
+              setTimeout(() => {
+                window.location.href = "/";
+              }, 3000);
+            } else {
+              throw new Error(result.message || "Erro ao excluir conta");
+            }
+          } catch (error) {
+            console.error("Erro:", error);
+            showMessage("Erro: " + error.message, "error");
+
+            deleteButton.disabled = false;
+            deleteButton.textContent = originalText;
+          }
+        });
+
+      // Aviso ao sair da página
+      window.addEventListener("beforeunload", function (e) {
+        const formChanged =
+          document.getElementById("email").value ||
+          document.getElementById("password").value ||
+          document.getElementById("confirmDeletion").checked ||
+          document.getElementById("confirmNoActiveDeliveries").checked;
+
+        if (formChanged) {
+          e.preventDefault();
+          e.returnValue = "";
+        }
+      });
+    </script>
+  </body>
+</html>

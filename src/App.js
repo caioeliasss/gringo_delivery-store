@@ -54,6 +54,7 @@ import StoreAccessControl from "./components/StoreAccessControl";
 import Relatorios from "./pages/Relatorios/Relatorios";
 import OcorrenciasReport from "./components/Reports/OcorrenciasReport";
 import Perfil from "./pages/Store/Perfil/Perfil";
+import PrivacyPolicy from "./components/PrivacyPolicy";
 // Definir tema personalizado com a paleta de cores da Gringo Delivery
 const theme = createTheme({
   typography: {
@@ -243,6 +244,7 @@ function CustomerApp() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/privacy-app" element={<PrivacyPolicy />} />
               <Route
                 path="/dashboard"
                 element={

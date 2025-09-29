@@ -211,7 +211,7 @@ const updateMotoboy = async (req, res) => {
     });
   }
 };
-// Delete user
+// Delete user (admin only)
 const deleteMotoboy = async (req, res) => {
   try {
     const user = await Motoboy.findById(req.params.id);
@@ -223,6 +223,38 @@ const deleteMotoboy = async (req, res) => {
     res.json({ message: "Usuário excluído com sucesso" });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// Solicitar exclusão da própria conta (usuário autenticado)
+const requestAccountDeletion = async (req, res) => {
+  try {
+    const user = await Motoboy.findOne({ firebaseUid: req.user.uid });
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    // Verificar se o usuário tem entregas ativas
+    if (user.race && user.race.active) {
+      return res.status(400).json({
+        message:
+          "Não é possível excluir conta com entregas ativas. Complete suas entregas pendentes primeiro.",
+      });
+    }
+
+    // Excluir a conta do usuário
+    await user.deleteOne();
+
+    res.json({
+      message:
+        "Conta excluída com sucesso. Todos os seus dados foram removidos do sistema.",
+    });
+  } catch (error) {
+    console.error("Erro ao excluir conta:", error);
+    res.status(500).json({
+      message: "Erro ao processar solicitação de exclusão",
+      error: error.message,
+    });
   }
 };
 
@@ -668,6 +700,100 @@ const acceptTerms = async (req, res) => {
   }
 };
 
+// Informações sobre exclusão de dados (LGPD)
+const getDataDeletionInfo = async (req, res) => {
+  try {
+    res.status(200).json({
+      title: "Exclusão de Dados Pessoais",
+      description:
+        "Informações sobre como solicitar a exclusão dos seus dados pessoais",
+      rights: [
+        "Direito ao esquecimento (Art. 17 LGPD)",
+        "Exclusão completa de dados pessoais",
+        "Remoção de histórico de entregas",
+        "Exclusão de documentos enviados",
+        "Cancelamento de notificações",
+      ],
+      process: [
+        "Acesse o link de exclusão de conta",
+        "Confirme sua identidade com email e senha",
+        "Verifique se não há entregas ativas",
+        "Confirme a exclusão permanente",
+        "Processo concluído em até 24 horas",
+      ],
+      requirements: [
+        "Conta sem entregas ativas ou pendentes",
+        "Confirmação de identidade obrigatória",
+        "Processo irreversível após confirmação",
+        "Dados anonimizados para fins legais podem ser mantidos",
+      ],
+      contact: {
+        email: "privacidade@gringodelivery.com",
+        subject: "Solicitação de Exclusão de Dados - LGPD",
+        phone: "+55 11 99999-9999",
+      },
+      links: {
+        deleteAccount: "/delete-account.html",
+        privacyPolicy: "/privacy-policy.html",
+        terms: "/terms-of-service.html",
+      },
+      legalBasis: "Lei Geral de Proteção de Dados (LGPD) - Lei nº 13.709/2018",
+      responseTime: "Até 15 dias úteis conforme Art. 19 da LGPD",
+    });
+  } catch (error) {
+    console.error("Erro ao buscar informações de exclusão:", error);
+    res.status(500).json({
+      message: "Erro ao buscar informações de exclusão",
+      error: error.message,
+    });
+  }
+};
+
+// Verificar se o usuário pode excluir a conta
+const checkCanDeleteAccount = async (req, res) => {
+  try {
+    const user = await Motoboy.findOne({ firebaseUid: req.user.uid });
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    // Verificar se há entregas ativas
+    const hasActiveRace = user.race && user.race.active;
+
+    // Verificar se há pedidos pendentes (opcional - verificação adicional)
+    const Order = require("../models/Order");
+    const pendingOrders = await Order.countDocuments({
+      "motoboy.motoboyId": user._id,
+      status: { $in: ["em_preparo", "saiu_para_entrega"] },
+    });
+
+    const canDelete = !hasActiveRace && pendingOrders === 0;
+
+    res.status(200).json({
+      canDelete,
+      user: {
+        name: user.name,
+        email: user.email,
+        isAvailable: user.isAvailable,
+        isApproved: user.isApproved,
+      },
+      blockingFactors: {
+        hasActiveRace,
+        pendingOrdersCount: pendingOrders,
+      },
+      message: canDelete
+        ? "Conta pode ser excluída"
+        : "Não é possível excluir a conta no momento",
+    });
+  } catch (error) {
+    console.error("Erro ao verificar status da conta:", error);
+    res.status(500).json({
+      message: "Erro ao verificar status da conta",
+      error: error.message,
+    });
+  }
+};
+
 const arrivedAtStore = async (req, res) => {
   try {
     const { motoboyId, arrivedAt } = req.body;
@@ -711,6 +837,10 @@ const arrivedAtStore = async (req, res) => {
   }
 };
 
+router.delete("/:id", deleteMotoboy);
+router.delete("/delete-account", authenticateToken, requestAccountDeletion);
+router.get("/data-deletion-info", getDataDeletionInfo);
+router.get("/can-delete-account", authenticateToken, checkCanDeleteAccount);
 router.post("/arrived", authenticateToken, arrivedAtStore);
 router.post("/accept-terms", authenticateToken, acceptTerms);
 router.delete(
