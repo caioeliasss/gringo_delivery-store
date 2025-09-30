@@ -1427,15 +1427,11 @@ export default function EstabelecimentosPage() {
                 {/* Filtro por Status */}
                 <Grid item xs={12} md={4}>
                   <FormControl fullWidth>
-                    <InputLabel id="status-filter-label">
-                      Filtrar por Status
-                    </InputLabel>
                     <Select
                       labelId="status-filter-label"
                       multiple
                       value={selectedStatuses}
                       onChange={handleStatusChange}
-                      input={<OutlinedInput label="Filtrar por Status" />}
                       displayEmpty
                       sx={{
                         minHeight: "56px",
@@ -1505,15 +1501,11 @@ export default function EstabelecimentosPage() {
                 {/* Filtro por Categoria */}
                 <Grid item xs={12} md={4}>
                   <FormControl fullWidth>
-                    <InputLabel id="category-filter-label">
-                      Filtrar por Categoria
-                    </InputLabel>
                     <Select
                       labelId="category-filter-label"
                       multiple
                       value={selectedCategories}
                       onChange={handleCategoryChange}
-                      input={<OutlinedInput label="Filtrar por Categoria" />}
                       displayEmpty
                       sx={{
                         minHeight: "56px",

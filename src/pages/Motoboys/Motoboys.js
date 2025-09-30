@@ -658,15 +658,11 @@ export default function MotoboysPage() {
                 {/* Filtro por Status */}
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth>
-                    <InputLabel id="status-filter-label">
-                      Filtrar por Status
-                    </InputLabel>
                     <Select
                       labelId="status-filter-label"
                       multiple
                       value={selectedStatuses}
                       onChange={handleStatusChange}
-                      input={<OutlinedInput label="Filtrar por Status" />}
                       displayEmpty
                       sx={{
                         minHeight: "56px",

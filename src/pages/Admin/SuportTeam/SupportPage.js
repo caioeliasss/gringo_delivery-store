@@ -606,15 +606,11 @@ export default function SupportPage() {
               {/* Filtro por Status */}
               <Grid item xs={12} md={4}>
                 <FormControl fullWidth>
-                  <InputLabel id="status-filter-label">
-                    Filtrar por Status
-                  </InputLabel>
                   <Select
                     labelId="status-filter-label"
                     multiple
                     value={selectedStatuses}
                     onChange={handleStatusChange}
-                    input={<OutlinedInput label="Filtrar por Status" />}
                     displayEmpty
                     sx={{
                       minHeight: "56px",
@@ -705,15 +701,11 @@ export default function SupportPage() {
               {/* Filtro por Roles */}
               <Grid item xs={12} md={4}>
                 <FormControl fullWidth>
-                  <InputLabel id="role-filter-label">
-                    Filtrar por Permissão
-                  </InputLabel>
                   <Select
                     labelId="role-filter-label"
                     multiple
                     value={selectedRoles}
                     onChange={handleRoleChange}
-                    input={<OutlinedInput label="Filtrar por Permissão" />}
                     displayEmpty
                     sx={{
                       minHeight: "56px",
