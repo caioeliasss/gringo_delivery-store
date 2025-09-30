@@ -136,7 +136,7 @@ export const ADMIN_MENU_ITEMS = [
   },
   {
     path: "/settings",
-    text: "Configurações",
+    text: "Precificação",
     icon: <SettingsIcon />,
   },
   {

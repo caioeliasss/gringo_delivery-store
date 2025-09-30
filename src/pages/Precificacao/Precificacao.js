@@ -312,11 +312,6 @@ export default function PrecificacaoPage() {
                       }
                       disabled={!editMode}
                       fullWidth
-                      InputProps={{
-                        startAdornment: (
-                          <Typography sx={{ mr: 1 }}>R$</Typography>
-                        ),
-                      }}
                       helperText="Kilometragem mínima para preço fixo"
                     />
 
