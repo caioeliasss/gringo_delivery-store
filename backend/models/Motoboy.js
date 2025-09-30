@@ -15,6 +15,10 @@ const motoboySchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
     },
+    profileImage: {
+      type: String,
+      required: false,
+    },
     pushToken: {
       type: String,
       required: false,

@@ -205,6 +205,7 @@ class MotoboyService {
           ...order.motoboy,
           motoboyId: motoboy._id,
           name: motoboy.name,
+          profileImage: motoboy.profileImage,
           phone: motoboy.phoneNumber,
           phoneNumber: motoboy.phoneNumber,
           timer: Date.now(),

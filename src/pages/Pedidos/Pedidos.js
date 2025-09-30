@@ -51,6 +51,7 @@ import {
   Icon,
   Tab,
   Tabs,
+  Avatar,
 } from "@mui/material";
 import {
   Dashboard as DashboardIcon,
@@ -80,6 +81,8 @@ import {
   Chat as ChatIcon,
   Receipt as ReceiptIcon,
   NotificationAdd,
+  QrCode as QrCodeIcon,
+  Badge as BadgeIcon,
 } from "@mui/icons-material";
 import eventService from "../../services/eventService";
 import socketService from "../../services/socketService";
@@ -481,6 +484,7 @@ const Pedidos = () => {
           name: data.motoboy.name,
           phone: data.motoboy.phoneNumber,
           motoboyId: data.motoboy._id,
+          profileImage: data.motoboy.profileImage,
         };
         setPedidos((prevPedidos) =>
           prevPedidos.map((pedido) =>
@@ -577,12 +581,21 @@ const Pedidos = () => {
       const handleMotoboyAssigned = (data) => {
         console.log("👤 Motoboy atribuído via socket:", data);
 
+        // Normalizar estrutura do motoboy para consistência
+        const normalizedMotoboy = {
+          name: data.motoboy?.name,
+          phone: data.motoboy?.phone || data.motoboy?.phoneNumber,
+          motoboyId: data.motoboy?._id || data.motoboy?.motoboyId,
+          profileImage: data.motoboy?.profileImage,
+          ...data.motoboy,
+        };
+
         setPedidos((prevPedidos) =>
           prevPedidos.map((pedido) =>
             pedido._id === data.orderId
               ? {
                   ...pedido,
-                  motoboy: data.motoboy,
+                  motoboy: normalizedMotoboy,
                   status: data.status || pedido.status,
                 }
               : pedido
@@ -593,7 +606,7 @@ const Pedidos = () => {
         if (currentPedido && currentPedido._id === data.orderId) {
           setCurrentPedido((prevPedido) => ({
             ...prevPedido,
-            motoboy: data.motoboy,
+            motoboy: normalizedMotoboy,
             status: data.status || prevPedido.status,
           }));
         }
@@ -1021,7 +1034,11 @@ const Pedidos = () => {
   };
 
   const handleDriverCode = (code, pedido) => {
-    if (pedido.motoboy.phone === null) {
+    // Verificar se existe motoboy e telefone
+    if (
+      !pedido.motoboy ||
+      (!pedido.motoboy.phone && !pedido.motoboy.phoneNumber)
+    ) {
       setSnackbar({
         open: true,
         message: "Não há um motoboy atribuido ao pedido ainda.",
@@ -1030,8 +1047,21 @@ const Pedidos = () => {
       setLoading(false);
       return;
     }
-    const driverCode =
-      pedido.motoboy.phone.slice(-4) || pedido.motoboy.phoneNumber.slice(-4);
+
+    // Usar phone ou phoneNumber como fallback
+    const phoneNumber = pedido.motoboy.phone || pedido.motoboy.phoneNumber;
+
+    if (!phoneNumber) {
+      setSnackbar({
+        open: true,
+        message: "Telefone do motoboy não encontrado.",
+        severity: "error",
+      });
+      setLoading(false);
+      return;
+    }
+
+    const driverCode = phoneNumber.toString().slice(-4);
     if (code === driverCode) {
       handleUpdateStatus(pedido._id, "em_entrega");
       setSnackbar({
@@ -3244,48 +3274,131 @@ const Pedidos = () => {
                     )}
                     {/* Atualizar Status */}
 
-                    <Grid item xs={12}>
-                      <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
-                        <Typography
-                          variant="h6"
+                    <Grid item xs={12} width={"100%"}>
+                      <Paper
+                        elevation={3}
+                        sx={{
+                          p: 3,
+                          borderRadius: 3,
+                          background: "white",
+                          border: "1px solid rgba(103, 126, 234, 0.1)",
+                          boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
+                        }}
+                      >
+                        <Box
                           sx={{
-                            mb: 3,
-                            color: "primary.main",
-                            fontWeight: "bold",
+                            mb: 4,
+                            p: 2,
+                            borderRadius: 2,
+                            background:
+                              "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                            color: "white",
                             display: "flex",
                             alignItems: "center",
+                            justifyContent: "center",
+                            boxShadow: "0 4px 20px rgba(103, 126, 234, 0.3)",
                           }}
                         >
-                          <DeliveryIcon sx={{ mr: 1 }} /> Informações da Corrida
-                        </Typography>
+                          <DeliveryIcon sx={{ mr: 2, fontSize: 28 }} />
+                          <Typography
+                            variant="h5"
+                            sx={{
+                              fontWeight: "bold",
+                              textShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                              letterSpacing: "0.5px",
+                            }}
+                          >
+                            Informações da Corrida
+                          </Typography>
+                        </Box>
 
                         <Grid container spacing={2}>
                           {/* Modo de entrega */}
                           <Grid item xs={12} sm={6}>
                             <Box
                               sx={{
-                                p: 2,
-                                bgcolor: "background.paper",
-                                borderRadius: 1,
-                                border: 1,
-                                borderColor: "divider",
+                                p: 3,
+                                background:
+                                  "linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)",
+                                borderRadius: 3,
+                                border: "2px solid",
+                                borderColor:
+                                  currentPedido.deliveryMode === "retirada"
+                                    ? "#FF9800"
+                                    : "#4CAF50",
+                                boxShadow: "0 6px 20px rgba(0,0,0,0.1)",
+                                position: "relative",
+                                overflow: "hidden",
+                                "&::before": {
+                                  content: '""',
+                                  position: "absolute",
+                                  top: 0,
+                                  left: 0,
+                                  width: "100%",
+                                  height: "4px",
+                                  background:
+                                    currentPedido.deliveryMode === "retirada"
+                                      ? "linear-gradient(90deg, #FF9800, #FFB74D)"
+                                      : "linear-gradient(90deg, #4CAF50, #66BB6A)",
+                                },
                               }}
                             >
-                              <Typography
-                                variant="subtitle2"
-                                sx={{ fontWeight: "bold", mb: 1 }}
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  mb: 2,
+                                }}
                               >
-                                Modo de Entrega
-                              </Typography>
+                                {currentPedido.deliveryMode === "retirada" ? (
+                                  <Icon
+                                    sx={{
+                                      mr: 1,
+                                      fontSize: 24,
+                                      color: "#FF9800",
+                                    }}
+                                  >
+                                    store
+                                  </Icon>
+                                ) : (
+                                  <DeliveryIcon
+                                    sx={{
+                                      mr: 1,
+                                      fontSize: 24,
+                                      color: "#4CAF50",
+                                    }}
+                                  />
+                                )}
+                                <Typography
+                                  variant="h6"
+                                  sx={{
+                                    fontWeight: "bold",
+                                    color: "text.primary",
+                                  }}
+                                >
+                                  Modo de Entrega
+                                </Typography>
+                              </Box>
                               <Chip
                                 label={
                                   currentPedido.deliveryMode === "retirada"
                                     ? "RETIRADA"
                                     : "ENTREGA"
                                 }
-                                color="success"
-                                variant="outlined"
-                                size="small"
+                                sx={{
+                                  bgcolor:
+                                    currentPedido.deliveryMode === "retirada"
+                                      ? "#FF9800"
+                                      : "#4CAF50",
+                                  color: "white",
+                                  fontWeight: "bold",
+                                  fontSize: "0.9rem",
+                                  px: 2,
+                                  py: 1,
+                                  borderRadius: 2,
+                                  boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                                }}
+                                size="medium"
                               />
                             </Box>
                           </Grid>
@@ -3310,36 +3423,204 @@ const Pedidos = () => {
                                 </Typography>
                                 {currentPedido.motoboy?.name ||
                                 currentPedido.pickupCode ? (
-                                  <Box>
-                                    <Typography
-                                      variant="body2"
-                                      sx={{ mb: 0.5 }}
-                                    >
-                                      <strong>Nome:</strong>{" "}
-                                      {currentPedido.motoboy?.name}
-                                    </Typography>
-                                    <Typography
-                                      variant="body2"
-                                      sx={{ mb: 0.5 }}
-                                    >
-                                      <strong>Telefone:</strong>{" "}
-                                      {currentPedido.motoboy?.phone ||
-                                        currentPedido.motoboy?.phoneNumber}
-                                    </Typography>
-                                    {currentPedido.pickupCode && (
-                                      <Typography
-                                        variant="body2"
-                                        sx={{ mb: 0.5 }}
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      alignItems: "center",
+                                      p: 2,
+                                      borderRadius: 2,
+                                      background:
+                                        "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                                      color: "white",
+                                      boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
+                                      position: "relative",
+                                      overflow: "hidden",
+                                      "&::before": {
+                                        content: '""',
+                                        position: "absolute",
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        background: "rgba(255,255,255,0.1)",
+                                        backdropFilter: "blur(10px)",
+                                        zIndex: -1,
+                                      },
+                                    }}
+                                  >
+                                    <Box sx={{ position: "relative", mb: 2 }}>
+                                      <Avatar
+                                        sx={{
+                                          width: 80,
+                                          height: 80,
+                                          border:
+                                            "4px solid rgba(255,255,255,0.3)",
+                                          boxShadow:
+                                            "0 8px 25px rgba(0,0,0,0.2)",
+                                          background:
+                                            "linear-gradient(45deg, #FF6B6B, #4ECDC4)",
+                                        }}
+                                        alt={currentPedido.motoboy?.name}
+                                        src={
+                                          currentPedido.motoboy?.profileImage
+                                        }
                                       >
-                                        <strong>Codigo de coleta:</strong>{" "}
-                                        {currentPedido.pickupCode}
+                                        {!currentPedido.motoboy
+                                          ?.profileImage && (
+                                          <PersonIcon
+                                            sx={{
+                                              fontSize: 40,
+                                              color: "white",
+                                            }}
+                                          />
+                                        )}
+                                      </Avatar>
+                                      <Box
+                                        sx={{
+                                          position: "absolute",
+                                          bottom: -5,
+                                          right: -5,
+                                          backgroundColor: "#4CAF50",
+                                          borderRadius: "50%",
+                                          width: 24,
+                                          height: 24,
+                                          display: "flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          border: "3px solid white",
+                                          boxShadow:
+                                            "0 2px 8px rgba(0,0,0,0.2)",
+                                        }}
+                                      >
+                                        <CheckIcon
+                                          sx={{ fontSize: 12, color: "white" }}
+                                        />
+                                      </Box>
+                                    </Box>
+
+                                    <Box
+                                      sx={{
+                                        textAlign: "center",
+                                        width: "100%",
+                                        mb: 1,
+                                      }}
+                                    >
+                                      <Typography
+                                        variant="h6"
+                                        sx={{
+                                          fontWeight: "bold",
+                                          mb: 0.5,
+                                          textShadow:
+                                            "0 2px 4px rgba(0,0,0,0.3)",
+                                          fontSize: "1.1rem",
+                                        }}
+                                      >
+                                        {currentPedido.motoboy?.name ||
+                                          "Entregador"}
                                       </Typography>
-                                    )}
-                                    <Typography variant="body2">
-                                      <strong>ID:</strong>{" "}
-                                      {currentPedido.motoboy?.motoboyId ||
-                                        currentPedido.motoboy?._id}
-                                    </Typography>
+                                    </Box>
+
+                                    <Box sx={{ width: "100%", space: 1 }}>
+                                      <Box
+                                        sx={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          mb: 1,
+                                          p: 1,
+                                          borderRadius: 1,
+                                          bgcolor: "rgba(255,255,255,0.15)",
+                                          backdropFilter: "blur(5px)",
+                                        }}
+                                      >
+                                        <PhoneIcon
+                                          sx={{
+                                            mr: 1,
+                                            fontSize: 18,
+                                            color: "#E8F5E8",
+                                          }}
+                                        />
+                                        <Typography
+                                          variant="body2"
+                                          sx={{
+                                            fontWeight: 500,
+                                            fontSize: "0.9rem",
+                                          }}
+                                        >
+                                          {currentPedido.motoboy?.phone ||
+                                            currentPedido.motoboy
+                                              ?.phoneNumber ||
+                                            "Não informado"}
+                                        </Typography>
+                                      </Box>
+
+                                      {currentPedido.pickupCode && (
+                                        <Box
+                                          sx={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            mb: 1,
+                                            p: 1,
+                                            borderRadius: 1,
+                                            bgcolor: "rgba(255,193,7,0.2)",
+                                            border:
+                                              "1px solid rgba(255,193,7,0.5)",
+                                          }}
+                                        >
+                                          <QrCodeIcon
+                                            sx={{
+                                              mr: 1,
+                                              fontSize: 18,
+                                              color: "#FFF176",
+                                            }}
+                                          />
+                                          <Typography
+                                            variant="body2"
+                                            sx={{
+                                              fontWeight: "bold",
+                                              fontSize: "0.9rem",
+                                              color: "#FFF176",
+                                            }}
+                                          >
+                                            Código: {currentPedido.pickupCode}
+                                          </Typography>
+                                        </Box>
+                                      )}
+
+                                      <Box
+                                        sx={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          p: 1,
+                                          borderRadius: 1,
+                                          bgcolor: "rgba(255,255,255,0.1)",
+                                        }}
+                                      >
+                                        <BadgeIcon
+                                          sx={{
+                                            mr: 1,
+                                            fontSize: 18,
+                                            color: "#E1F5FE",
+                                          }}
+                                        />
+                                        <Typography
+                                          variant="caption"
+                                          sx={{
+                                            fontWeight: 400,
+                                            fontSize: "0.8rem",
+                                            opacity: 0.9,
+                                          }}
+                                        >
+                                          ID:{" "}
+                                          {currentPedido.motoboy?.motoboyId ||
+                                            currentPedido.motoboy?._id ||
+                                            "N/A"}
+                                        </Typography>
+                                      </Box>
+                                    </Box>
                                   </Box>
                                 ) : (
                                   <Chip
@@ -3358,28 +3639,75 @@ const Pedidos = () => {
                             <Grid item xs={12} sm={6}>
                               <Box
                                 sx={{
-                                  p: 2,
-                                  bgcolor: "background.paper",
-                                  borderRadius: 1,
-                                  border: 1,
-                                  borderColor: "divider",
+                                  p: 3,
+                                  background:
+                                    "linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%)",
+                                  borderRadius: 3,
+                                  border: "2px solid #4CAF50",
+                                  boxShadow:
+                                    "0 6px 20px rgba(76, 175, 80, 0.2)",
+                                  position: "relative",
+                                  overflow: "hidden",
+                                  textAlign: "center",
+                                  "&::before": {
+                                    content: '""',
+                                    position: "absolute",
+                                    top: 0,
+                                    left: 0,
+                                    width: "100%",
+                                    height: "4px",
+                                    background:
+                                      "linear-gradient(90deg, #4CAF50, #66BB6A)",
+                                  },
                                 }}
                               >
-                                <Typography
-                                  variant="subtitle2"
-                                  sx={{ fontWeight: "bold", mb: 1 }}
-                                >
-                                  Valor da Corrida
-                                </Typography>
-                                <Typography
-                                  variant="h6"
+                                <Box
                                   sx={{
-                                    color: "success.main",
-                                    fontWeight: "bold",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    mb: 2,
                                   }}
                                 >
-                                  {formatCurrency(currentPedido.motoboy?.price)}
-                                </Typography>
+                                  <MoneyIcon
+                                    sx={{
+                                      mr: 1,
+                                      fontSize: 24,
+                                      color: "#2E7D32",
+                                    }}
+                                  />
+                                  <Typography
+                                    variant="h6"
+                                    sx={{
+                                      fontWeight: "bold",
+                                      color: "#2E7D32",
+                                    }}
+                                  >
+                                    Valor da Corrida
+                                  </Typography>
+                                </Box>
+                                <Box
+                                  sx={{
+                                    p: 2,
+                                    bgcolor: "#4CAF50",
+                                    borderRadius: 2,
+                                    boxShadow:
+                                      "0 4px 12px rgba(76, 175, 80, 0.3)",
+                                  }}
+                                >
+                                  <Typography
+                                    variant="h4"
+                                    sx={{
+                                      color: "white",
+                                      fontWeight: "bold",
+                                      textShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                                    }}
+                                  >
+                                    {formatCurrency(
+                                      currentPedido.motoboy?.price
+                                    )}
+                                  </Typography>
+                                </Box>
                               </Box>
                             </Grid>
                           )}

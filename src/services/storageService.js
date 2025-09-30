@@ -201,6 +201,46 @@ export const uploadStoreProfileImage = async (file, storeId) => {
   }
 };
 
+export const uploadMotoboyImage = async (file, id) => {
+  try {
+    // Verificar se o usuário está autenticado
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error("Usuário não autenticado");
+    }
+    // Criar nome único para o arquivo
+    const timestamp = Date.now();
+    const fileExtension = file.name.split(".").pop();
+    const fileName = `${timestamp}_motoboy.${fileExtension}`;
+
+    // Validar tipo de arquivo
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      throw new Error("Tipo de arquivo não permitido. Use JPG, PNG ou WebP.");
+    }
+
+    // Validar tamanho do arquivo (máximo 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      throw new Error("Arquivo muito grande. Máximo 5MB.");
+    }
+
+    // Criar caminho no storage
+    const filePath = `motoboys/perfil/${id}/${fileName}`;
+    const fileRef = ref(storage, filePath);
+
+    // Fazer upload
+    const snapshot = await uploadBytes(fileRef, file);
+
+    // Obter URL de download
+    const downloadURL = await getDownloadURL(snapshot.ref);
+
+    return downloadURL;
+  } catch (error) {
+    throw error;
+  }
+};
+
 /**
  * Exclui a imagem de perfil anterior do estabelecimento
  * @param {string} imageUrl - URL da imagem a ser excluída

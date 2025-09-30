@@ -301,7 +301,7 @@ export default function PrecificacaoPage() {
                     />
 
                     <TextField
-                      label="Preço por KM Fixo (R$)"
+                      label="KM Fixo Minimo"
                       type="number"
                       value={deliveryPrice.fixedKm}
                       onChange={(e) =>
@@ -317,7 +317,7 @@ export default function PrecificacaoPage() {
                           <Typography sx={{ mr: 1 }}>R$</Typography>
                         ),
                       }}
-                      helperText="Valor cobrado por quilômetro"
+                      helperText="Kilometragem mínima para preço fixo"
                     />
 
                     <TextField
@@ -515,7 +515,7 @@ export default function PrecificacaoPage() {
                     <Grid item xs={12} sm={6} md={3}>
                       <Paper sx={{ p: 2, textAlign: "center" }}>
                         <Typography variant="h4" color="secondary">
-                          {formatCurrency(deliveryPrice.fixedKm)}
+                          {deliveryPrice.fixedKm}
                         </Typography>
                         <Typography variant="caption">Por KM</Typography>
                       </Paper>

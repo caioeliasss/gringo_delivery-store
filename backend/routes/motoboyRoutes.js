@@ -11,6 +11,8 @@ const OccurrenceService = require("../services/OccurrenceService");
 const Travel = require("../models/Travel");
 const IfoodService = require("../services/ifoodService");
 const FullScreenNotificationService = require("../services/fullScreenNotificationService");
+const multer = require("multer");
+const storageService = require("../services/storageService");
 
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -47,6 +49,26 @@ const getMotoboyMe = async (req, res) => {
     }
 
     const user = await Motoboy.findOne({ firebaseUid: req.user.uid });
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Erro ao buscar usuário", error: error.message });
+  }
+};
+const getMotoboyMeId = async (req, res) => {
+  try {
+    if (!req.user || !req.user.uid) {
+      return res.status(401).json({ message: "Usuário não autenticado" });
+    }
+
+    const user = await Motoboy.findOne({ firebaseUid: req.user.uid }).select(
+      "_id profileImage firebaseUid"
+    );
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
@@ -223,6 +245,90 @@ const deleteMotoboy = async (req, res) => {
     res.json({ message: "Usuário excluído com sucesso" });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// Configuração do multer para upload em memória
+const storage = multer.memoryStorage();
+
+// Validação de arquivos de imagem
+const imageFilter = (req, file, cb) => {
+  const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(
+      new Error("Tipo de arquivo não permitido. Use JPG, PNG ou WebP."),
+      false
+    );
+  }
+};
+
+const uploadImage = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB
+  },
+  fileFilter: imageFilter,
+});
+
+// Firebase Storage bucket agora é gerenciado pelo storageService
+
+uploadMotoboyImage = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ message: "Nenhuma imagem foi enviada" });
+    }
+
+    // Verificar se o motoboy existe
+    const motoboy = await Motoboy.findById(id);
+    if (!motoboy) {
+      return res.status(404).json({ message: "Motoboy não encontrado" });
+    }
+
+    // Excluir imagem anterior se existir
+    if (motoboy.profileImage) {
+      await storageService.deleteMotoboyImage(motoboy.profileImage);
+    }
+
+    // Usar o serviço de storage (mesma lógica do frontend)
+    const downloadURL = await storageService.uploadMotoboyImage(
+      req.file.buffer,
+      req.file.originalname,
+      req.file.mimetype,
+      req.file.size,
+      id
+    );
+
+    // Atualizar o motoboy com a nova URL da imagem
+    const updatedMotoboy = await Motoboy.findByIdAndUpdate(
+      id,
+      { profileImage: downloadURL },
+      { new: true }
+    );
+
+    console.log(
+      `✅ Imagem de perfil atualizada para motoboy ${id}, ${downloadURL}, ${updatedMotoboy.profileImage}`
+    );
+
+    if (!updatedMotoboy) {
+      throw new Error("Motoboy não encontrado para atualizar a imagem");
+    }
+
+    console.log(`✅ Imagem de perfil atualizada para motoboy ${id}`);
+
+    res.json({
+      url: downloadURL,
+      message: "Imagem de perfil atualizada com sucesso",
+    });
+  } catch (error) {
+    console.error("Erro no upload da imagem do motoboy:", error);
+    res.status(500).json({
+      message: "Erro ao fazer upload da imagem",
+      error: error.message,
+    });
   }
 };
 
@@ -838,6 +944,11 @@ const arrivedAtStore = async (req, res) => {
 };
 
 router.delete("/:id", deleteMotoboy);
+router.put(
+  "/profile-image/:id",
+  uploadImage.single("file"),
+  uploadMotoboyImage
+);
 router.delete("/delete-account", authenticateToken, requestAccountDeletion);
 router.get("/data-deletion-info", getDataDeletionInfo);
 router.get("/can-delete-account", authenticateToken, checkCanDeleteAccount);
@@ -853,6 +964,7 @@ router.get("/firebase/:firebaseUid", getMotoboyByFirebaseUid);
 router.get("/find", authenticateToken, findMotoboys);
 // router.get("/", getMotoboys);
 router.get("/me", authenticateToken, getMotoboyMe);
+router.get("/me/id", authenticateToken, getMotoboyMeId);
 router.post("/", createMotoboy);
 router.put("/", authenticateToken, updateMotoboy);
 router.put("/updateFCMToken", authenticateToken, updateFCMToken);
@@ -1056,6 +1168,28 @@ const testAssignMotoboy = async (req, res) => {
   }
 };
 
+const getMotoboyProfileImage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ message: "Motoboy ID é necessário" });
+    }
+
+    const imageUrl = await Motoboy.findById(id).select("profileImage").lean();
+    if (!imageUrl) {
+      return res
+        .status(404)
+        .json({ message: "Imagem de perfil não encontrada" });
+    }
+
+    res.json({ imageUrl });
+  } catch (error) {
+    console.error("Erro ao obter imagem de perfil:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+router.get("/profile-image/:id", getMotoboyProfileImage);
 router.put("/assign", authenticateToken, assignMotoboy);
 router.post("/approve/:motoboyId", authenticateToken, approveMotoboy);
 router.post("/repprove/:motoboyId", authenticateToken, repproveMotoboy);
