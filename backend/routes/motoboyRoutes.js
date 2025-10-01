@@ -654,7 +654,7 @@ const assignMotoboy = async (req, res) => {
 router.get("/", async (req, res) => {
   try {
     const motoboys = await Motoboy.find({}).select(
-      "name email phoneNumber cpf isApproved isAvailable coordinates score race firebaseUid pushToken"
+      "name email phoneNumber cpf isApproved isAvailable coordinates score race firebaseUid pushToken profileImage createdAt"
     );
     if (!motoboys || motoboys.length === 0) {
       return res.status(404).json({ message: "Nenhum motoboy encontrado" });

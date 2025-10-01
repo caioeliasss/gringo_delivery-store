@@ -63,6 +63,7 @@ import {
   CloudDownload as DownloadIcon,
   Visibility as ViewIcon,
   Check as CheckIcon,
+  Delete as DeleteIcon,
 } from "@mui/icons-material";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -133,6 +134,9 @@ export default function MotoboysPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [motoboyDocuments, setMotoboyDocuments] = useState([]);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState(false);
+  const [motoboyToDelete, setMotoboyToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchMotoboys();
@@ -180,7 +184,7 @@ export default function MotoboysPage() {
         return searchWords.every((word) => name.includes(word));
       });
     }
-
+    // console.warn("Filtered Motoboys:", filtered);
     setFilteredMotoboys(filtered);
   };
 
@@ -475,6 +479,51 @@ export default function MotoboysPage() {
     } catch (error) {
       console.error("Erro ao reprovar motoboy:", error);
     }
+  };
+
+  const handleDeleteMotoboy = async () => {
+    if (!motoboyToDelete) return;
+
+    setDeleting(true);
+    try {
+      const response = await api.delete(`/motoboys/${motoboyToDelete._id}`);
+      if (response.status === 200) {
+        // Atualizar lista de motoboys removendo o deletado
+        setMotoboys((prev) =>
+          prev.filter((motoboy) => motoboy._id !== motoboyToDelete._id)
+        );
+        setFilteredMotoboys((prev) =>
+          prev.filter((motoboy) => motoboy._id !== motoboyToDelete._id)
+        );
+
+        // Fechar modal de detalhes se o motoboy deletado estava sendo visualizado
+        if (selectedMotoboy?._id === motoboyToDelete._id) {
+          setDetailsModal(false);
+          setSelectedMotoboy(null);
+        }
+
+        // Fechar modal de confirmação
+        setDeleteConfirmModal(false);
+        setMotoboyToDelete(null);
+
+        console.log("Motoboy excluído com sucesso");
+      }
+    } catch (error) {
+      console.error("Erro ao excluir motoboy:", error);
+      alert("Erro ao excluir motoboy. Tente novamente.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const openDeleteConfirmation = (motoboy) => {
+    setMotoboyToDelete(motoboy);
+    setDeleteConfirmModal(true);
+  };
+
+  const closeDeleteConfirmation = () => {
+    setDeleteConfirmModal(false);
+    setMotoboyToDelete(null);
   };
 
   return (
@@ -869,7 +918,7 @@ export default function MotoboysPage() {
                         <TableCell>
                           <Box sx={{ display: "flex", alignItems: "center" }}>
                             <Avatar
-                              src={motoboy.avatar || ""}
+                              src={motoboy.profileImage || ""}
                               sx={{
                                 bgcolor: "primary.light",
                                 color: "primary.contrastText",
@@ -926,16 +975,34 @@ export default function MotoboysPage() {
                           </Typography>
                         </TableCell>
                         <TableCell>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openDetails(motoboy);
-                            }}
-                          >
-                            Detalhes
-                          </Button>
+                          <Box sx={{ display: "flex", gap: 1 }}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDetails(motoboy);
+                              }}
+                            >
+                              Detalhes
+                            </Button>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDeleteConfirmation(motoboy);
+                              }}
+                              sx={{
+                                "&:hover": {
+                                  backgroundColor: "error.light",
+                                  color: "error.contrastText",
+                                },
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -989,7 +1056,7 @@ export default function MotoboysPage() {
                     >
                       <Box sx={{ display: "flex", alignItems: "center" }}>
                         <Avatar
-                          src={selectedMotoboy.avatar || ""}
+                          src={selectedMotoboy.profileImage || ""}
                           sx={{
                             width: 64,
                             height: 64,
@@ -1508,12 +1575,23 @@ export default function MotoboysPage() {
                                 onClick={() => {
                                   handleApproveMotoboy(selectedMotoboy._id);
                                 }}
-                                sx={{ textTransform: "none" }}
+                                sx={{ textTransform: "none", mr: 1 }}
                               >
                                 <CheckIcon sx={{ mr: 1 }} />
                                 {selectedMotoboy.isApproved
                                   ? "Aprovado"
                                   : "Aprovar"}
+                              </Button>
+                              <Button
+                                variant="contained"
+                                color="error"
+                                onClick={() => {
+                                  openDeleteConfirmation(selectedMotoboy);
+                                }}
+                                sx={{ textTransform: "none" }}
+                              >
+                                <DeleteIcon sx={{ mr: 1 }} />
+                                Excluir
                               </Button>
                             </Box>
                           </Box>
@@ -1625,6 +1703,70 @@ export default function MotoboysPage() {
               <DialogActions sx={{ p: 3, pt: 1 }}>
                 <Button onClick={closeDetails} color="inherit">
                   Fechar
+                </Button>
+              </DialogActions>
+            </Dialog>
+
+            {/* Modal de Confirmação de Exclusão */}
+            <Dialog
+              open={deleteConfirmModal}
+              onClose={closeDeleteConfirmation}
+              maxWidth="sm"
+              fullWidth
+            >
+              <DialogTitle sx={{ pb: 2 }}>
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <DeleteIcon sx={{ mr: 1, color: "error.main" }} />
+                  Confirmar Exclusão
+                </Box>
+              </DialogTitle>
+              <DialogContent>
+                <Box sx={{ py: 2 }}>
+                  <Typography variant="body1" sx={{ mb: 2 }}>
+                    Tem certeza que deseja excluir o cadastro do motoboy{" "}
+                    <strong>{motoboyToDelete?.name}</strong>?
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 2 }}
+                  >
+                    Esta ação não pode ser desfeita. Todos os dados do motoboy
+                    serão permanentemente removidos do sistema.
+                  </Typography>
+                  <Box
+                    sx={{
+                      p: 2,
+                      backgroundColor: "error.light",
+                      borderRadius: 1,
+                      border: 1,
+                      borderColor: "error.main",
+                    }}
+                  >
+                    <Typography variant="body2" color="error.contrastText">
+                      <strong>Atenção:</strong> Esta operação é irreversível!
+                    </Typography>
+                  </Box>
+                </Box>
+              </DialogContent>
+              <DialogActions sx={{ p: 3, pt: 1 }}>
+                <Button
+                  onClick={closeDeleteConfirmation}
+                  color="inherit"
+                  disabled={deleting}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleDeleteMotoboy}
+                  color="error"
+                  variant="contained"
+                  disabled={deleting}
+                  startIcon={
+                    deleting ? <CircularProgress size={20} /> : <DeleteIcon />
+                  }
+                >
+                  {deleting ? "Excluindo..." : "Excluir"}
                 </Button>
               </DialogActions>
             </Dialog>
