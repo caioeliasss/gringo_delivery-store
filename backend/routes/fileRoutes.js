@@ -84,6 +84,7 @@ const saveFile = async (req, res) => {
       thumbnailUrl,
       tags,
       isPublic,
+      notification,
     } = req.body;
 
     // Validar campos obrigatórios
@@ -107,6 +108,22 @@ const saveFile = async (req, res) => {
 
     // Salvar no banco de dados
     await file.save();
+    // Salvar notificação se fornecida
+    console.log("Notification data:", notification);
+    if (notification) {
+      try {
+        const notificationService = require("../services/notificationService");
+        const emailService = require("../services/emailService");
+        await notificationService.notifySupport(notification);
+        console.log(
+          "Notificação enviada para o suporte ",
+          notification.motoboy
+        );
+        await emailService.newDocumentUploaded(notification.motoboyName);
+      } catch (error) {
+        console.error("Erro ao enviar notificação:", error);
+      }
+    }
 
     res.status(201).json(file);
   } catch (error) {

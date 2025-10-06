@@ -70,6 +70,33 @@ class EmailService {
     }
   }
 
+  async newDocumentUploaded(motoboyName) {
+    try {
+      const subject = `📁 Novo Documento Enviado - ${motoboyName}`;
+      const htmlContent = `
+        <div style="font-family: Arial, sans-serif;">
+          <h2>📁 Novo Documento Enviado</h2>
+          <p><strong>Motoboy:</strong> ${motoboyName}</p>
+          <p><strong>Documento:</strong> Pendente de aceitação</p>
+        </div>
+      `;
+
+      const adminEmails = await this.getAdminEmails();
+      const supportEmails = await this.getSupportEmails();
+      const emailPromises = adminEmails.map((admin) =>
+        this.sendEmail(admin.email, subject, htmlContent)
+      );
+      supportEmails.forEach((support) =>
+        emailPromises.push(this.sendEmail(support.email, subject, htmlContent))
+      );
+
+      await Promise.all(emailPromises);
+      console.log("✅ Notificação de novo documento enviada");
+    } catch (error) {
+      console.error("❌ Erro ao notificar novo documento:", error);
+    }
+  }
+
   async notifyChatMessage(userId, chat, message) {
     try {
       const subject = `💬 Nova Mensagem no Chat - ${

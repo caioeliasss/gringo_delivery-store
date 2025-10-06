@@ -1900,6 +1900,24 @@ export default function OrdersPage() {
                                       : "Não"}
                                   </Typography>
                                   <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                  >
+                                    Já chegou na loja:{" "}
+                                    {selectedOrder.motoboy?.hasArrived
+                                      ? "Sim"
+                                      : "Não"}
+                                  </Typography>
+                                  <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                  >
+                                    Chegou no cliente:{" "}
+                                    {selectedOrder.arrivedDestination
+                                      ? "Sim"
+                                      : "Não"}
+                                  </Typography>
+                                  <Typography
                                     variant="body1"
                                     fontWeight="medium"
                                     mt={1}

@@ -138,18 +138,19 @@ const createMotoboy = async (req, res) => {
 
     const newMotoboy = await user.save();
 
-    FullScreenNotificationService.createFullScreenNotification({
-      motoboyId: newMotoboy._id,
-      recipientId: newMotoboy._id,
-      recipientType: "motoboy",
-      type: "SYSTEM",
-      title: "Documentos pendentes",
-      message:
-        "Seu cadastro está pendente, precisamos de seus documentos (CNH, RG)",
-      status: "PENDING",
-    });
+    // FullScreenNotificationService.createFullScreenNotification({
+    //   motoboyId: newMotoboy._id,
+    //   recipientId: newMotoboy._id,
+    //   recipientType: "motoboy",
+    //   type: "SYSTEM",
+    //   title: "Documentos pendentes",
+    //   message:
+    //     "Seu cadastro está pendente, precisamos de seus documentos (CNH, RG)",
+    //   status: "PENDING",
+    // });
     res.status(201).json(newMotoboy);
   } catch (error) {
+    console.error("Erro ao criar motoboy:", error);
     res.status(400).json({ message: error.message });
   }
 };
