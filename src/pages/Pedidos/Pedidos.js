@@ -881,8 +881,8 @@ const Pedidos = () => {
     const fetchProdutos = async () => {
       try {
         setLoadingProdutos(true);
-        const response = await api.get("/products");
-        setProdutos(response.data);
+        // const response = await api.get("/products");
+        // setProdutos(response.data);
         setLoadingProdutos(false);
       } catch (err) {
         console.error("Erro ao carregar produtos:", err);

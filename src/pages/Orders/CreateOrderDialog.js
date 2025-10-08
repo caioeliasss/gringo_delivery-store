@@ -39,7 +39,7 @@ import {
   MyLocation as MyLocationIcon,
 } from "@mui/icons-material";
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
-import api from "../../services/api";
+import api, { getProducts } from "../../services/api";
 import "./CreateOrderDialog.css";
 
 const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
