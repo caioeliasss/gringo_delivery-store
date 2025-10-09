@@ -161,6 +161,7 @@ class MotoboyService {
         score: m.score,
         distance: m.distance,
         estimatedTimeMinutes: m.estimatedTimeMinutes,
+        isAvailable: m.isAvailable,
       }));
       order.motoboy.queue = {
         motoboys: newMotoboys,
@@ -260,6 +261,11 @@ class MotoboyService {
           motoboy,
         };
       } else {
+        order.motoboy.queue.map((m) => {
+          if (m.motoboyId.toString() === motoboy._id.toString()) {
+            m.refused = true;
+          }
+        });
         // This motoboy rejected, try the next one
         if (motoboys.length === 1) {
           console.warn(

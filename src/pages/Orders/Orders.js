@@ -2738,6 +2738,8 @@ export default function OrdersPage() {
                                               motoboy._id ===
                                                 selectedOrder.motoboy?.motoboyId
                                                 ? "success.main"
+                                                : motoboy.refused
+                                                ? "error.main"
                                                 : "divider",
                                             borderRadius: 1,
                                             bgcolor:
@@ -2747,6 +2749,8 @@ export default function OrdersPage() {
                                               motoboy._id ===
                                                 selectedOrder.motoboy?.motoboyId
                                                 ? "success.lighter"
+                                                : motoboy.refused
+                                                ? "error.lighter"
                                                 : "background.paper",
                                           }}
                                         >
@@ -2770,6 +2774,8 @@ export default function OrdersPage() {
                                                     selectedOrder.motoboy
                                                       ?.motoboyId
                                                     ? "success.main"
+                                                    : motoboy.refused
+                                                    ? "error.main"
                                                     : "primary.main",
                                               }}
                                             >
@@ -2795,6 +2801,17 @@ export default function OrdersPage() {
                                                   <Chip
                                                     label="Selecionado"
                                                     color="success"
+                                                    size="small"
+                                                    sx={{
+                                                      height: 20,
+                                                      fontSize: "0.75rem",
+                                                    }}
+                                                  />
+                                                )}
+                                                {motoboy.refused && (
+                                                  <Chip
+                                                    label="Recusou"
+                                                    color="error"
                                                     size="small"
                                                     sx={{
                                                       height: 20,
