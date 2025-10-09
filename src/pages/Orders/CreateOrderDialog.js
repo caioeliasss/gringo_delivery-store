@@ -38,18 +38,18 @@ import {
   Search as SearchIcon,
   MyLocation as MyLocationIcon,
 } from "@mui/icons-material";
-import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, Marker } from "@react-google-maps/api";
 import api, { getProducts } from "../../services/api";
 import "./CreateOrderDialog.css";
 
-const CreateOrderDialog = ({ open, onClose, onOrderCreated, storeId }) => {
-  // Hook para carregar a API do Google Maps
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: "google-map-script",
-    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
-    libraries: ["places", "maps"],
-  });
-
+const CreateOrderDialog = ({
+  open,
+  onClose,
+  onOrderCreated,
+  storeId,
+  isLoaded,
+  loadError,
+}) => {
   // Estados principais
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(false);

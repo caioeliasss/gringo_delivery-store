@@ -67,6 +67,7 @@ import {
   RestartAlt,
   AttachMoney,
   Add as AddIcon,
+  Refresh as RefreshIcon,
 } from "@mui/icons-material";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -90,6 +91,8 @@ import {
   Marker,
   InfoWindow,
   useJsApiLoader,
+  DirectionsService,
+  DirectionsRenderer,
 } from "@react-google-maps/api";
 import CreateOrderDialog from "./CreateOrderDialog";
 import { useSuporteAuth } from "../../contexts/SuporteAuthContext";
@@ -97,6 +100,7 @@ import {
   uploadStoreProfileImage,
   deleteStoreProfileImage,
 } from "../../services/storageService";
+import DeliveryRouteMap from "../../components/DeliveryRouteMap";
 
 const ORDER_STATUS = [
   {
@@ -170,7 +174,7 @@ export default function OrdersPage() {
   const { isLoaded, loadError } = useJsApiLoader({
     id: "google-map-script",
     googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
-    libraries: ["places", "maps"],
+    libraries: ["places", "maps", "geometry"],
   });
 
   const theme = useTheme();
@@ -199,6 +203,11 @@ export default function OrdersPage() {
   const [profileImageModal, setProfileImageModal] = useState(false);
   const [selectedStore, setSelectedStore] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Estados para rotas
+  const [directionsResponse, setDirectionsResponse] = useState(null);
+  const [directionsRequest, setDirectionsRequest] = useState(null);
+  const [loadingRoute, setLoadingRoute] = useState(false);
 
   useEffect(() => {
     fetchOrders();
@@ -528,6 +537,166 @@ export default function OrdersPage() {
     } catch (error) {
       console.error("Erro ao atualizar preço:", error);
       alert("Erro ao atualizar preço. Tente novamente.");
+    }
+  };
+
+  // Função para calcular rota do motoboy
+  const calculateRoute = (origin, destination) => {
+    if (!origin || !destination || !window.google) {
+      console.warn("Origem, destino ou Google Maps não disponíveis");
+      return;
+    }
+
+    setLoadingRoute(true);
+
+    const directionsService = new window.google.maps.DirectionsService();
+
+    const request = {
+      origin: new window.google.maps.LatLng(origin.lat, origin.lng),
+      destination: new window.google.maps.LatLng(
+        destination.lat,
+        destination.lng
+      ),
+      travelMode: window.google.maps.TravelMode.DRIVING,
+      unitSystem: window.google.maps.UnitSystem.METRIC,
+      optimizeWaypoints: true,
+    };
+
+    setDirectionsRequest(request);
+  };
+
+  // Callback para o DirectionsService
+  const directionsCallback = (result, status) => {
+    setLoadingRoute(false);
+
+    if (status === "OK" && result) {
+      setDirectionsResponse(result);
+      console.log("Rota calculada com sucesso");
+    } else {
+      console.error("Erro ao calcular rota:", status);
+      setDirectionsResponse(null);
+
+      // Mostrar mensagem de erro apenas para erros críticos
+      if (status === "ZERO_RESULTS") {
+        console.warn("Nenhuma rota encontrada entre os pontos");
+      } else if (status === "OVER_QUERY_LIMIT") {
+        console.warn("Limite de consultas excedido para a API do Google Maps");
+      } else if (status === "REQUEST_DENIED") {
+        console.error("Requisição negada pela API do Google Maps");
+      }
+    }
+  };
+
+  // Função para determinar o destino da rota baseado no status do pedido
+  const getRouteDestination = () => {
+    if (!selectedOrder || !selectedOrder.motoboy) {
+      return null;
+    }
+
+    // Se o motoboy não chegou na loja, mostrar rota até a loja
+    if (!selectedOrder.motoboy.hasArrived) {
+      const store = selectedOrder.store;
+      const storeCoords = store?.coordinates || store?.address?.coordinates;
+
+      if (storeCoords && storeCoords.length === 2) {
+        return {
+          lat: parseFloat(storeCoords[1]),
+          lng: parseFloat(storeCoords[0]),
+        };
+      }
+    }
+
+    // Se já chegou na loja mas não chegou no destino, mostrar rota até o cliente
+    if (!selectedOrder.arrivedDestination) {
+      // Pegar o primeiro endereço de cliente disponível
+      if (selectedOrder.customer && Array.isArray(selectedOrder.customer)) {
+        for (const customer of selectedOrder.customer) {
+          const customerCoords =
+            customer.address?.coordinates ||
+            customer.customerAddress?.coordinates;
+
+          if (customerCoords && customerCoords.length === 2) {
+            return {
+              lat: parseFloat(customerCoords[1]),
+              lng: parseFloat(customerCoords[0]),
+            };
+          }
+        }
+      }
+
+      // Se deliveryAddress existe, usar ele
+      if (selectedOrder.deliveryAddress?.coordinates) {
+        const coords = selectedOrder.deliveryAddress.coordinates;
+        return {
+          lat: parseFloat(coords[1]),
+          lng: parseFloat(coords[0]),
+        };
+      }
+    }
+
+    return null;
+  };
+
+  // Função para limpar rota
+  const clearRoute = () => {
+    setDirectionsResponse(null);
+    setDirectionsRequest(null);
+    setLoadingRoute(false);
+  };
+
+  // useEffect para calcular rota quando o pedido ou motoboy mudam
+  useEffect(() => {
+    // Limpar rota anterior primeiro
+    clearRoute();
+
+    if (selectedOrder?.motoboy?.coordinates && isLoaded && window.google) {
+      const destination = getRouteDestination();
+
+      if (destination) {
+        const origin = {
+          lat: parseFloat(selectedOrder.motoboy.coordinates[1]),
+          lng: parseFloat(selectedOrder.motoboy.coordinates[0]),
+        };
+
+        // Verificar se origem e destino são diferentes
+        const distance =
+          Math.abs(origin.lat - destination.lat) +
+          Math.abs(origin.lng - destination.lng);
+
+        if (distance > 0.0001) {
+          // Só calcular se há diferença significativa
+          calculateRoute(origin, destination);
+        }
+      }
+    }
+  }, [
+    selectedOrder?.motoboy?.coordinates,
+    selectedOrder?.motoboy?.hasArrived,
+    selectedOrder?.arrivedDestination,
+    isLoaded,
+  ]);
+
+  // useEffect para limpar rota quando modal de detalhes fecha
+  useEffect(() => {
+    if (!detailsModal) {
+      clearRoute();
+    }
+  }, [detailsModal]);
+
+  // Função para atualizar localização do motoboy e recalcular rota
+  const handleRefreshMotoboyLocation = async () => {
+    if (!selectedOrder?.motoboy?.motoboyId) {
+      return;
+    }
+
+    try {
+      await getMotoboyApi(selectedOrder.motoboy.motoboyId);
+
+      // A rota será recalculada automaticamente pelo useEffect
+      console.log("Localização do motoboy atualizada");
+    } catch (error) {
+      console.error("Erro ao atualizar localização do motoboy:", error);
+      alert("Erro ao atualizar localização do motoboy. Tente novamente.");
     }
   };
 
@@ -1724,17 +1893,36 @@ export default function OrdersPage() {
                                     Veículo: {selectedOrder.motoboy.vehicle}
                                   </Typography>
                                 )}
-                                <Button
-                                  onClick={() =>
-                                    handleRemoveDeliveryBoy(
-                                      selectedOrder.motoboy.motoboyId,
-                                      selectedOrder._id
-                                    )
-                                  }
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    gap: 1,
+                                    flexDirection: "column",
+                                  }}
                                 >
-                                  <RemoveCircleOutline sx={{ mr: 1 }} />
-                                  Remover Entregador
-                                </Button>
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    onClick={handleRefreshMotoboyLocation}
+                                    sx={{ alignSelf: "flex-start" }}
+                                  >
+                                    <RefreshIcon sx={{ mr: 1 }} />
+                                    Atualizar Localização
+                                  </Button>
+                                  <Button
+                                    size="small"
+                                    color="error"
+                                    onClick={() =>
+                                      handleRemoveDeliveryBoy(
+                                        selectedOrder.motoboy.motoboyId,
+                                        selectedOrder._id
+                                      )
+                                    }
+                                  >
+                                    <RemoveCircleOutline sx={{ mr: 1 }} />
+                                    Remover Entregador
+                                  </Button>
+                                </Box>
                               </Stack>
                             ) : (
                               <Stack>
@@ -1978,83 +2166,26 @@ export default function OrdersPage() {
                             </Box>
                           </CardContent>
                         </Card>
-                        <Card variant="outlined" sx={{ mt: 2 }}>
-                          <CardContent>
-                            <Typography variant="body2" color="text.secondary">
-                              Mapa da entrega
-                            </Typography>
-                            {selectedOrder &&
-                              (selectedOrder?.store?.coordinates ||
-                                selectedOrder?.store?.address?.coordinates) && (
-                                <Box
-                                  sx={{
-                                    width: "100%",
-                                    height: "600px",
-                                    position: "relative",
-                                  }}
-                                >
-                                  <GoogleMap
-                                    mapContainerStyle={{
-                                      width: "100%",
-                                      height: "600px",
-                                    }}
-                                    center={{
-                                      lat:
-                                        selectedOrder?.store
-                                          ?.coordinates?.[1] ||
-                                        selectedOrder?.store?.address
-                                          ?.coordinates?.[1] ||
-                                        -23.5505,
-                                      lng:
-                                        selectedOrder?.store
-                                          ?.coordinates?.[0] ||
-                                        selectedOrder?.store?.address
-                                          ?.coordinates?.[0] ||
-                                        -46.6333,
-                                    }}
-                                    zoom={11}
-                                    options={{
-                                      zoomControl: true,
-                                      mapTypeControl: true,
-                                      scaleControl: true,
-                                      streetViewControl: true,
-                                      rotateControl: false,
-                                      fullscreenControl: true,
-                                      styles: [
-                                        {
-                                          featureType: "poi",
-                                          elementType: "labels",
-                                          stylers: [{ visibility: "off" }],
-                                        },
-                                      ],
-                                    }}
-                                  >
-                                    {renderMarkers()}
-                                  </GoogleMap>
-                                </Box>
-                              )}
-                            {true && (
-                              <Box
-                                sx={{
-                                  width: "100%",
-                                  height: "200px",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  backgroundColor: "grey.100",
-                                  borderRadius: 1,
-                                }}
-                              >
-                                <Typography
-                                  variant="body2"
-                                  color="text.secondary"
-                                >
-                                  Carregando mapa...
-                                </Typography>
-                              </Box>
-                            )}
-                          </CardContent>
-                        </Card>
+                        {/* Componente de Mapa Reutilizável */}
+                        <Box sx={{ mt: 2 }}>
+                          <DeliveryRouteMap
+                            orderId={selectedOrder._id}
+                            height="600px"
+                            showRouteInfo={true}
+                            showRefreshButton={true}
+                            autoRefresh={false}
+                            isLoaded={isLoaded}
+                            loadError={loadError}
+                            onRouteUpdate={(routeInfo) => {
+                              if (routeInfo) {
+                                console.log(
+                                  "Informações da rota atualizadas:",
+                                  routeInfo
+                                );
+                              }
+                            }}
+                          />
+                        </Box>
                       </Box>
                     )}
                   </Box>
@@ -2416,6 +2547,8 @@ export default function OrdersPage() {
                 // Mostrar mensagem de sucesso (opcional)
                 console.log("Nova corrida criada:", newOrder);
               }}
+              isLoaded={isLoaded}
+              loadError={loadError}
             />
           </Container>
         </Box>

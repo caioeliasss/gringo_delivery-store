@@ -95,6 +95,8 @@ import {
   SUPPORT_MENU_ITEMS,
   createAdminFooterItems,
 } from "../../config/menuConfig";
+import DeliveryRouteMap from "../../components/DeliveryRouteMap";
+import { useJsApiLoader } from "@react-google-maps/api";
 
 const SearchField = ({
   placeholder,
@@ -231,6 +233,12 @@ const Pedidos = () => {
     },
     notes: "",
     total: 0,
+  });
+
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: "google-map-script",
+    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
+    libraries: ["places", "maps", "geometry"],
   });
 
   // Estado para o item atual sendo adicionado
@@ -2898,6 +2906,212 @@ const Pedidos = () => {
                         )}
                       </Paper>
                     </Grid>
+                    <Grid item xs={12} width={"100%"}>
+                      <Paper elevation={1} sx={{ p: 2 }}>
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            mb: 2,
+                            color: "primary.main",
+                            fontWeight: "bold",
+                          }}
+                        >
+                          Atualizar Status do Pedido
+                        </Typography>
+                        {currentPedido.motoboy?.name &&
+                          currentPedido.deliveryMode !== "retirada" && (
+                            <Box display="flex">
+                              <Typography
+                                fontSize={"12px"}
+                                sx={{ mb: 2, color: "secundary.main" }}
+                              >
+                                Nome do motoboy:
+                              </Typography>
+                              <Typography
+                                fontSize={"12px"}
+                                sx={{
+                                  ml: 0.5,
+                                  mb: 2,
+                                  color: "primary.main",
+                                  fontWeight: "bold",
+                                }}
+                              >
+                                {currentPedido.motoboy?.name}
+                              </Typography>
+                            </Box>
+                          )}
+                        {currentPedido.status !== "cancelado" &&
+                        currentPedido.status !== "entregue" ? (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              justifyContent: "space-between", // Distribui os elementos
+                              alignItems: "center",
+                              gap: 2,
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 2,
+                              }}
+                            >
+                              {currentPedido.status === "pendente" && (
+                                <Button
+                                  variant="contained"
+                                  color="primary"
+                                  startIcon={<CheckIcon />}
+                                  onClick={() =>
+                                    handleUpdateStatus(
+                                      currentPedido._id,
+                                      "em_preparo"
+                                    )
+                                  }
+                                >
+                                  Confirmar Preparação
+                                </Button>
+                              )}
+
+                              {currentPedido.status && (
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    gap: 2,
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+                                  {/* Primeiro: Botão para Pedido Pronto */}
+                                  {currentPedido.status === "em_preparo" && (
+                                    <Button
+                                      variant="contained"
+                                      color="warning"
+                                      startIcon={<NotificationAdd />}
+                                      onClick={() =>
+                                        handleCallDeliveryPerson(currentPedido)
+                                      }
+                                      sx={{
+                                        py: 1,
+                                        px: 2,
+                                        height: "40px",
+                                      }}
+                                    >
+                                      Pedido Pronto
+                                    </Button>
+                                  )}
+
+                                  {/* Segundo: Campo de código e botão para enviar (só aparece após Pedido Pronto) */}
+                                  {currentPedido.status === "pronto" && (
+                                    <>
+                                      <TextField
+                                        fullWidth
+                                        variant="outlined"
+                                        size="small"
+                                        label="Código do entregador"
+                                        onChange={(e) =>
+                                          setDriverCode(e.target.value)
+                                        }
+                                        value={driverCode || ""}
+                                        sx={{
+                                          maxWidth: { sm: "220px" },
+                                        }}
+                                      />
+                                      <Button
+                                        variant="contained"
+                                        color="info"
+                                        startIcon={<DeliveryIcon />}
+                                        onClick={() =>
+                                          handleDriverCode(
+                                            driverCode,
+                                            currentPedido
+                                          )
+                                        }
+                                        sx={{
+                                          py: 1,
+                                          px: 2,
+                                          height: "40px",
+                                        }}
+                                      >
+                                        Enviar para Entrega
+                                      </Button>
+                                    </>
+                                  )}
+                                </Box>
+                              )}
+                              {currentPedido.status === "ready_takeout" && (
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
+                                    mt: 1,
+                                  }}
+                                >
+                                  <TextField
+                                    fullWidth
+                                    variant="outlined"
+                                    size="small"
+                                    label="Código de retirada"
+                                    onChange={(e) => {
+                                      setDeliveryCode(e.target.value);
+                                    }}
+                                    sx={{
+                                      maxWidth: { sm: "220px" },
+                                    }}
+                                  />
+                                  <Button
+                                    variant="contained"
+                                    color="info"
+                                    startIcon={<DeliveryIcon />}
+                                    onClick={() =>
+                                      handleTakeoutCode(currentPedido)
+                                    }
+                                    sx={{
+                                      py: 1,
+                                      px: 2,
+                                      height: "40px",
+                                      mt: 1,
+                                    }}
+                                  >
+                                    Concluir
+                                  </Button>
+                                </Box>
+                              )}
+
+                              {currentPedido.status === "em_entrega" && (
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
+                                  Pedido em entrega
+                                </Typography>
+                              )}
+                            </Box>
+
+                            {/* Botão cancelar sempre à direita */}
+                            <Button
+                              variant="outlined"
+                              color="error"
+                              startIcon={<CloseIcon />}
+                              onClick={() => {
+                                setOpenCancelDialog(true);
+                              }}
+                            >
+                              Cancelar Pedido
+                            </Button>
+                          </Box>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            Este pedido não pode ser atualizado pois já foi{" "}
+                            {currentPedido.status === "entregue"
+                              ? "entregue"
+                              : "cancelado"}
+                            .
+                          </Typography>
+                        )}
+                      </Paper>
+                    </Grid>
 
                     {/* Informações do Pagamento */}
                     <Grid item xs={12} md={6}>
@@ -3757,212 +3971,24 @@ const Pedidos = () => {
                         </Grid>
                       </Paper>
                     </Grid>
-
-                    <Grid item xs={12}>
-                      <Paper elevation={1} sx={{ p: 2 }}>
-                        <Typography
-                          variant="h6"
-                          sx={{
-                            mb: 2,
-                            color: "primary.main",
-                            fontWeight: "bold",
-                          }}
-                        >
-                          Atualizar Status do Pedido
-                        </Typography>
-                        {currentPedido.motoboy?.name &&
-                          currentPedido.deliveryMode !== "retirada" && (
-                            <Box display="flex">
-                              <Typography
-                                fontSize={"12px"}
-                                sx={{ mb: 2, color: "secundary.main" }}
-                              >
-                                Nome do motoboy:
-                              </Typography>
-                              <Typography
-                                fontSize={"12px"}
-                                sx={{
-                                  ml: 0.5,
-                                  mb: 2,
-                                  color: "primary.main",
-                                  fontWeight: "bold",
-                                }}
-                              >
-                                {currentPedido.motoboy?.name}
-                              </Typography>
-                            </Box>
-                          )}
-                        {currentPedido.status !== "cancelado" &&
-                        currentPedido.status !== "entregue" ? (
-                          <Box
-                            sx={{
-                              display: "flex",
-                              flexWrap: "wrap",
-                              justifyContent: "space-between", // Distribui os elementos
-                              alignItems: "center",
-                              gap: 2,
-                            }}
-                          >
-                            <Box
-                              sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 2,
-                              }}
-                            >
-                              {currentPedido.status === "pendente" && (
-                                <Button
-                                  variant="contained"
-                                  color="primary"
-                                  startIcon={<CheckIcon />}
-                                  onClick={() =>
-                                    handleUpdateStatus(
-                                      currentPedido._id,
-                                      "em_preparo"
-                                    )
-                                  }
-                                >
-                                  Confirmar Preparação
-                                </Button>
-                              )}
-
-                              {currentPedido.status && (
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    gap: 2,
-                                    flexWrap: "wrap",
-                                  }}
-                                >
-                                  {/* Primeiro: Botão para Pedido Pronto */}
-                                  {currentPedido.status === "em_preparo" && (
-                                    <Button
-                                      variant="contained"
-                                      color="warning"
-                                      startIcon={<NotificationAdd />}
-                                      onClick={() =>
-                                        handleCallDeliveryPerson(currentPedido)
-                                      }
-                                      sx={{
-                                        py: 1,
-                                        px: 2,
-                                        height: "40px",
-                                      }}
-                                    >
-                                      Pedido Pronto
-                                    </Button>
-                                  )}
-
-                                  {/* Segundo: Campo de código e botão para enviar (só aparece após Pedido Pronto) */}
-                                  {currentPedido.status === "pronto" && (
-                                    <>
-                                      <TextField
-                                        fullWidth
-                                        variant="outlined"
-                                        size="small"
-                                        label="Código do entregador"
-                                        onChange={(e) =>
-                                          setDriverCode(e.target.value)
-                                        }
-                                        value={driverCode || ""}
-                                        sx={{
-                                          maxWidth: { sm: "220px" },
-                                        }}
-                                      />
-                                      <Button
-                                        variant="contained"
-                                        color="info"
-                                        startIcon={<DeliveryIcon />}
-                                        onClick={() =>
-                                          handleDriverCode(
-                                            driverCode,
-                                            currentPedido
-                                          )
-                                        }
-                                        sx={{
-                                          py: 1,
-                                          px: 2,
-                                          height: "40px",
-                                        }}
-                                      >
-                                        Enviar para Entrega
-                                      </Button>
-                                    </>
-                                  )}
-                                </Box>
-                              )}
-                              {currentPedido.status === "ready_takeout" && (
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 1,
-                                    mt: 1,
-                                  }}
-                                >
-                                  <TextField
-                                    fullWidth
-                                    variant="outlined"
-                                    size="small"
-                                    label="Código de retirada"
-                                    onChange={(e) => {
-                                      setDeliveryCode(e.target.value);
-                                    }}
-                                    sx={{
-                                      maxWidth: { sm: "220px" },
-                                    }}
-                                  />
-                                  <Button
-                                    variant="contained"
-                                    color="info"
-                                    startIcon={<DeliveryIcon />}
-                                    onClick={() =>
-                                      handleTakeoutCode(currentPedido)
-                                    }
-                                    sx={{
-                                      py: 1,
-                                      px: 2,
-                                      height: "40px",
-                                      mt: 1,
-                                    }}
-                                  >
-                                    Concluir
-                                  </Button>
-                                </Box>
-                              )}
-
-                              {currentPedido.status === "em_entrega" && (
-                                <Typography
-                                  variant="body2"
-                                  color="text.secondary"
-                                >
-                                  Pedido em entrega
-                                </Typography>
-                              )}
-                            </Box>
-
-                            {/* Botão cancelar sempre à direita */}
-                            <Button
-                              variant="outlined"
-                              color="error"
-                              startIcon={<CloseIcon />}
-                              onClick={() => {
-                                setOpenCancelDialog(true);
-                              }}
-                            >
-                              Cancelar Pedido
-                            </Button>
-                          </Box>
-                        ) : (
-                          <Typography variant="body2" color="text.secondary">
-                            Este pedido não pode ser atualizado pois já foi{" "}
-                            {currentPedido.status === "entregue"
-                              ? "entregue"
-                              : "cancelado"}
-                            .
-                          </Typography>
-                        )}
-                      </Paper>
+                    <Grid item xs={12} width={"100%"}>
+                      <DeliveryRouteMap
+                        orderId={currentPedido._id}
+                        height="600px"
+                        showRouteInfo={true}
+                        showRefreshButton={true}
+                        autoRefresh={false}
+                        isLoaded={isLoaded}
+                        loadError={loadError}
+                        onRouteUpdate={(routeInfo) => {
+                          if (routeInfo) {
+                            console.log(
+                              "Informações da rota atualizadas:",
+                              routeInfo
+                            );
+                          }
+                        }}
+                      />
                     </Grid>
                   </Grid>
                 </DialogContent>
