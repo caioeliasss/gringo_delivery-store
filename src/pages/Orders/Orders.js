@@ -38,6 +38,8 @@ import {
   TableRow,
   TableCell,
   TextField,
+  Badge,
+  InputAdornment,
 } from "@mui/material";
 import {
   ShoppingCart as OrderIcon,
@@ -68,6 +70,9 @@ import {
   AttachMoney,
   Add as AddIcon,
   Refresh as RefreshIcon,
+  Search as SearchIcon,
+  FilterList as FilterListIcon,
+  Clear as ClearIcon,
 } from "@mui/icons-material";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -186,6 +191,12 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [selectedStatuses, setSelectedStatuses] = useState([]);
+  const [selectedStores, setSelectedStores] = useState([]);
+  const [selectedMotoboys, setSelectedMotoboys] = useState([]);
+  const [selectedPaymentMethods, setSelectedPaymentMethods] = useState([]);
+  const [dateFilter, setDateFilter] = useState({ start: "", end: "" });
+  const [priceFilter, setPriceFilter] = useState({ min: "", max: "" });
+  const [searchText, setSearchText] = useState("");
   const [loading, setLoading] = useState(true);
   const [detailsModal, setDetailsModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -211,11 +222,70 @@ export default function OrdersPage() {
 
   useEffect(() => {
     fetchOrders();
+    loadSavedFilters();
   }, []);
+
+  // Salvar filtros no localStorage
+  const saveFiltersToStorage = () => {
+    const filters = {
+      selectedStatuses,
+      selectedStores,
+      selectedMotoboys,
+      selectedPaymentMethods,
+      dateFilter,
+      priceFilter,
+      searchText,
+    };
+    localStorage.setItem("ordersFilters", JSON.stringify(filters));
+  };
+
+  // Carregar filtros do localStorage
+  const loadSavedFilters = () => {
+    try {
+      const savedFilters = localStorage.getItem("ordersFilters");
+      if (savedFilters) {
+        const filters = JSON.parse(savedFilters);
+        if (filters.selectedStatuses)
+          setSelectedStatuses(filters.selectedStatuses);
+        if (filters.selectedStores) setSelectedStores(filters.selectedStores);
+        if (filters.selectedMotoboys)
+          setSelectedMotoboys(filters.selectedMotoboys);
+        if (filters.selectedPaymentMethods)
+          setSelectedPaymentMethods(filters.selectedPaymentMethods);
+        if (filters.dateFilter) setDateFilter(filters.dateFilter);
+        if (filters.priceFilter) setPriceFilter(filters.priceFilter);
+        if (filters.searchText) setSearchText(filters.searchText);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar filtros salvos:", error);
+    }
+  };
+
+  // Salvar filtros sempre que mudarem
+  useEffect(() => {
+    saveFiltersToStorage();
+  }, [
+    selectedStatuses,
+    selectedStores,
+    selectedMotoboys,
+    selectedPaymentMethods,
+    dateFilter,
+    priceFilter,
+    searchText,
+  ]);
 
   useEffect(() => {
     applyFilters();
-  }, [orders, selectedStatuses]);
+  }, [
+    orders,
+    selectedStatuses,
+    selectedStores,
+    selectedMotoboys,
+    selectedPaymentMethods,
+    dateFilter,
+    priceFilter,
+    searchText,
+  ]);
 
   useEffect(() => {
     // Verificar se há um orderId passado via state
@@ -284,17 +354,110 @@ export default function OrdersPage() {
   };
 
   const applyFilters = () => {
-    if (selectedStatuses.length === 0) {
-      setFilteredOrders(orders);
-    } else {
-      setFilteredOrders(
-        orders.filter(
-          (order) =>
-            selectedStatuses.includes(order.status) ||
-            selectedStatuses.includes(order.motoboy?.queue?.status)
-        )
+    let filtered = [...orders];
+
+    // Filtro por status
+    if (selectedStatuses.length > 0) {
+      filtered = filtered.filter(
+        (order) =>
+          selectedStatuses.includes(order.status) ||
+          selectedStatuses.includes(order.motoboy?.queue?.status)
       );
     }
+
+    // Filtro por lojas
+    if (selectedStores.length > 0) {
+      filtered = filtered.filter((order) =>
+        selectedStores.includes(order.store?._id)
+      );
+    }
+
+    // Filtro por entregadores
+    if (selectedMotoboys.length > 0) {
+      filtered = filtered.filter((order) =>
+        selectedMotoboys.includes(order.motoboy?.motoboyId)
+      );
+    }
+
+    // Filtro por método de pagamento
+    if (selectedPaymentMethods.length > 0) {
+      filtered = filtered.filter((order) =>
+        selectedPaymentMethods.includes(order.payment?.method)
+      );
+    }
+
+    // Filtro por data
+    if (dateFilter.start || dateFilter.end) {
+      filtered = filtered.filter((order) => {
+        const orderDate = new Date(order.createdAt);
+        const startDate = dateFilter.start ? new Date(dateFilter.start) : null;
+        const endDate = dateFilter.end
+          ? new Date(dateFilter.end + "T23:59:59")
+          : null;
+
+        if (startDate && endDate) {
+          return orderDate >= startDate && orderDate <= endDate;
+        } else if (startDate) {
+          return orderDate >= startDate;
+        } else if (endDate) {
+          return orderDate <= endDate;
+        }
+        return true;
+      });
+    }
+
+    // Filtro por preço
+    if (priceFilter.min || priceFilter.max) {
+      filtered = filtered.filter((order) => {
+        const total = order.total || 0;
+        const minPrice = priceFilter.min ? parseFloat(priceFilter.min) : 0;
+        const maxPrice = priceFilter.max
+          ? parseFloat(priceFilter.max)
+          : Infinity;
+
+        return total >= minPrice && total <= maxPrice;
+      });
+    }
+
+    // Filtro por texto (busca)
+    if (searchText.trim()) {
+      const searchLower = searchText.toLowerCase();
+      filtered = filtered.filter((order) => {
+        // Buscar em número do pedido
+        const orderNumber = (order.orderNumber || order.id || "")
+          .toString()
+          .toLowerCase();
+
+        // Buscar em nome do cliente
+        const customerName = Array.isArray(order.customer)
+          ? order.customer
+              .map((c) => c.name || "")
+              .join(" ")
+              .toLowerCase()
+          : (order.customer?.name || "").toLowerCase();
+
+        // Buscar em nome da loja
+        const storeName = (order.store?.name || "").toLowerCase();
+
+        // Buscar em nome do entregador
+        const motoboyName = (order.motoboy?.name || "").toLowerCase();
+
+        // Buscar em telefone do cliente
+        const customerPhone = Array.isArray(order.customer)
+          ? order.customer.map((c) => c.phone || "").join(" ")
+          : order.customer?.phone || "";
+
+        return (
+          orderNumber.includes(searchLower) ||
+          customerName.includes(searchLower) ||
+          storeName.includes(searchLower) ||
+          motoboyName.includes(searchLower) ||
+          customerPhone.includes(searchText)
+        );
+      });
+    }
+
+    setFilteredOrders(filtered);
   };
 
   const handleAssignMotoboy = async (body) => {
@@ -335,6 +498,78 @@ export default function OrdersPage() {
   const handleStatusChange = (event) => {
     const value = event.target.value;
     setSelectedStatuses(typeof value === "string" ? value.split(",") : value);
+  };
+
+  const handleStoreChange = (event) => {
+    const value = event.target.value;
+    setSelectedStores(typeof value === "string" ? value.split(",") : value);
+  };
+
+  const handleMotoboyChange = (event) => {
+    const value = event.target.value;
+    setSelectedMotoboys(typeof value === "string" ? value.split(",") : value);
+  };
+
+  const handlePaymentMethodChange = (event) => {
+    const value = event.target.value;
+    setSelectedPaymentMethods(
+      typeof value === "string" ? value.split(",") : value
+    );
+  };
+
+  const handleClearAllFilters = () => {
+    setSelectedStatuses([]);
+    setSelectedStores([]);
+    setSelectedMotoboys([]);
+    setSelectedPaymentMethods([]);
+    setDateFilter({ start: "", end: "" });
+    setPriceFilter({ min: "", max: "" });
+    setSearchText("");
+    localStorage.removeItem("ordersFilters");
+  };
+
+  // Função para contar filtros ativos
+  const getActiveFiltersCount = () => {
+    let count = 0;
+    if (selectedStatuses.length > 0) count++;
+    if (selectedStores.length > 0) count++;
+    if (selectedMotoboys.length > 0) count++;
+    if (selectedPaymentMethods.length > 0) count++;
+    if (dateFilter.start || dateFilter.end) count++;
+    if (priceFilter.min || priceFilter.max) count++;
+    if (searchText) count++;
+    return count;
+  };
+
+  // Função para obter dados únicos para os filtros
+  const getUniqueStores = () => {
+    const storeMap = new Map();
+    orders.forEach((order) => {
+      if (order.store?._id && order.store?.name) {
+        storeMap.set(order.store._id, order.store.name);
+      }
+    });
+    return Array.from(storeMap.entries()).map(([id, name]) => ({ id, name }));
+  };
+
+  const getUniqueMotoboys = () => {
+    const motoboyMap = new Map();
+    orders.forEach((order) => {
+      if (order.motoboy?.motoboyId && order.motoboy?.name) {
+        motoboyMap.set(order.motoboy.motoboyId, order.motoboy.name);
+      }
+    });
+    return Array.from(motoboyMap.entries()).map(([id, name]) => ({ id, name }));
+  };
+
+  const getUniquePaymentMethods = () => {
+    const methods = new Set();
+    orders.forEach((order) => {
+      if (order.payment?.method) {
+        methods.add(order.payment.method);
+      }
+    });
+    return Array.from(methods);
   };
 
   const handleLogout = async () => {
@@ -1230,42 +1465,367 @@ export default function OrdersPage() {
             </Box>
 
             {/* Filtros */}
-            <Paper className="filter-section" sx={{ mb: 3, p: 2 }}>
-              <FormControl fullWidth>
-                <InputLabel>Filtrar por Status</InputLabel>
-                <Select
-                  multiple
-                  value={selectedStatuses}
-                  onChange={handleStatusChange}
-                  input={<OutlinedInput label="Filtrar por Status" />}
-                  renderValue={(selected) => (
-                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                      {selected.map((value) => {
-                        const status = ORDER_STATUS.find(
-                          (s) => s.value === value
-                        );
-                        return (
-                          <Chip
-                            key={value}
-                            label={status?.label || value}
-                            size="small"
-                            color={status?.color || "default"}
+            <Paper className="filter-section" sx={{ mb: 3, p: 3 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  mb: 3,
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <FilterListIcon sx={{ mr: 1, color: "primary.main" }} />
+                  <Typography variant="h6" fontWeight="bold">
+                    Filtros
+                  </Typography>
+                </Box>
+                <Badge badgeContent={getActiveFiltersCount()} color="primary">
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<ClearIcon />}
+                    onClick={handleClearAllFilters}
+                    disabled={getActiveFiltersCount() === 0}
+                  >
+                    Limpar Filtros
+                  </Button>
+                </Badge>
+              </Box>
+
+              <Grid container spacing={2}>
+                {/* Busca por texto */}
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    fullWidth
+                    label="Buscar"
+                    placeholder="Nº pedido, cliente, loja..."
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    size="small"
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+
+                {/* Filtro por Status */}
+                <Grid item xs={12} md={4}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Status</InputLabel>
+                    <Select
+                      multiple
+                      sx={{ width: "150px" }}
+                      value={selectedStatuses}
+                      onChange={handleStatusChange}
+                      input={<OutlinedInput label="Status" />}
+                      renderValue={(selected) => (
+                        <Box
+                          sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}
+                        >
+                          {selected.map((value) => {
+                            const status = ORDER_STATUS.find(
+                              (s) => s.value === value
+                            );
+                            return (
+                              <Chip
+                                key={value}
+                                label={status?.label || value}
+                                size="small"
+                                color={status?.color || "default"}
+                              />
+                            );
+                          })}
+                        </Box>
+                      )}
+                    >
+                      {ORDER_STATUS.map((status) => (
+                        <MenuItem key={status.value} value={status.value}>
+                          <Checkbox
+                            checked={
+                              selectedStatuses.indexOf(status.value) > -1
+                            }
                           />
-                        );
-                      })}
-                    </Box>
+                          <ListItemText primary={status.label} />
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                {/* Filtro por Loja */}
+                <Grid item xs={12} md={4}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Lojas</InputLabel>
+                    <Select
+                      multiple
+                      sx={{ width: "150px" }}
+                      value={selectedStores}
+                      onChange={handleStoreChange}
+                      input={<OutlinedInput label="Lojas" />}
+                      renderValue={(selected) => (
+                        <Box
+                          sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}
+                        >
+                          {selected.map((value) => {
+                            const store = getUniqueStores().find(
+                              (s) => s.id === value
+                            );
+                            return (
+                              <Chip
+                                key={value}
+                                label={store?.name || value}
+                                size="small"
+                                variant="outlined"
+                              />
+                            );
+                          })}
+                        </Box>
+                      )}
+                    >
+                      {getUniqueStores().map((store) => (
+                        <MenuItem key={store.id} value={store.id}>
+                          <Checkbox
+                            checked={selectedStores.indexOf(store.id) > -1}
+                          />
+                          <ListItemText primary={store.name} />
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                {/* Filtro por Entregador */}
+                <Grid item xs={12} md={4}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Entregadores</InputLabel>
+                    <Select
+                      multiple
+                      sx={{ width: "150px" }}
+                      value={selectedMotoboys}
+                      onChange={handleMotoboyChange}
+                      input={<OutlinedInput label="Entregadores" />}
+                      renderValue={(selected) => (
+                        <Box
+                          sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}
+                        >
+                          {selected.map((value) => {
+                            const motoboy = getUniqueMotoboys().find(
+                              (m) => m.id === value
+                            );
+                            return (
+                              <Chip
+                                key={value}
+                                label={motoboy?.name || value}
+                                size="small"
+                                variant="outlined"
+                                color="info"
+                              />
+                            );
+                          })}
+                        </Box>
+                      )}
+                    >
+                      {getUniqueMotoboys().map((motoboy) => (
+                        <MenuItem key={motoboy.id} value={motoboy.id}>
+                          <Checkbox
+                            checked={selectedMotoboys.indexOf(motoboy.id) > -1}
+                          />
+                          <ListItemText primary={motoboy.name} />
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                {/* Filtro por Método de Pagamento */}
+                <Grid item xs={12} md={4}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Pagamento</InputLabel>
+                    <Select
+                      sx={{ width: "150px" }}
+                      multiple
+                      value={selectedPaymentMethods}
+                      onChange={handlePaymentMethodChange}
+                      input={<OutlinedInput label="Pagamento" />}
+                      renderValue={(selected) => (
+                        <Box
+                          sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}
+                        >
+                          {selected.map((value) => (
+                            <Chip
+                              key={value}
+                              label={value}
+                              size="small"
+                              variant="outlined"
+                              color="secondary"
+                            />
+                          ))}
+                        </Box>
+                      )}
+                    >
+                      {getUniquePaymentMethods().map((method) => (
+                        <MenuItem key={method} value={method}>
+                          <Checkbox
+                            checked={
+                              selectedPaymentMethods.indexOf(method) > -1
+                            }
+                          />
+                          <ListItemText primary={method} />
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                {/* Filtro por Data de Início */}
+                <Grid item xs={12} md={3}>
+                  <TextField
+                    fullWidth
+                    type="date"
+                    label="Data Início"
+                    value={dateFilter.start}
+                    onChange={(e) =>
+                      setDateFilter((prev) => ({
+                        ...prev,
+                        start: e.target.value,
+                      }))
+                    }
+                    InputLabelProps={{ shrink: true }}
+                    size="small"
+                  />
+                </Grid>
+
+                {/* Filtro por Data de Fim */}
+                <Grid item xs={12} md={3}>
+                  <TextField
+                    fullWidth
+                    type="date"
+                    label="Data Fim"
+                    value={dateFilter.end}
+                    onChange={(e) =>
+                      setDateFilter((prev) => ({
+                        ...prev,
+                        end: e.target.value,
+                      }))
+                    }
+                    InputLabelProps={{ shrink: true }}
+                    size="small"
+                  />
+                </Grid>
+
+                {/* Filtro por Preço Mínimo */}
+                <Grid item xs={12} md={3}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Preço Mín. (R$)"
+                    value={priceFilter.min}
+                    onChange={(e) =>
+                      setPriceFilter((prev) => ({
+                        ...prev,
+                        min: e.target.value,
+                      }))
+                    }
+                    inputProps={{ min: 0, step: 0.01 }}
+                    size="small"
+                  />
+                </Grid>
+
+                {/* Filtro por Preço Máximo */}
+                <Grid item xs={12} md={3}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Preço Máx. (R$)"
+                    value={priceFilter.max}
+                    onChange={(e) =>
+                      setPriceFilter((prev) => ({
+                        ...prev,
+                        max: e.target.value,
+                      }))
+                    }
+                    inputProps={{ min: 0, step: 0.01 }}
+                    size="small"
+                  />
+                </Grid>
+              </Grid>
+
+              {/* Contador de resultados */}
+              <Box
+                sx={{
+                  mt: 2,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Typography variant="body2" color="text.secondary">
+                  {filteredOrders.length} de {orders.length} pedidos encontrados
+                </Typography>
+
+                {/* Indicadores de filtros ativos */}
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                  {(selectedStatuses.length > 0 ||
+                    selectedStores.length > 0 ||
+                    selectedMotoboys.length > 0 ||
+                    selectedPaymentMethods.length > 0 ||
+                    dateFilter.start ||
+                    dateFilter.end ||
+                    priceFilter.min ||
+                    priceFilter.max ||
+                    searchText) && (
+                    <Typography
+                      variant="caption"
+                      color="primary.main"
+                      fontWeight="bold"
+                    >
+                      Filtros ativos:
+                    </Typography>
                   )}
-                >
-                  {ORDER_STATUS.map((status) => (
-                    <MenuItem key={status.value} value={status.value}>
-                      <Checkbox
-                        checked={selectedStatuses.indexOf(status.value) > -1}
-                      />
-                      <ListItemText primary={status.label} />
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                  {selectedStatuses.length > 0 && (
+                    <Chip
+                      label={`${selectedStatuses.length} status`}
+                      size="small"
+                      variant="outlined"
+                    />
+                  )}
+                  {selectedStores.length > 0 && (
+                    <Chip
+                      label={`${selectedStores.length} lojas`}
+                      size="small"
+                      variant="outlined"
+                    />
+                  )}
+                  {selectedMotoboys.length > 0 && (
+                    <Chip
+                      label={`${selectedMotoboys.length} entregadores`}
+                      size="small"
+                      variant="outlined"
+                    />
+                  )}
+                  {selectedPaymentMethods.length > 0 && (
+                    <Chip
+                      label={`${selectedPaymentMethods.length} pagamentos`}
+                      size="small"
+                      variant="outlined"
+                    />
+                  )}
+                  {(dateFilter.start || dateFilter.end) && (
+                    <Chip label="Data" size="small" variant="outlined" />
+                  )}
+                  {(priceFilter.min || priceFilter.max) && (
+                    <Chip label="Preço" size="small" variant="outlined" />
+                  )}
+                  {searchText && (
+                    <Chip label="Busca" size="small" variant="outlined" />
+                  )}
+                </Box>
+              </Box>
             </Paper>
 
             {/* Lista de Pedidos */}
@@ -1294,11 +1854,40 @@ export default function OrdersPage() {
                 <Typography variant="h6" color="text.secondary" gutterBottom>
                   Nenhum pedido encontrado
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {selectedStatuses.length > 0
-                    ? "Tente ajustar os filtros para ver mais pedidos."
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mb: 2 }}
+                >
+                  {selectedStatuses.length > 0 ||
+                  selectedStores.length > 0 ||
+                  selectedMotoboys.length > 0 ||
+                  selectedPaymentMethods.length > 0 ||
+                  dateFilter.start ||
+                  dateFilter.end ||
+                  priceFilter.min ||
+                  priceFilter.max ||
+                  searchText
+                    ? "Nenhum pedido corresponde aos filtros selecionados."
                     : "Os pedidos aparecerão aqui quando forem criados."}
                 </Typography>
+                {(selectedStatuses.length > 0 ||
+                  selectedStores.length > 0 ||
+                  selectedMotoboys.length > 0 ||
+                  selectedPaymentMethods.length > 0 ||
+                  dateFilter.start ||
+                  dateFilter.end ||
+                  priceFilter.min ||
+                  priceFilter.max ||
+                  searchText) && (
+                  <Button
+                    variant="outlined"
+                    onClick={handleClearAllFilters}
+                    sx={{ mt: 1 }}
+                  >
+                    Limpar Filtros
+                  </Button>
+                )}
               </Paper>
             ) : (
               <Paper className="orders-table">
@@ -1427,6 +2016,7 @@ export default function OrdersPage() {
                 <FormControl fullWidth>
                   <InputLabel>Entregador</InputLabel>
                   <Select
+                    sx={{ width: "150px" }}
                     value={selectedMotoboy}
                     onChange={(e) => setSelectedMotoboy(e.target.value)}
                     label="Entregador"
@@ -2034,6 +2624,238 @@ export default function OrdersPage() {
                         >
                           Info da Corrida
                         </Typography>
+
+                        {/* Queue Status Card */}
+                        <Card sx={{ mb: 2 }}>
+                          <CardContent>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                mb: 2,
+                              }}
+                            >
+                              <DeliveryIcon
+                                sx={{ mr: 1, color: "primary.main" }}
+                              />
+                              <Typography variant="h6" fontWeight="bold">
+                                Status da Fila
+                              </Typography>
+                            </Box>
+
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 2,
+                                mb: 2,
+                              }}
+                            >
+                              <Box
+                                sx={{ display: "flex", alignItems: "center" }}
+                              >
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                  sx={{ mr: 1 }}
+                                >
+                                  Status:
+                                </Typography>
+                                <Chip
+                                  label={
+                                    selectedOrder.motoboy?.queue?.status ||
+                                    "Não definido"
+                                  }
+                                  color={
+                                    selectedOrder.motoboy?.queue?.status ===
+                                    "confirmado"
+                                      ? "success"
+                                      : selectedOrder.motoboy?.queue?.status ===
+                                        "pendente"
+                                      ? "warning"
+                                      : "default"
+                                  }
+                                  variant="outlined"
+                                  size="small"
+                                />
+                              </Box>
+
+                              <Box
+                                sx={{ display: "flex", alignItems: "center" }}
+                              >
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                  sx={{ mr: 1 }}
+                                >
+                                  Total de Entregadores:
+                                </Typography>
+                                <Chip
+                                  label={
+                                    selectedOrder.motoboy?.queue?.motoboys
+                                      ?.length || 0
+                                  }
+                                  color="info"
+                                  variant="outlined"
+                                  size="small"
+                                />
+                              </Box>
+                            </Box>
+
+                            {/* Lista de Motoboys na Fila */}
+                            {selectedOrder.motoboy?.queue?.motoboys &&
+                              selectedOrder.motoboy.queue.motoboys.length >
+                                0 && (
+                                <Box>
+                                  <Typography
+                                    variant="subtitle2"
+                                    fontWeight="bold"
+                                    sx={{ mb: 1 }}
+                                  >
+                                    Entregadores na Fila:
+                                  </Typography>
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      gap: 1,
+                                    }}
+                                  >
+                                    {selectedOrder.motoboy.queue.motoboys.map(
+                                      (motoboy, index) => (
+                                        <Box
+                                          key={motoboy._id || index}
+                                          sx={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "space-between",
+                                            p: 1.5,
+                                            border: "1px solid",
+                                            borderColor:
+                                              motoboy._id ===
+                                                selectedOrder.motoboy?.motoboyId
+                                                  ?.$oid ||
+                                              motoboy._id ===
+                                                selectedOrder.motoboy?.motoboyId
+                                                ? "success.main"
+                                                : "divider",
+                                            borderRadius: 1,
+                                            bgcolor:
+                                              motoboy._id ===
+                                                selectedOrder.motoboy?.motoboyId
+                                                  ?.$oid ||
+                                              motoboy._id ===
+                                                selectedOrder.motoboy?.motoboyId
+                                                ? "success.lighter"
+                                                : "background.paper",
+                                          }}
+                                        >
+                                          <Box
+                                            sx={{
+                                              display: "flex",
+                                              alignItems: "center",
+                                              flex: 1,
+                                            }}
+                                          >
+                                            <Avatar
+                                              sx={{
+                                                width: 32,
+                                                height: 32,
+                                                mr: 1,
+                                                bgcolor:
+                                                  motoboy._id ===
+                                                    selectedOrder.motoboy
+                                                      ?.motoboyId?.$oid ||
+                                                  motoboy._id ===
+                                                    selectedOrder.motoboy
+                                                      ?.motoboyId
+                                                    ? "success.main"
+                                                    : "primary.main",
+                                              }}
+                                            >
+                                              {index + 1}
+                                            </Avatar>
+                                            <Box>
+                                              <Typography
+                                                variant="body2"
+                                                fontWeight="medium"
+                                                sx={{
+                                                  display: "flex",
+                                                  alignItems: "center",
+                                                  gap: 0.5,
+                                                }}
+                                              >
+                                                {motoboy.name}
+                                                {(motoboy._id ===
+                                                  selectedOrder.motoboy
+                                                    ?.motoboyId?.$oid ||
+                                                  motoboy._id ===
+                                                    selectedOrder.motoboy
+                                                      ?.motoboyId) && (
+                                                  <Chip
+                                                    label="Selecionado"
+                                                    color="success"
+                                                    size="small"
+                                                    sx={{
+                                                      height: 20,
+                                                      fontSize: "0.75rem",
+                                                    }}
+                                                  />
+                                                )}
+                                              </Typography>
+                                              <Typography
+                                                variant="caption"
+                                                color="text.secondary"
+                                              >
+                                                Score:{" "}
+                                                {motoboy.score.toFixed(1)} |
+                                                Distância:{" "}
+                                                {motoboy.distance < 1000
+                                                  ? `${motoboy.distance}m`
+                                                  : `${(
+                                                      motoboy.distance / 1000
+                                                    ).toFixed(1)}km`}
+                                              </Typography>
+                                            </Box>
+                                          </Box>
+
+                                          <Box
+                                            sx={{
+                                              display: "flex",
+                                              flexDirection: "column",
+                                              alignItems: "end",
+                                            }}
+                                          >
+                                            <Chip
+                                              label={
+                                                motoboy.isAvailable
+                                                  ? "Disponível"
+                                                  : "Ocupado"
+                                              }
+                                              color={
+                                                motoboy.isAvailable
+                                                  ? "success"
+                                                  : "error"
+                                              }
+                                              variant="outlined"
+                                              size="small"
+                                              sx={{ mb: 0.5 }}
+                                            />
+                                            <Typography
+                                              variant="caption"
+                                              color="text.secondary"
+                                            >
+                                              ~{motoboy.estimatedTimeMinutes}min
+                                            </Typography>
+                                          </Box>
+                                        </Box>
+                                      )
+                                    )}
+                                  </Box>
+                                </Box>
+                              )}
+                          </CardContent>
+                        </Card>
                         <Card variant="outlined">
                           <CardContent>
                             <Box>
@@ -2323,6 +3145,7 @@ export default function OrdersPage() {
                 <FormControl fullWidth>
                   <InputLabel>Novo Status</InputLabel>
                   <Select
+                    sx={{ width: "150px" }}
                     value={newStatus}
                     onChange={(e) => setNewStatus(e.target.value)}
                     label="Novo Status"

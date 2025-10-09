@@ -154,8 +154,16 @@ class MotoboyService {
       !order.motoboy.queue.motoboys ||
       order.motoboy.queue.motoboys.length === 0
     ) {
+      const newMotoboys = motoboys.map((m) => ({
+        motoboyId: m._id,
+        name: m.name,
+        _id: m._id,
+        score: m.score,
+        distance: m.distance,
+        estimatedTimeMinutes: m.estimatedTimeMinutes,
+      }));
       order.motoboy.queue = {
-        motoboys: motoboys || [],
+        motoboys: newMotoboys,
         motoboy_status: [],
         status: "buscando",
       };
