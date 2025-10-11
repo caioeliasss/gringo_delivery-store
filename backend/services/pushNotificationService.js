@@ -229,18 +229,31 @@ const pushNotificationService = {
         title: title,
         body: message,
         message: message,
+        // ✅ Dados específicos para fullscreen
+        showFullScreen: "true",
+        fullScreenIntent: "true",
+        importance: "max",
+        category: "call",
+        vibrate: "true",
+        priority: "high",
       });
 
       const payload = {
         token: token,
+        // ✅ CRÍTICO: Para fullscreen, usar APENAS data (sem notification)
         data: stringData,
         android: {
           priority: "high",
+          // ✅ TTL reduzido para urgência (30 segundos)
+          ttl: 30000,
+          // ✅ Para data-only message, NÃO usar o campo 'notification'
+          // As configurações de exibição serão feitas no backgroundHandler
         },
         apns: {
           headers: {
             "apns-priority": "10",
-            "apns-push-type": "alert",
+            "apns-push-type": "background",
+            "apns-expiration": String(Math.floor(Date.now() / 1000) + 30),
           },
           payload: {
             aps: {
@@ -248,21 +261,38 @@ const pushNotificationService = {
                 title: title,
                 body: message,
               },
-              sound: "default",
+              sound: {
+                // ✅ Som crítico para iOS (bypassa modo silencioso)
+                critical: 1,
+                name: "default",
+                volume: 1.0,
+              },
               badge: 1,
               "content-available": 1,
               "mutable-content": 1,
-              category: "DELIVERY_NOTIFICATION",
-              "interruption-level": "time-sensitive",
+              // ✅ Categoria específica para chamadas
+              category: "INCOMING_CALL",
+              // ✅ Nível de interrupção crítico
+              "interruption-level": "critical",
+              // ✅ Score de relevância máxima
+              "relevance-score": 1.0,
             },
           },
         },
       };
 
+      console.log("📱 Enviando FCM fullscreen:", {
+        token: token.substring(0, 20) + "...",
+        hasData: !!stringData,
+        androidPriority: payload.android?.priority,
+        iosPriority: payload.apns?.headers?.["apns-priority"],
+      });
+
       const response = await admin.messaging().send(payload);
+      console.log("✅ FCM fullscreen enviado com sucesso:", response);
       return response;
     } catch (error) {
-      console.error("❌ Erro ao enviar FCM:", error);
+      console.error("❌ Erro ao enviar FCM fullscreen:", error);
       throw error;
     }
   },

@@ -1025,6 +1025,50 @@ const notifyAdmin = async (req, res) => {
   }
 };
 
+const testFullScreenNotification = async (req, res) => {
+  try {
+    const { motoboyId, firebaseUid } = req.body;
+    if (!motoboyId && !firebaseUid) {
+      return res.status(400).json({
+        message: "motoboyId ou firebaseUid é obrigatório",
+      });
+    }
+    let motoboy = null;
+    if (motoboyId) {
+      motoboy = await Motoboy.findById(motoboyId);
+    }
+    if (firebaseUid && !motoboy) {
+      motoboy = await Motoboy.findOne({ firebaseUid: firebaseUid });
+    }
+    if (!motoboy) {
+      return res.status(404).json({ message: "Motoboy não encontrado" });
+    }
+
+    if (motoboy.fcmToken) {
+      await pushNotificationService.sendCallStyleNotificationFCM(
+        motoboy.fcmToken,
+        "Notificação de Teste",
+        "Esta é uma notificação de teste em tela cheia.",
+        {
+          notificationId: "test-fullscreen-" + Date.now(),
+          type: "TEST_FULLSCREEN",
+          screen: "/settings",
+        }
+      );
+      res.status(200).json({
+        message: "Notificação de teste enviada com sucesso",
+      });
+    } else {
+      res.status(400).json({
+        message: "Motoboy não possui token FCM para receber notificações",
+      });
+    }
+  } catch (error) {
+    console.error("Erro ao enviar notificação de teste:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 router.get("/firebase", getFirebaseNotifications);
 router.get("/admin", getAdminNotifications);
 router.put("/admin", updateAdminNotification);
@@ -1049,5 +1093,6 @@ router.post("/call-style", createCallStyleNotification);
 router.post("/call-style/respond", respondToCallStyleNotification);
 router.get("/call-style/:callId", getCallInfo);
 router.post("/order-ready", orderReadyNotification);
+router.post("/test-fullscreen", testFullScreenNotification);
 
 module.exports = router;

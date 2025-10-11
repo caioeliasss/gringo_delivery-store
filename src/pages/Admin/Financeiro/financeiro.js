@@ -1536,6 +1536,34 @@ const AdminFinanceiro = () => {
                     {selectedBilling.paymentMethod}
                   </Typography>
                 </Grid>
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" color="textSecondary">
+                    Link da Fatura
+                  </Typography>
+                  {selectedBilling.asaasData ? (
+                    <a
+                      href={selectedBilling.asaasData.invoiceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        color: "#1976d2",
+                        textDecoration: "none",
+                        fontWeight: "500",
+                        padding: "8px 16px",
+                        borderRadius: "4px",
+                        border: "1px solid #1976d2",
+                        display: "inline-block",
+                        marginTop: "8px",
+                      }}
+                    >
+                      Visualizar Fatura
+                    </a>
+                  ) : (
+                    <Typography variant="body1" gutterBottom>
+                      Sem link disponível
+                    </Typography>
+                  )}
+                </Grid>
               </Grid>
             </Box>
           )}
