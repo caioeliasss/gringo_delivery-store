@@ -4,6 +4,7 @@ const notificationService = require("../services/notificationService");
 // Modelo de Ocorrência
 const Occurrence = require("../models/Occurrence");
 const emailService = require("../services/emailService");
+const aiService = require("../services/aiService");
 
 // GET - Buscar todas as ocorrências
 router.get("/", async (req, res) => {
@@ -178,6 +179,19 @@ router.post("/", async (req, res) => {
       coordinates: coordinates || null,
       firebaseUid: firebaseUid || null,
     });
+
+    // Gera resposta automática da IA baseada na descrição da ocorrência
+    try {
+      newOccurrence.answerAi = await aiService.generateOccurrenceResponse(
+        description,
+        type
+      );
+    } catch (error) {
+      console.error("Erro ao gerar resposta da IA:", error);
+      // Continua o processo mesmo se a IA falhar
+      newOccurrence.answerAi =
+        "Sua ocorrência foi registrada e nossa equipe irá analisar em breve.";
+    }
 
     const savedOccurrence = await newOccurrence.save();
 
@@ -699,6 +713,74 @@ router.get("/reports/resolution-performance", async (req, res) => {
     console.error("Erro ao buscar performance de resolução:", error);
     res.status(500).json({
       message: "Erro ao buscar performance",
+      error: error.message,
+    });
+  }
+});
+
+// POST - Testar resposta da IA para uma descrição
+router.post("/test-ai-response", async (req, res) => {
+  try {
+    const { description, type = "OUTRO" } = req.body;
+
+    if (!description) {
+      return res.status(400).json({
+        message: "Descrição é obrigatória para testar a resposta da IA",
+      });
+    }
+
+    const aiResponse = await aiService.generateOccurrenceResponse(
+      description,
+      type
+    );
+    const priority = aiService.analyzePriority(description, type);
+
+    res.status(200).json({
+      originalDescription: description,
+      type,
+      aiResponse,
+      suggestedPriority: priority,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("Erro ao testar resposta da IA:", error);
+    res.status(500).json({
+      message: "Erro ao gerar resposta de teste da IA",
+      error: error.message,
+    });
+  }
+});
+
+// PUT - Regenerar resposta da IA para uma ocorrência existente
+router.put("/:id/regenerate-ai-response", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Verificar se a ocorrência existe
+    const occurrence = await Occurrence.findById(id);
+    if (!occurrence) {
+      return res.status(404).json({ message: "Ocorrência não encontrada" });
+    }
+
+    // Regenerar resposta da IA
+    const newAiResponse = await aiService.generateOccurrenceResponse(
+      occurrence.description,
+      occurrence.type
+    );
+
+    // Atualizar ocorrência
+    occurrence.answerAi = newAiResponse;
+    const updatedOccurrence = await occurrence.save();
+
+    res.status(200).json({
+      message: "Resposta da IA regenerada com sucesso",
+      occurrence: updatedOccurrence,
+      newAiResponse,
+    });
+  } catch (error) {
+    console.error("Erro ao regenerar resposta da IA:", error);
+    res.status(500).json({
+      message: "Erro ao regenerar resposta da IA",
       error: error.message,
     });
   }

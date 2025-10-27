@@ -63,6 +63,9 @@ import {
   Chat as ChatIcon,
   Logout as LogoutIcon,
   ReportProblem as OcorrenciasIcon,
+  SmartToy as SmartToyIcon,
+  AutoAwesome as AutoAwesomeIcon,
+  Psychology as PsychologyIcon,
 } from "@mui/icons-material";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -92,7 +95,7 @@ export default function OcorrenciasPage() {
 
   const [ocorrencias, setOcorrencias] = useState([]);
   const [filteredOcorrencias, setFilteredOcorrencias] = useState([]);
-  const [filter, setFilter] = useState(0); // 0: Todas, 1: Abertas, 2: Finalizadas
+  const [filter, setFilter] = useState(1); // 0: Todas, 1: Abertas, 2: Finalizadas
   const [loading, setLoading] = useState(true);
   const [dialogVisible, setDialogVisible] = useState(false);
   const [estabelecimento, setEstabelecimento] = useState({});
@@ -158,7 +161,7 @@ export default function OcorrenciasPage() {
         break;
       case 2: // Finalizadas
         setFilteredOcorrencias(
-          ocorrencias.filter((o) => o.status === "FINALIZADA")
+          ocorrencias.filter((o) => o.status === "FECHADO")
         );
         break;
       default: // Todas
@@ -166,6 +169,8 @@ export default function OcorrenciasPage() {
         break;
     }
   };
+
+  const [aiGenerating, setAiGenerating] = useState(false);
 
   const submitOcorrencia = async () => {
     if (!formData.assunto || !formData.descricao) {
@@ -175,6 +180,8 @@ export default function OcorrenciasPage() {
 
     try {
       setLoading(true);
+      setAiGenerating(true);
+
       const ocorrenciaData = {
         type: formData.assunto,
         storeId: estabelecimento?._id || null,
@@ -184,6 +191,9 @@ export default function OcorrenciasPage() {
         date: new Date(),
       };
 
+      // Simular delay para mostrar o processo da IA
+      setTimeout(() => setAiGenerating(false), 2000);
+
       await api.post("/occurrences", ocorrenciaData);
       await api.post("/notifications/notifySupport", {
         title: "Nova Ocorrência - Estabelecimento",
@@ -192,13 +202,16 @@ export default function OcorrenciasPage() {
 
       setDialogVisible(false);
       setFormData({ assunto: "", descricao: "" });
-      alert("Ocorrência registrada com sucesso!");
+      alert(
+        "Ocorrência registrada com sucesso! A IA Sofia já gerou uma resposta inicial."
+      );
       fetchOcorrencias();
     } catch (error) {
       console.error("Erro ao criar ocorrência:", error);
       alert("Não foi possível registrar a ocorrência.");
     } finally {
       setLoading(false);
+      setAiGenerating(false);
     }
   };
 
@@ -225,7 +238,7 @@ export default function OcorrenciasPage() {
         icon: <PendingIcon fontSize="small" />,
         label: "Pendente",
       },
-      FINALIZADA: {
+      FECHADO: {
         color: "success",
         icon: <CheckCircleIcon fontSize="small" />,
         label: "Finalizada",
@@ -485,10 +498,38 @@ export default function OcorrenciasPage() {
                             >
                               <IconComponent />
                             </Avatar>
-                            <Box>
-                              <Typography variant="h6" fontWeight="bold">
-                                {getAssuntoLabel(ocorrencia.type)}
-                              </Typography>
+                            <Box sx={{ flex: 1 }}>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 1,
+                                  mb: 0.5,
+                                }}
+                              >
+                                <Typography variant="h6" fontWeight="bold">
+                                  {getAssuntoLabel(ocorrencia.type)}
+                                </Typography>
+                                {ocorrencia.answerAi && (
+                                  <Chip
+                                    icon={
+                                      <SmartToyIcon sx={{ fontSize: 14 }} />
+                                    }
+                                    label="IA Respondeu"
+                                    size="small"
+                                    sx={{
+                                      background:
+                                        "linear-gradient(45deg, #667eea, #764ba2)",
+                                      color: "white",
+                                      fontWeight: "bold",
+                                      fontSize: "0.7rem",
+                                      "& .MuiChip-icon": {
+                                        color: "white",
+                                      },
+                                    }}
+                                  />
+                                )}
+                              </Box>
                               <Typography
                                 variant="body2"
                                 color="text.secondary"
@@ -497,7 +538,46 @@ export default function OcorrenciasPage() {
                               </Typography>
                             </Box>
                           </Box>
-                          {getStatusChip(ocorrencia.status)}
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "flex-end",
+                              gap: 1,
+                            }}
+                          >
+                            {getStatusChip(ocorrencia.status)}
+                            {ocorrencia.answerAi && (
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  backgroundColor: "rgba(102, 126, 234, 0.1)",
+                                  borderRadius: 1,
+                                  px: 1,
+                                  py: 0.5,
+                                }}
+                              >
+                                <AutoAwesomeIcon
+                                  sx={{
+                                    fontSize: 14,
+                                    color: "#667eea",
+                                    mr: 0.5,
+                                  }}
+                                />
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    color: "#667eea",
+                                    fontWeight: "bold",
+                                    fontSize: "0.7rem",
+                                  }}
+                                >
+                                  Resposta Inteligente
+                                </Typography>
+                              </Box>
+                            )}
+                          </Box>
                         </Box>
 
                         {/* Descrição */}
@@ -508,17 +588,163 @@ export default function OcorrenciasPage() {
                           {ocorrencia.description}
                         </Typography>
 
-                        {/* Resposta do Suporte */}
+                        {/* Resposta Automática da IA */}
+                        {ocorrencia.answerAi && (
+                          <>
+                            <Divider sx={{ my: 2 }} />
+                            <Box
+                              sx={{
+                                position: "relative",
+                                p: 3,
+                                background:
+                                  "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                                borderRadius: 2,
+                                color: "white",
+                                boxShadow:
+                                  "0 8px 32px rgba(102, 126, 234, 0.2)",
+                                border: "1px solid rgba(255, 255, 255, 0.1)",
+                                "&::before": {
+                                  content: '""',
+                                  position: "absolute",
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  background:
+                                    "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)",
+                                  borderRadius: 2,
+                                  pointerEvents: "none",
+                                },
+                              }}
+                            >
+                              {/* Header da IA */}
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  mb: 2,
+                                  position: "relative",
+                                  zIndex: 1,
+                                }}
+                              >
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    backgroundColor:
+                                      "rgba(255, 255, 255, 0.15)",
+                                    borderRadius: 2,
+                                    px: 2,
+                                    py: 1,
+                                    backdropFilter: "blur(10px)",
+                                  }}
+                                >
+                                  <SmartToyIcon sx={{ mr: 1, fontSize: 20 }} />
+                                  <Typography
+                                    variant="subtitle2"
+                                    fontWeight="bold"
+                                    sx={{ mr: 1 }}
+                                  >
+                                    Sofia
+                                  </Typography>
+                                  <Chip
+                                    icon={
+                                      <AutoAwesomeIcon sx={{ fontSize: 14 }} />
+                                    }
+                                    label="IA"
+                                    size="small"
+                                    sx={{
+                                      backgroundColor:
+                                        "rgba(255, 255, 255, 0.2)",
+                                      color: "white",
+                                      fontWeight: "bold",
+                                      fontSize: "0.7rem",
+                                      "& .MuiChip-icon": {
+                                        color: "white",
+                                      },
+                                    }}
+                                  />
+                                </Box>
+                                <Box
+                                  sx={{
+                                    ml: "auto",
+                                    display: "flex",
+                                    alignItems: "center",
+                                  }}
+                                >
+                                  <Chip
+                                    label="Resposta Automática"
+                                    size="small"
+                                    sx={{
+                                      backgroundColor:
+                                        "rgba(255, 255, 255, 0.1)",
+                                      color: "rgba(255, 255, 255, 0.8)",
+                                      fontSize: "0.7rem",
+                                      border:
+                                        "1px solid rgba(255, 255, 255, 0.2)",
+                                    }}
+                                  />
+                                </Box>
+                              </Box>
+
+                              {/* Conteúdo da resposta */}
+                              <Box
+                                sx={{
+                                  position: "relative",
+                                  zIndex: 1,
+                                }}
+                              >
+                                <Typography
+                                  variant="body1"
+                                  sx={{
+                                    lineHeight: 1.6,
+                                    fontSize: "0.95rem",
+                                    textShadow: "0 1px 2px rgba(0,0,0,0.1)",
+                                  }}
+                                >
+                                  {ocorrencia.answerAi}
+                                </Typography>
+                              </Box>
+
+                              {/* Efeito de brilho */}
+                              <Box
+                                sx={{
+                                  position: "absolute",
+                                  top: -2,
+                                  right: -2,
+                                  width: 20,
+                                  height: 20,
+                                  background:
+                                    "radial-gradient(circle, rgba(255,255,255,0.8) 0%, transparent 70%)",
+                                  borderRadius: "50%",
+                                  animation: "sparkle 2s ease-in-out infinite",
+                                  "@keyframes sparkle": {
+                                    "0%, 100%": {
+                                      opacity: 0.3,
+                                      transform: "scale(0.8)",
+                                    },
+                                    "50%": {
+                                      opacity: 1,
+                                      transform: "scale(1.2)",
+                                    },
+                                  },
+                                }}
+                              />
+                            </Box>
+                          </>
+                        )}
+
+                        {/* Resposta do Suporte Humano */}
                         {ocorrencia.answer && (
                           <>
                             <Divider sx={{ my: 2 }} />
                             <Box
                               sx={{
                                 p: 2,
-                                backgroundColor: "info.light",
+                                backgroundColor: "success.light",
                                 borderRadius: 1,
                                 borderLeft: 4,
-                                borderLeftColor: "info.main",
+                                borderLeftColor: "success.main",
                               }}
                             >
                               <Box
@@ -528,16 +754,28 @@ export default function OcorrenciasPage() {
                                   mb: 1,
                                 }}
                               >
-                                <ReplyIcon sx={{ mr: 1, color: "info.main" }} />
+                                <ReplyIcon
+                                  sx={{ mr: 1, color: "success.main" }}
+                                />
                                 <Typography
                                   variant="subtitle2"
                                   fontWeight="bold"
-                                  color="info.main"
+                                  color="success.main"
                                 >
                                   Resposta do Suporte
                                 </Typography>
+                                <Chip
+                                  label="Atendimento Humano"
+                                  size="small"
+                                  sx={{
+                                    ml: 1,
+                                    backgroundColor: "success.main",
+                                    color: "white",
+                                    fontSize: "0.7rem",
+                                  }}
+                                />
                               </Box>
-                              <Typography variant="body2">
+                              <Typography variant="body2" color="success.dark">
                                 {ocorrencia.answer}
                               </Typography>
                             </Box>
@@ -696,9 +934,25 @@ export default function OcorrenciasPage() {
                   sx={{ mb: 2 }}
                 />
 
-                <Alert severity="info" sx={{ mt: 2 }}>
-                  Esta ocorrência será enviada para nossa equipe de suporte que
-                  entrará em contato em breve.
+                <Alert
+                  severity="info"
+                  sx={{
+                    mt: 2,
+                    background:
+                      "linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1))",
+                    borderLeft: "4px solid #667eea",
+                  }}
+                  icon={<SmartToyIcon />}
+                >
+                  <Typography
+                    variant="body2"
+                    sx={{ fontWeight: "bold", mb: 0.5 }}
+                  >
+                    🤖 IA Sofia + Suporte Humano
+                  </Typography>
+                  Nossa IA Sofia gerará uma resposta inicial automática para sua
+                  ocorrência. Nossa equipe de suporte também será notificada e
+                  entrará em contato se necessário.
                 </Alert>
               </Box>
             </DialogContent>
@@ -712,10 +966,28 @@ export default function OcorrenciasPage() {
                 onClick={submitOcorrencia}
                 disabled={loading || !formData.assunto || !formData.descricao}
                 startIcon={
-                  loading ? <CircularProgress size={20} /> : <AddIcon />
+                  loading ? (
+                    aiGenerating ? (
+                      <SmartToyIcon />
+                    ) : (
+                      <CircularProgress size={20} />
+                    )
+                  ) : (
+                    <AddIcon />
+                  )
                 }
+                sx={{
+                  background:
+                    loading && aiGenerating
+                      ? "linear-gradient(45deg, #667eea, #764ba2)"
+                      : undefined,
+                }}
               >
-                {loading ? "Enviando..." : "Enviar Ocorrência"}
+                {loading
+                  ? aiGenerating
+                    ? "IA Sofia está gerando resposta..."
+                    : "Finalizando..."
+                  : "Enviar Ocorrência"}
               </Button>
             </DialogActions>
           </Dialog>

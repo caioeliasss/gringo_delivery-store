@@ -10,6 +10,10 @@ const occurrenceSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
+  answerAi: {
+    type: String,
+    required: false,
+  },
   description: {
     type: String,
     required: true,
