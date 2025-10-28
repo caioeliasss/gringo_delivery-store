@@ -6,8 +6,15 @@ const Motoboy = require("../models/Motoboy");
 const travelServices = require("../services/travelServices");
 
 const createTravel = async (req, res) => {
-  const { price, rain, distance, coordinatesFrom, coordinatesTo, order } =
-    req.body;
+  const {
+    price,
+    rain,
+    distance,
+    coordinatesFrom,
+    coordinatesTo,
+    order,
+    motoboyId,
+  } = req.body;
   try {
     const travel = new Travel({
       price: price,
@@ -15,7 +22,7 @@ const createTravel = async (req, res) => {
       distance: distance,
       coordinatesFrom: coordinatesFrom,
       coordinatesTo: coordinatesTo,
-      motoboyId: order.motoboy.motoboyId,
+      motoboyId: order.motoboy.motoboyId || motoboyId,
       order: order,
       customerCount: order.customer.length || 1,
     });

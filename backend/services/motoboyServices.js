@@ -35,6 +35,29 @@ class MotoboyService {
   async findBestMotoboys(coordinates, maxDistance = 15000, limit = 100) {
     // Filtrando os motoboys que cancelaram a corrida ou que aceitaram e depois cancelaram
     try {
+      // Validate input coordinates
+      if (
+        !coordinates ||
+        !Array.isArray(coordinates) ||
+        coordinates.length < 2
+      ) {
+        console.error("Invalid coordinates provided:", coordinates);
+        return [];
+      }
+
+      if (
+        typeof coordinates[0] !== "number" ||
+        typeof coordinates[1] !== "number"
+      ) {
+        console.error("Coordinates must be numbers:", coordinates);
+        return [];
+      }
+
+      if (isNaN(coordinates[0]) || isNaN(coordinates[1])) {
+        console.error("Coordinates cannot be NaN:", coordinates);
+        return [];
+      }
+
       // First find all available and approved motoboys within the max distance
 
       const nearbyMotoboys = await Motoboy.find({})
@@ -48,37 +71,50 @@ class MotoboyService {
           "name phoneNumber coordinates score profileImage isAvailable lastActive firebaseUid"
         );
 
-      //   console.log(nearbyMotoboys.length);
+      console.log("Nearby motoboys found:", nearbyMotoboys.length);
 
       if (!nearbyMotoboys || nearbyMotoboys.length === 0) {
         return [];
       }
 
       // Calculate exact distance for each motoboy using geolib
-      const motoboyWithDistance = nearbyMotoboys.map((motoboy) => {
-        const distanceMeters = geolib.getDistance(
-          {
-            latitude: coordinates[1],
-            longitude: coordinates[0],
-          },
-          {
-            latitude: motoboy.coordinates[1],
-            longitude: motoboy.coordinates[0],
-          }
-        );
-        return {
-          _id: motoboy._id,
-          name: motoboy.name,
-          phoneNumber: motoboy.phoneNumber,
-          score: motoboy.score,
-          profileImage: motoboy.profileImage,
-          isAvailable: motoboy.isAvailable,
-          lastActive: motoboy.lastActive,
-          firebaseUid: motoboy.firebaseUid,
-          distance: distanceMeters,
-          estimatedTimeMinutes: this.estimateTravelTime(distanceMeters),
-        };
-      });
+      const motoboyWithDistance = nearbyMotoboys
+        .filter((motoboy) => {
+          // Filter out motoboys with invalid coordinates
+          return (
+            motoboy.coordinates &&
+            Array.isArray(motoboy.coordinates) &&
+            motoboy.coordinates.length >= 2 &&
+            typeof motoboy.coordinates[0] === "number" &&
+            typeof motoboy.coordinates[1] === "number" &&
+            !isNaN(motoboy.coordinates[0]) &&
+            !isNaN(motoboy.coordinates[1])
+          );
+        })
+        .map((motoboy) => {
+          const distanceMeters = geolib.getDistance(
+            {
+              latitude: coordinates[1],
+              longitude: coordinates[0],
+            },
+            {
+              latitude: motoboy.coordinates[1],
+              longitude: motoboy.coordinates[0],
+            }
+          );
+          return {
+            _id: motoboy._id,
+            name: motoboy.name,
+            phoneNumber: motoboy.phoneNumber,
+            score: motoboy.score,
+            profileImage: motoboy.profileImage,
+            isAvailable: motoboy.isAvailable,
+            lastActive: motoboy.lastActive,
+            firebaseUid: motoboy.firebaseUid,
+            distance: distanceMeters,
+            estimatedTimeMinutes: this.estimateTravelTime(distanceMeters),
+          };
+        });
 
       // Final sorting - first by availability, then by score (for same availability), then by distance
       return motoboyWithDistance.sort((a, b) => {

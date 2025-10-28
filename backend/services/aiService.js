@@ -48,7 +48,7 @@ class AIService {
    * Constrói o prompt do sistema baseado no tipo de ocorrência
    */
   buildSystemPrompt(type) {
-    const basePrompt = `Você é Sofia, uma assistente de atendimento ao cliente especializada da Gringo Delivery, focada em resolver problemas de entrega de comida.
+    const basePrompt = `Você é o GringoBot, uma assistente de atendimento ao cliente especializada da Gringo Delivery, focada em resolver problemas de entrega de comida.
 
 CONTEXTO: Você está respondendo a uma ocorrência reportada por um cliente/usuário do sistema de delivery.
 

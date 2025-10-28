@@ -203,7 +203,7 @@ export default function OcorrenciasPage() {
       setDialogVisible(false);
       setFormData({ assunto: "", descricao: "" });
       alert(
-        "Ocorrência registrada com sucesso! A IA Sofia já gerou uma resposta inicial."
+        "Ocorrência registrada com sucesso! A IA GringoBot já gerou uma resposta inicial."
       );
       fetchOcorrencias();
     } catch (error) {
@@ -645,7 +645,7 @@ export default function OcorrenciasPage() {
                                     fontWeight="bold"
                                     sx={{ mr: 1 }}
                                   >
-                                    Sofia
+                                    GringoBot
                                   </Typography>
                                   <Chip
                                     icon={
@@ -948,11 +948,11 @@ export default function OcorrenciasPage() {
                     variant="body2"
                     sx={{ fontWeight: "bold", mb: 0.5 }}
                   >
-                    🤖 IA Sofia + Suporte Humano
+                    🤖 IA GringoBot + Suporte Humano
                   </Typography>
-                  Nossa IA Sofia gerará uma resposta inicial automática para sua
-                  ocorrência. Nossa equipe de suporte também será notificada e
-                  entrará em contato se necessário.
+                  Nossa IA GringoBot gerará uma resposta inicial automática para
+                  sua ocorrência. Nossa equipe de suporte também será notificada
+                  e entrará em contato se necessário.
                 </Alert>
               </Box>
             </DialogContent>
@@ -985,7 +985,7 @@ export default function OcorrenciasPage() {
               >
                 {loading
                   ? aiGenerating
-                    ? "IA Sofia está gerando resposta..."
+                    ? "IA GringoBot está gerando resposta..."
                     : "Finalizando..."
                   : "Enviar Ocorrência"}
               </Button>

@@ -812,6 +812,22 @@ const Occurrences = () => {
             {selectedOccurrence.description}
           </Typography>
 
+          <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+            Resposta da Inteligencia Aritificial:
+          </Typography>
+          <Typography
+            variant="body1"
+            sx={{
+              mb: 3,
+              whiteSpace: "pre-wrap",
+              bgcolor: "#f5f5f5",
+              p: 2,
+              borderRadius: 1,
+            }}
+          >
+            {selectedOccurrence.answerAi}
+          </Typography>
+
           <Divider sx={{ my: 3 }} />
 
           <Grid container spacing={2}>
