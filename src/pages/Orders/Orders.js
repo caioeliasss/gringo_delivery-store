@@ -109,7 +109,7 @@ import DeliveryRouteMap from "../../components/DeliveryRouteMap";
 
 const ORDER_STATUS = [
   {
-    label: "Buscando motorista",
+    label: "Pendente",
     value: "pendente",
     icon: PendingIcon,
     color: "warning",
@@ -177,7 +177,7 @@ const ORDER_STATUS = [
 export default function OrdersPage() {
   // Hook para carregar a API do Google Maps
   const { isLoaded, loadError } = useJsApiLoader({
-    id: "google-map-script",
+    id: "google-map-script-orders",
     googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
     libraries: ["places", "maps", "geometry"],
   });

@@ -88,7 +88,7 @@ import eventService from "../../services/eventService";
 import socketService from "../../services/socketService";
 import Avaliate from "../../components/Avaliate";
 import BuscandoMotoboy from "../../components/BuscandoMotoboy/BuscandoMotoboy";
-import GoogleMapReact from "google-map-react";
+
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import CreateOrderDialog from "../Orders/CreateOrderDialog";
 import {
@@ -236,7 +236,7 @@ const Pedidos = () => {
   });
 
   const { isLoaded, loadError } = useJsApiLoader({
-    id: "google-map-script",
+    id: "google-map-script-pedidos",
     googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
     libraries: ["places", "maps", "geometry"],
   });
@@ -2512,7 +2512,7 @@ const Pedidos = () => {
           </Paper>
 
           <Box sx={{ mt: 4 }}>
-            <ViewCoordinates />
+            <ViewCoordinates isLoaded={isLoaded} loadError={loadError} />
           </Box>
 
           {/* Contagem de pedidos */}
@@ -4025,6 +4025,8 @@ const Pedidos = () => {
               setCreateDialogOpen(false);
             }}
             storeId={storeId}
+            isLoaded={isLoaded}
+            loadError={loadError}
           />
 
           {/* Snackbar para mensagens */}

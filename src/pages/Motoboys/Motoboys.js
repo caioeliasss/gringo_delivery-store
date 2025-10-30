@@ -114,7 +114,7 @@ const MOTOBOY_STATUS = [
 export default function MotoboysPage() {
   // Hook para carregar a API do Google Maps
   const { isLoaded, loadError } = useJsApiLoader({
-    id: "google-map-script",
+    id: "google-map-script-motoboys",
     googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
     libraries: ["places", "maps", "geometry"],
   });

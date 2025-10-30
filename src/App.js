@@ -44,7 +44,7 @@ import SupportPage from "./pages/Admin/SuportTeam/SupportPage";
 import SupportNotifications from "./pages/Suporte/SupportNotifications";
 import AdminNotifications from "./pages/Admin/Notifications/AdminNotifications";
 import Termos from "./pages/Termos/Termos";
-import ViewCoordinates from "./components/ViewCoordinates/ViewCoordinates";
+import CoordenadasPage from "./pages/Coordenadas/Coordenadas";
 import CorridasStore from "./pages/Store/Corridas/CorridasStore";
 import FinanceiroStore from "./pages/Store/Financeiro/financeiro";
 import StoreNotificationsPage from "./pages/Store/Notifications/StoreNotifications";
@@ -339,7 +339,7 @@ function CustomerApp() {
                   <PrivateRoute>
                     <StoreAuthProvider>
                       <StoreAccessControl>
-                        <ViewCoordinates />
+                        <CoordenadasPage />
                       </StoreAccessControl>
                     </StoreAuthProvider>
                   </PrivateRoute>

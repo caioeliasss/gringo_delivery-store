@@ -156,7 +156,7 @@ const STORE_CATEGORIES = [
 export default function EstabelecimentosPage() {
   // Hook para carregar a API do Google Maps
   const { isLoaded, loadError } = useJsApiLoader({
-    id: "google-map-script",
+    id: "google-map-script-estabelecimentos",
     googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
     libraries: ["places", "maps", "geometry"],
   });

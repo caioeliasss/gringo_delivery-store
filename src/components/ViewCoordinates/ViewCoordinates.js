@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useJsApiLoader } from "@react-google-maps/api";
 import { useAuth } from "../../contexts/AuthContext";
 import { getUserProfile, changeStoreCoordinates } from "../../services/api";
 import {
@@ -25,15 +24,8 @@ import {
   Settings as SettingsIcon,
 } from "@mui/icons-material";
 
-const ViewCoordinates = () => {
+const ViewCoordinates = ({ isLoaded = false, loadError = null }) => {
   const { currentUser } = useAuth();
-
-  // Hook para carregar a API do Google Maps
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: "google-map-script",
-    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
-    libraries: ["places", "maps", "geometry"],
-  });
 
   // Estados principais
   const [loading, setLoading] = useState(true);
