@@ -182,101 +182,202 @@ router.get("/firebase/:id", async (req, res) => {
   }
 });
 
+// Middleware de validação para criação de perfil
+const validateProfileData = (req, res, next) => {
+  const { email, phone, cnpj } = req.body;
+  const userEmail = req.user?.email;
+
+  // Validações básicas
+  if (!userEmail && !email) {
+    return res.status(400).json({
+      message: "Email é obrigatório",
+    });
+  }
+
+  if (!phone) {
+    return res.status(400).json({
+      message: "Telefone é obrigatório",
+    });
+  }
+
+  // Validar formato do CNPJ se fornecido
+  if (cnpj && cnpj.length > 0) {
+    const cnpjNumbers = cnpj.replace(/\D/g, "");
+    if (cnpjNumbers.length !== 14) {
+      return res.status(400).json({
+        message: "CNPJ deve ter 14 dígitos",
+      });
+    }
+  }
+
+  next();
+};
+
 // Rota para criar ou atualizar perfil após autenticação
-router.post("/profile", authenticateToken, async (req, res) => {
-  try {
-    const {
-      displayName,
-      photoURL,
-      cnpj,
-      businessName,
-      address,
-      phone,
-      geolocation,
-      businessHours,
-    } = req.body;
+router.post(
+  "/profile",
+  authenticateToken,
+  validateProfileData,
+  async (req, res) => {
+    try {
+      const {
+        displayName,
+        photoURL,
+        cnpj,
+        businessName,
+        address,
+        phone,
+        geolocation,
+        location, // Adicionando location para compatibilidade
+        businessHours,
+      } = req.body;
 
-    let user = await Store.findOne({ firebaseUid: req.user.uid });
-
-    if (user) {
-      // Atualizar usuário existente
-      user.displayName = displayName || user.displayName;
-      user.photoURL = photoURL || user.photoURL;
-      user.cnpj = cnpj || user.cnpj;
-      user.businessName = businessName || user.businessName;
-      user.address = address || user.address;
-      user.phone = phone || user.phone;
-      user.businessHours = businessHours || user.businessHours;
-
-      // Atualizar geolocalização se fornecida
-      if (geolocation && geolocation.coordinates) {
-        user.geolocation = {
-          type: "Point",
-          coordinates: geolocation.coordinates,
-        };
-      }
-
-      await user.save();
-    } else {
-      // Criar novo usuário
-      user = new Store({
-        firebaseUid: req.user.uid,
-        email: req.user.email,
-        displayName: displayName || req.user.name,
-        photoURL: photoURL || req.user.picture,
-        cnpj: cnpj || null,
-        cnpj_approved: false,
-        businessName: businessName || null,
-        address: address || null,
-        phone: phone || null,
-        businessHours: businessHours || null,
+      // Log para debug
+      console.log("📍 Dados recebidos no backend:", {
+        displayName,
+        cnpj,
+        businessName,
+        phone,
+        hasGeolocation: !!geolocation,
+        hasLocation: !!location,
+        address,
       });
 
-      // Definir geolocalização se fornecida
-      if (geolocation && geolocation.coordinates) {
-        user.geolocation = {
-          type: "Point",
-          coordinates: geolocation.coordinates,
-        };
-      }
+      let user = await Store.findOne({ firebaseUid: req.user.uid });
 
-      await user.save();
+      if (user) {
+        // Atualizar usuário existente
+        user.displayName = displayName || user.displayName;
+        user.photoURL = photoURL || user.photoURL;
+        user.cnpj = cnpj || user.cnpj;
+        user.businessName = businessName || user.businessName;
+        user.address = address || user.address;
+        user.phone = phone || user.phone;
+        user.businessHours = businessHours || user.businessHours;
 
-      // 📧 Enviar email para administradores sobre novo cadastro
-      try {
-        console.log(
-          "📧 Enviando notificação de novo cadastro para administradores..."
-        );
-        const emailResult = await emailService.notifyAdminsNewStoreRegistration(
-          user
-        );
-
-        if (emailResult.success) {
-          console.log(
-            "✅ Email de notificação enviado com sucesso para administradores"
-          );
-        } else {
-          console.warn(
-            "⚠️ Falha ao enviar email para administradores:",
-            emailResult.error
-          );
+        // Atualizar geolocalização se fornecida (aceita tanto geolocation quanto location)
+        const locationData = geolocation || location;
+        if (locationData && locationData.coordinates) {
+          user.geolocation = {
+            type: "Point",
+            coordinates: locationData.coordinates,
+          };
         }
-      } catch (emailError) {
-        console.error(
-          "❌ Erro ao enviar email para administradores:",
-          emailError
-        );
-        // Não interromper o fluxo principal se o email falhar
-      }
-    }
 
-    res.status(200).json(user);
-  } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Erro ao salvar perfil", error: error.message });
+        await user.save();
+      } else {
+        // Criar novo usuário - validar campos obrigatórios
+        if (!req.user.email) {
+          throw new Error("Email é obrigatório");
+        }
+
+        if (!phone) {
+          throw new Error("Telefone é obrigatório");
+        }
+
+        user = new Store({
+          firebaseUid: req.user.uid,
+          email: req.user.email,
+          displayName:
+            displayName || req.user.name || req.user.email.split("@")[0],
+          photoURL: photoURL || req.user.picture,
+          cnpj: cnpj || "",
+          cnpj_approved: false,
+          businessName: businessName || null,
+          address: address || null,
+          phone: phone,
+          businessHours: businessHours || null,
+        });
+
+        // Definir geolocalização se fornecida (aceita tanto geolocation quanto location)
+        const locationData = geolocation || location;
+        if (locationData && locationData.coordinates) {
+          user.geolocation = {
+            type: "Point",
+            coordinates: locationData.coordinates,
+          };
+        }
+
+        console.log("💾 Tentando salvar novo usuário no banco...");
+        await user.save();
+        console.log("✅ Usuário salvo com sucesso no banco:", user._id);
+
+        // 📧 Enviar email para administradores sobre novo cadastro
+        try {
+          console.log(
+            "📧 Enviando notificação de novo cadastro para administradores..."
+          );
+          const emailResult =
+            await emailService.notifyAdminsNewStoreRegistration(user);
+
+          if (emailResult.success) {
+            console.log(
+              "✅ Email de notificação enviado com sucesso para administradores"
+            );
+          } else {
+            console.warn(
+              "⚠️ Falha ao enviar email para administradores:",
+              emailResult.error
+            );
+          }
+        } catch (emailError) {
+          console.error(
+            "❌ Erro ao enviar email para administradores:",
+            emailError
+          );
+          // Não interromper o fluxo principal se o email falhar
+        }
+      }
+
+      console.log("✅ Perfil processado com sucesso, retornando dados...");
+      res.status(200).json(user);
+    } catch (error) {
+      console.error("❌ Erro detalhado ao salvar perfil:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+        code: error.code,
+      });
+
+      // Tratamento específico para diferentes tipos de erro
+      let errorMessage = "Erro ao salvar perfil";
+      let statusCode = 500;
+
+      if (error.name === "ValidationError") {
+        errorMessage =
+          "Dados inválidos: " +
+          Object.values(error.errors)
+            .map((e) => e.message)
+            .join(", ");
+        statusCode = 400;
+      } else if (error.code === 11000) {
+        // Erro de duplicação de chave única
+        const field = Object.keys(error.keyPattern)[0];
+        errorMessage = `Já existe um usuário cadastrado com este ${
+          field === "email" ? "email" : field
+        }`;
+        statusCode = 409;
+      } else if (error.message.includes("é obrigatório")) {
+        errorMessage = error.message;
+        statusCode = 400;
+      }
+
+      res.status(statusCode).json({
+        message: errorMessage,
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
+        details:
+          process.env.NODE_ENV === "development"
+            ? {
+                name: error.name,
+                code: error.code,
+                keyPattern: error.keyPattern,
+              }
+            : undefined,
+      });
+    }
   }
-});
+);
 
 router.post("/freeToNavigate", authenticateToken, async (req, res) => {
   const { storeId } = req.body;

@@ -158,7 +158,17 @@ const Register = () => {
 
       // Após registro no Firebase, criar perfil no backend com CNPJ
       try {
-        await createUserProfile({
+        console.log("📤 Enviando dados do perfil:", {
+          displayName: businessName || email.split("@")[0],
+          email: email,
+          cnpj: cnpjNumbers,
+          location: geolocation,
+          address: storeAddress,
+          businessName: businessName,
+          phone: phone,
+        });
+
+        const response = await createUserProfile({
           displayName: businessName || email.split("@")[0], // Fallback para nome baseado no email
           email: email,
           cnpj: cnpjNumbers,
@@ -167,19 +177,36 @@ const Register = () => {
           businessName: businessName,
           phone: phone,
         });
+
+        console.log("✅ Perfil criado com sucesso:", response.data);
         navigate("/dashboard");
       } catch (profileError) {
-        // Tratamento de erro mais robusto para Safari
+        console.error("❌ Erro ao criar perfil:", profileError);
+
+        // Tratamento de erro mais robusto
         let errorMessage =
           "Conta criada, mas ocorreu um erro ao salvar os dados do perfil.";
 
-        // Verificar se é um erro de rede específico do Safari
-        if (
+        // Verificar se há resposta do servidor
+        if (profileError.response?.data?.message) {
+          errorMessage = `Erro: ${profileError.response.data.message}`;
+        } else if (profileError.response?.status === 409) {
+          errorMessage =
+            "Já existe uma conta cadastrada com este email ou CNPJ.";
+        } else if (profileError.response?.status === 400) {
+          errorMessage =
+            "Dados inválidos. Verifique se todos os campos estão preenchidos corretamente.";
+        } else if (profileError.response?.status >= 500) {
+          errorMessage =
+            "Erro interno do servidor. Tente novamente em alguns minutos.";
+        } else if (
           profileError.name === "TypeError" &&
           profileError.message.includes("Failed to fetch")
         ) {
           errorMessage =
             "Erro de conexão. Verifique sua internet e tente novamente.";
+        } else if (profileError.code === "NETWORK_ERROR") {
+          errorMessage = "Erro de rede. Verifique sua conexão com a internet.";
         }
 
         setError(errorMessage);

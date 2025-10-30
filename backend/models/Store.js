@@ -17,23 +17,23 @@ const pointSchema = new mongoose.Schema({
 const storeAddress = new mongoose.Schema({
   cep: {
     type: String,
-    required: true,
+    required: false, // Mudando para false para evitar erros
   },
   address: {
     type: String,
-    required: true,
+    required: false, // Mudando para false para evitar erros
   },
   addressNumber: {
     type: String,
-    required: true,
+    required: false,
   },
   bairro: {
     type: String,
-    required: true,
+    required: false, // Mudando para false para evitar erros
   },
   cidade: {
     type: String,
-    required: true,
+    required: false, // Mudando para false para evitar erros
   },
   coordinates: {
     type: [Number],
@@ -73,7 +73,7 @@ const storeSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    required: true,
+    required: false, // Mudando para false para evitar erros de validação
   },
   freeToNavigate: {
     type: Boolean,
@@ -84,6 +84,7 @@ const storeSchema = new mongoose.Schema({
     type: String,
     required: false,
     unique: true,
+    sparse: true, // Permite valores null únicos
   },
   coordinates: {
     type: [Number],
@@ -98,6 +99,7 @@ const storeSchema = new mongoose.Schema({
     type: String,
     required: false,
     default: "",
+    sparse: true, // Permite valores vazios únicos
   },
   cnpj_approved: {
     type: Boolean,
@@ -125,13 +127,10 @@ const storeSchema = new mongoose.Schema({
     type: storeAddress,
     required: false,
   },
-  phone: {
-    type: String,
-    required: false,
-  },
   // Campo de geolocalização
   geolocation: {
     type: pointSchema,
+    required: false, // Tornando opcional
     index: "2dsphere", // Índice espacial para consultas de proximidade
   },
   businessHours: {
